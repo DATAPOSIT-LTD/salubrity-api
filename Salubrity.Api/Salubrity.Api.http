@@ -1,0 +1,6 @@
+@Salubrity.Api_HostAddress = http://localhost:5038
+
+GET {{Salubrity.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

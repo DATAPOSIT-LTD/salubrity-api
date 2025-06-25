@@ -23,6 +23,11 @@ public class Role : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
 
     /// <summary>
+    /// Icon CSS class for UI display (e.g., FontAwesome).
+    /// </summary>
+    public string? IconClass { get; set; }  // nullable string
+
+    /// <summary>
     /// If assigned, this role is scoped to a specific organization.
     /// If null, the role is considered global.
     /// </summary>
@@ -32,6 +37,11 @@ public class Role : BaseAuditableEntity
     /// Whether the role is globally available across organizations.
     /// </summary>
     public bool IsGlobal { get; set; } = false;
+
+    /// <summary>
+    /// Integer order for sorting menu items.
+    /// </summary>
+    public int Order { get; set; } = 0;
 
     /// <summary>
     /// Users assigned to this role.

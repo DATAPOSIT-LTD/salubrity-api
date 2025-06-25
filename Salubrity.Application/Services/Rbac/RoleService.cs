@@ -21,14 +21,13 @@ public class RoleService : IRoleService
         var roles = await _repository.GetAllRolesAsync();
 
         var result = roles
-            .OrderBy(r => r.Order) // Order by Order property
+            .OrderBy(r => r.Name) // Order by Order property
             .Select(r => new RoleDto
             {
                 Id = r.Id,
                 Name = r.Name,
                 Description = r.Description,
-                IconClass = r.IconClass,
-                // Add Order to DTO if needed
+              
             });
 
         return ApiResponse<IEnumerable<RoleDto>>.CreateSuccess(result);
@@ -47,8 +46,7 @@ public class RoleService : IRoleService
             Id = role.Id,
             Name = role.Name,
             Description = role.Description,
-            IconClass = role.IconClass,
-            // Add Order to DTO if needed
+           
         };
 
         return ApiResponse<RoleDto>.CreateSuccess(dto);
@@ -61,8 +59,7 @@ public class RoleService : IRoleService
             Id = Guid.NewGuid(),
             Name = input.Name,
             Description = input.Description,
-            IconClass = input.IconClass,
-            Order = input.Order // assuming you add Order to CreateRoleDto
+           
         };
 
         await _repository.AddRoleAsync(role);
@@ -72,8 +69,7 @@ public class RoleService : IRoleService
             Id = role.Id,
             Name = role.Name,
             Description = role.Description,
-            IconClass = role.IconClass,
-            Order = role.Order
+          
         };
 
         return ApiResponse<RoleDto>.CreateSuccess(dto, "Role created successfully.");
@@ -89,8 +85,7 @@ public class RoleService : IRoleService
 
         role.Name = input.Name ?? role.Name;
         role.Description = input.Description ?? role.Description;
-        role.IconClass = input.IconClass ?? role.IconClass;
-        role.Order = input.Order;
+
 
         await _repository.UpdateRoleAsync(role);
 

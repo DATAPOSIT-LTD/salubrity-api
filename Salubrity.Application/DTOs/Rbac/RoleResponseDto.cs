@@ -11,13 +11,7 @@ namespace Salubrity.Application.DTOs.Rbac
         public bool IsActive { get; set; }
         public bool IsGlobal { get; set; }
         public Guid? OrganizationId { get; set; }
-
-        public int OrderId { get; set; }
-
-        // New property for icon CSS class
-        public string? IconClass { get; set; }
-
-        public int Order {  get; set; }
+     
     }
 
     /// <summary>
@@ -31,10 +25,6 @@ namespace Salubrity.Application.DTOs.Rbac
         public bool IsGlobal { get; set; } = false;
         public Guid? OrganizationId { get; set; }
 
-        public int Order { get; set; }
-
-        // New property for icon CSS class
-        public string? IconClass { get; set; }
     }
 
     /// <summary>
@@ -47,9 +37,6 @@ namespace Salubrity.Application.DTOs.Rbac
         public bool? IsActive { get; set; }
         public bool? IsGlobal { get; set; }
         public Guid? OrganizationId { get; set; }
-        public int Order {  get; set; }
-
-        // New property for icon CSS class
-        public string? IconClass { get; set; }
+        
     }
 }

@@ -47,7 +47,22 @@ namespace Salubrity.Infrastructure.Persistence
         // ─────────────────────────────────────
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+
+
             base.OnModelCreating(modelBuilder);
+
+            Console.WriteLine("STARTING MODEL CONFIG");
+
+            try
+            {
+                modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("💥 Error applying configurations: " + ex);
+                throw;
+            }
+
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();

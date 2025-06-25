@@ -45,8 +45,12 @@ public static class DependencyInjection
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 
 
+        //services.AddDbContext<AppDbContext>(options =>
+        //    options.UseSqlServer(connectionString));
+
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseNpgsql(connectionString));
+
 
         return services;
     }

@@ -73,9 +73,9 @@ namespace Salubrity.Infrastructure.Persistence
             modelBuilder.Entity<Role>()
                 .HasIndex(u => u.Name)
                 .IsUnique();
-            modelBuilder.Entity<Menu>()
-                .HasIndex(m => m.Label)
-                .IsUnique();
+            //modelBuilder.Entity<Menu>()
+            //    .HasIndex(m => m.Label)
+            //    .IsUnique();
 
             modelBuilder.Entity<Menu>()
                 .HasIndex(m => m.Path)

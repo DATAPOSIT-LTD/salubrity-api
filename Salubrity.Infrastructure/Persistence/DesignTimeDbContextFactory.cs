@@ -25,7 +25,7 @@ namespace Salubrity.Infrastructure.Persistence
             var connectionString = config.GetConnectionString("DefaultConnection");
 
             var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
-            optionsBuilder.UseSqlServer(connectionString);
+            optionsBuilder.UseNpgsql(connectionString); // ← ✅ Change here
 
             var mockMediator = new NoMediator();
 

@@ -3,17 +3,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces.Repositories;
-using Salubrity.Application.Interfaces.Security;
-using Salubrity.Domain.Seeders;
-using Salubrity.Infrastructure.Persistence;
-using Salubrity.Infrastructure.Repositories.Rbac;
-using Salubrity.Infrastructure.Repositories.Users;
-using Salubrity.Infrastructure.Seeders;
-using Salubrity.Infrastructure.Security;
-using Salubrity.Infrastructure.EventHandlers;
+using Salubrity.Application.Interfaces.Repositories.Menus;
+using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
+using Salubrity.Application.Interfaces.Security;
 using Salubrity.Domain.Entities;
+using Salubrity.Domain.Seeders;
+using Salubrity.Infrastructure.EventHandlers;
+using Salubrity.Infrastructure.Persistence;
+using Salubrity.Infrastructure.Repositories.Menus;
+using Salubrity.Infrastructure.Repositories.Organizations;
+using Salubrity.Infrastructure.Repositories.Rbac;
+using Salubrity.Infrastructure.Repositories.Users;
+using Salubrity.Infrastructure.Security;
+using Salubrity.Infrastructure.Seeders;
 
 
 namespace Salubrity.Infrastructure;
@@ -36,6 +40,10 @@ public static class DependencyInjection
         services.AddScoped<IKeyProvider, RsaKeyProvider>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<ITotpService, TotpService>();
+        services.AddScoped<IMenuRepository, MenuRepository>();
+        services.AddScoped<IMenuRoleRepository, MenuRoleRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(connectionString));

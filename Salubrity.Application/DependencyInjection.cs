@@ -1,14 +1,15 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using FluentValidation;
+﻿using FluentValidation;
 using FluentValidation.AspNetCore;
-
-// ✅ Fix the validator import path
-using Salubrity.Application.Services.Rbac;
-
+using Microsoft.Extensions.DependencyInjection;
+using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Services.Auth;
-using Salubrity.Application.Interfaces.Repositories.Rbac;
+using Salubrity.Application.Interfaces.Services.Menus;
+using Salubrity.Application.Interfaces.Services.Organizations;
+using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
-using Salubrity.Application.Interfaces.Rbac; // ✅ Needed for IJwtService, IPasswordHasher, etc.
+using Salubrity.Application.Services.Menus;
+using Salubrity.Application.Services.Organizations;
+using Salubrity.Application.Services.Rbac;
 
 namespace Salubrity.Application
 {
@@ -26,6 +27,13 @@ namespace Salubrity.Application
             services.AddScoped<IPermissionGroupService, PermissionGroupService>();
             services.AddScoped<IRolePermissionGroupService, RolePermissionGroupService>();
             services.AddScoped<IUserRoleService, UserRoleService>();
+            services.AddScoped<IMenuService, MenuService>();
+            services.AddScoped<IMenuRoleService, MenuRoleService>();
+            services.AddAutoMapper(typeof(MenuMappingProfile).Assembly);
+            services.AddScoped<IOrganizationService, OrganizationService>();
+            services.AddAutoMapper(typeof(OrganizationMappingProfile).Assembly);
+
+
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();

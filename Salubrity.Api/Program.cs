@@ -101,12 +101,23 @@ builder.Services.AddCors(options =>
 // Health checks
 builder.Services.AddHealthChecks();
 
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    //serverOptions.ListenAnyIP(80); 
+
+    // Optional: If you also want HTTPS support
+    // serverOptions.ListenAnyIP(443, listenOptions => {
+    //     listenOptions.UseHttps();
+    // });
+});
+
+
 // Build pipeline
 var app = builder.Build();
 
 app.UseProblemDetails();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -120,5 +131,12 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/swagger");
+    return Task.CompletedTask;
+});
+
 
 app.Run();

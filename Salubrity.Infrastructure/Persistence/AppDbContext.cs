@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.Menus;
 
 namespace Salubrity.Infrastructure.Persistence
 {
@@ -38,6 +39,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<Gender> Genders => Set<Gender>();
         public DbSet<Organization> Organizations => Set<Organization>();
         public DbSet<OrganizationStatus> OrganizationStatuses => Set<OrganizationStatus>();
+        public DbSet<Menu> Menus => Set<Menu>();
+        public DbSet<MenuRole> MenuRoles => Set<MenuRole>();
 
         // ─────────────────────────────────────
         // 🔧 Model Configuration
@@ -55,13 +58,30 @@ namespace Salubrity.Infrastructure.Persistence
             modelBuilder.Entity<Role>()
                 .HasIndex(u => u.Name)
                 .IsUnique();
+            modelBuilder.Entity<Menu>()
+                .HasIndex(m => m.Label)
+                .IsUnique();
 
-            //modelBuilder.Entity<Menu>()
-            //    .HasIndex(u => u.Label)
-            //    .IsUnique();
-            //modelBuilder.Entity<Menu>()
-            //    .HasIndex(u => u.Path)
-            //    .IsUnique();
+            modelBuilder.Entity<Menu>()
+                .HasIndex(m => m.Path)
+                .IsUnique();
+
+            modelBuilder.Entity<Menu>()
+                .HasOne(m => m.Parent)
+                .WithMany(m => m.Children)
+                .HasForeignKey(m => m.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Menu>()
+                .HasOne(m => m.RequiredPermission)
+                .WithMany()
+                .HasForeignKey(m => m.RequiredPermissionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MenuRole>()
+                .HasIndex(mr => new { mr.MenuId, mr.RoleId })
+                .IsUnique();
+
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);

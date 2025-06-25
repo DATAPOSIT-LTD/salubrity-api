@@ -97,6 +97,13 @@ namespace Salubrity.Infrastructure.Persistence
                 .HasIndex(mr => new { mr.MenuId, mr.RoleId })
                 .IsUnique();
 
+            modelBuilder.Entity<Permission>(entity =>
+            {
+                entity.HasIndex(p => p.Code)
+                      .IsUnique();
+
+            });
+
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);

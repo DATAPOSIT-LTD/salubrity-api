@@ -19,8 +19,11 @@ namespace Salubrity.Infrastructure.Persistence
 
             var config = new ConfigurationBuilder()
                 .SetBasePath(basePath)
-                .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("appsettings.json", optional: true)
+                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
                 .Build();
+
+
 
             var connectionString = config.GetConnectionString("DefaultConnection");
 

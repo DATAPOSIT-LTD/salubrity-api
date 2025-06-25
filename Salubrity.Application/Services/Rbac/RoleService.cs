@@ -21,17 +21,20 @@ public class RoleService : IRoleService
         var roles = await _repository.GetAllRolesAsync();
 
         var result = roles
-            .OrderBy(r => r.Name) // Order by Order property
+            .OrderBy(r => r.Name)
             .Select(r => new RoleDto
             {
                 Id = r.Id,
                 Name = r.Name,
                 Description = r.Description,
-              
+                IsActive = r.IsActive,    
+                IsGlobal = r.IsGlobal,   
+                OrganizationId = r.OrganizationId
             });
 
         return ApiResponse<IEnumerable<RoleDto>>.CreateSuccess(result);
     }
+
 
     public async Task<ApiResponse<RoleDto>> GetByIdAsync(Guid id)
     {

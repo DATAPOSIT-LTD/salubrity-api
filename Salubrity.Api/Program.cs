@@ -1,7 +1,9 @@
 ﻿using Hellang.Middleware.ProblemDetails;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Salubrity.Application;
 using Salubrity.Application.Interfaces;
@@ -11,7 +13,6 @@ using Salubrity.Infrastructure.Seeders;
 using Salubrity.Shared;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Shared.Extensions;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,8 +24,27 @@ builder.Host.UseSerilog((context, services, config) =>
           .WriteTo.Console();
 });
 
+
+// ✅ Configure Auth *before* middleware pipeline is built
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = "Salubrity",
+            ValidAudience = "SalubrityClient",
+            //IssuerSigningKey = keyProvider.GetPublicKey()
+        };
+    });
+
+
 // Framework services
 builder.Services.AddControllers();
+
 builder.Services.AddEndpointsApiExplorer();
 
 // API Versioning
@@ -161,22 +181,6 @@ app.UseRouting();
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
-
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
-    {
-        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "Salubrity",
-            ValidAudience = "SalubrityClient",
-            //IssuerSigningKey = keyProvider.GetPublicKey() // <-- replace with actual key provider
-        };
-    });
-
 
 app.UseAuthorization();
 

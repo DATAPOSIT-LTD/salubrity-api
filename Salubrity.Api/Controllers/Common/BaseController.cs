@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using Salubrity.Shared.Responses;
 
 namespace Salubrity.Api.Controllers.Common;
@@ -24,7 +25,6 @@ public class BaseController : ControllerBase
         return CreatedAtRoute(routeName, routeValues, ApiResponse<object>.CreateSuccess(result, message ?? "Created successfully."));
     }
 
-
     protected IActionResult Failure(string message, int statusCode = 400)
     {
         return StatusCode(statusCode, ApiResponse<string>.CreateFailure(message));
@@ -33,5 +33,18 @@ public class BaseController : ControllerBase
     protected IActionResult Failure<T>(string message, List<ErrorDetail>? errors, int statusCode = 400)
     {
         return StatusCode(statusCode, ApiResponse<T>.CreateFailure(message, errors));
+    }
+
+    protected Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
+                          ?? User.FindFirst("sub");
+
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+        {
+            throw new UnauthorizedAccessException("User ID claim missing or invalid.");
+        }
+
+        return userId;
     }
 }

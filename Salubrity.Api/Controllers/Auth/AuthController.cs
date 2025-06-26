@@ -39,6 +39,17 @@ public class AuthController : BaseController
         return Success(result, "Login successful.");
     }
 
+    [HttpGet("me")]
+    [ProducesResponseType(typeof(ApiResponse<MeResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Me()
+    {
+        var userId = GetCurrentUserId(); 
+        var result = await _authService.GetMeAsync(userId);
+        return Success(result);
+    }
+
+
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]

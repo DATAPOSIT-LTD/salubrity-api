@@ -1,12 +1,17 @@
 ﻿using Salubrity.Application.DTOs.Auth;
+using Salubrity.Application.DTOs.Menus;
+using Salubrity.Application.Interfaces.Rbac;
+using Salubrity.Application.Interfaces.Repositories.Menus;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Auth;
+using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Shared.Exceptions;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -19,19 +24,24 @@ namespace Salubrity.Application.Services.Auth
         private readonly IPasswordHasher _passwordHasher;
         private readonly ITotpService _totpService;
         private readonly IRoleRepository _roleRepository;
+        private readonly IRolePermissionGroupService _rolePermissionGroupService;
+        private readonly IMenuRoleService _menuRoleService;
 
         public AuthService(
             IUserRepository userRepository,
             IJwtService jwtService,
             IPasswordHasher passwordHasher,
             ITotpService totpService,
-            IRoleRepository roleRepository)
+            IRoleRepository roleRepository,
+            IMenuRoleService menuRoleService
+            )
         {
             _userRepository = userRepository;
             _jwtService = jwtService;
             _passwordHasher = passwordHasher;
             _totpService = totpService;
             _roleRepository = roleRepository;
+            _menuRoleService = menuRoleService;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
@@ -231,5 +241,72 @@ namespace Salubrity.Application.Services.Auth
 
             return _totpService.VerifyCode(user.TotpSecret, input.Code);
         }
+
+        public async Task<MeResponseDto> GetMeAsync(Guid userId)
+        {
+            var user = await _userRepository.FindUserByIdAsync(userId)
+                ?? throw new NotFoundException("User");
+
+            var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
+            var roles = new List<string>();
+            var permissions = new HashSet<string>();
+            var menus = new List<MenuResponseDto>();
+
+            foreach (var roleId in roleIds)
+            {
+                var role = await _roleRepository.GetByIdAsync(roleId);
+                if (role != null) roles.Add(role.Name);
+
+                var rolePerms = await _rolePermissionGroupService.GetPermissionGroupsByRoleAsync(roleId);
+                foreach (var p in rolePerms) permissions.Add(p.Name);
+
+                var roleMenus = await _menuRoleService.GetMenusByRoleAsync(roleId);
+                menus.AddRange(roleMenus);
+            }
+
+            var uniqueMenus = menus
+                .GroupBy(m => m.Id)
+                .Select(g => g.First())
+                .Where(m => m.IsActive)
+                .OrderBy(m => m.Order)
+                .ToList();
+
+            var menuMap = uniqueMenus.ToDictionary(m => m.Id);
+            var menuDtos = new Dictionary<Guid, MenuResponseDto>();
+            var roots = new List<MenuResponseDto>();
+
+            foreach (var menu in uniqueMenus)
+            {
+                var dto = new MenuResponseDto
+                {
+                    Id = menu.Id,
+                    Label = menu.Label,
+                    Path = menu.Path,
+                    Icon = menu.Icon,
+                    Children = new List<MenuResponseDto>()
+                };
+                menuDtos[menu.Id] = dto;
+
+                if (menu.ParentId is null)
+                {
+                    roots.Add(dto);
+                }
+                else if (menuDtos.TryGetValue(menu.ParentId.Value, out var parent))
+                {
+                    parent.Children.Add(dto);
+                }
+            }
+
+            return new MeResponseDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FullName = $"{user.FirstName} {user.LastName}",
+                Roles = roles,
+                Permissions = permissions.ToList(),
+                Menus = roots
+            };
+        }
+
     }
 }

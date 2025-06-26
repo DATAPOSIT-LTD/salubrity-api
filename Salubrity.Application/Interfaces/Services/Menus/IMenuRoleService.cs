@@ -28,5 +28,12 @@ namespace Salubrity.Application.Interfaces.Services.Menus
         /// Removes all roles from a menu.
         /// </summary>
         Task RemoveAllRolesAsync(Guid menuId);
+
+
+        /// <summary>
+        /// Gets all menus accessible by a specific role.
+        /// </summary>
+        Task<List<MenuResponseDto>> GetMenusByRoleAsync(Guid roleId);
+
     }
 }

@@ -69,6 +69,15 @@ public class MenuController : BaseController
         return SuccessMessage("Menu deleted successfully.");
     }
 
+    [HttpGet("by-role/{roleId}")]
+    [ProducesResponseType(typeof(ApiResponse<List<MenuResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMenusByRole(Guid roleId)
+    {
+        var result = await _menuRoleService.GetMenusByRoleAsync(roleId);
+        return Success(result);
+    }
+
+
     [HttpPost("assign-role")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> AssignRolesToMenu([FromBody] MenuRoleCreateDto input)

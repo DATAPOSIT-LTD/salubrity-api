@@ -74,4 +74,6 @@ public class MenuRoleRepository : IMenuRoleRepository
             .Select(x => x.MenuId)
             .ToListAsync();
     }
+
+
 }

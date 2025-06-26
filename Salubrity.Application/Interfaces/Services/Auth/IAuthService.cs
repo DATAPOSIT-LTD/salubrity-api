@@ -14,6 +14,7 @@ namespace Salubrity.Application.Interfaces.Services.Auth
         Task ChangePasswordAsync(Guid userId, ChangePasswordRequestDto input);
         Task<SetupTotpResponseDto> SetupMfaAsync(string email);
         Task<bool> VerifyTotpCodeAsync(VerifyTotpCodeRequestDto input);
+        Task<MeResponseDto> GetMeAsync(Guid userId);
 
     }
 }

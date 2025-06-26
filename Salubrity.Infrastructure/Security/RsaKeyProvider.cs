@@ -6,7 +6,7 @@ namespace Salubrity.Infrastructure.Security
 {
     public class RsaKeyProvider : IKeyProvider
     {
-        private const string KeyDir = "/etc/salubrity/keys";
+        private const string KeyDir = "/var/lib/salubrity/keys";
         private const string PrivatePath = $"{KeyDir}/private.key";
         private const string PublicPath = $"{KeyDir}/public.key";
 

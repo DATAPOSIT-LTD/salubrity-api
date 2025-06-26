@@ -5,6 +5,7 @@ using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Auth;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Shared.Responses;
+using System.Security.Claims;
 
 namespace Salubrity.Api.Controllers.Auth;
 
@@ -46,10 +47,14 @@ public class AuthController : BaseController
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Me()
     {
-        var userId = GetCurrentUserId(); 
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!Guid.TryParse(userIdClaim, out var userId))
+            return Failure("Invalid user identity", StatusCodes.Status401Unauthorized);
+
         var result = await _authService.GetMeAsync(userId);
         return Success(result);
     }
+
 
     [Authorize]
     [HttpGet("me/debug")]

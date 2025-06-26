@@ -11,6 +11,7 @@ using Salubrity.Infrastructure.Seeders;
 using Salubrity.Shared;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Shared.Extensions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -159,7 +160,23 @@ app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowAll");
 
-app.UseAuthentication(); 
+app.UseAuthentication();
+
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = "Salubrity",
+            ValidAudience = "SalubrityClient",
+            //IssuerSigningKey = keyProvider.GetPublicKey() // <-- replace with actual key provider
+        };
+    });
+
 
 app.UseAuthorization();
 

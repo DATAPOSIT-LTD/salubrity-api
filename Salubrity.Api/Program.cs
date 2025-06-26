@@ -53,12 +53,27 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddProblemDetails(options =>
 {
-    options.Map<BaseAppException>(ex => new ProblemDetails
+    options.Map<BaseAppException>(ex =>
     {
-        Title = "Application Error",
-        Detail = ex.Message,
-        Status = StatusCodes.Status400BadRequest,
-        Type = "https://tools.ietf.org/html/rfc7231#section-6.5.1"
+        var pd = new ProblemDetails
+        {
+            Title = "Application Error",
+            Detail = ex.Message,
+            Status = ex.StatusCode,
+            Type = $"https://httpstatuses.com/{ex.StatusCode}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(ex.ErrorCode))
+        {
+            pd.Extensions["errorCode"] = ex.ErrorCode;
+        }
+
+        if (ex.Errors is not null && ex.Errors.Any())
+        {
+            pd.Extensions["errors"] = ex.Errors;
+        }
+
+        return pd;
     });
 
     options.Map<UnauthorizedException>(ex => new ProblemDetails
@@ -69,19 +84,10 @@ builder.Services.AddProblemDetails(options =>
         Type = "https://tools.ietf.org/html/rfc7235#section-3.1"
     });
 
-    options.Map<ValidationException>(ex => new ProblemDetails
-    {
-        Title = "Validation Failed",
-        Detail = "One or more validation errors occurred.",
-        Status = StatusCodes.Status422UnprocessableEntity,
-        Type = "https://tools.ietf.org/html/rfc4918#section-11.2",
-        Extensions = { ["errors"] = ex.Errors } 
-    });
-
     options.MapToStatusCode<NotFoundException>(StatusCodes.Status404NotFound);
     options.MapToStatusCode<ForbiddenException>(StatusCodes.Status403Forbidden);
 
-    options.IncludeExceptionDetails = (ctx, _) => false;
+    options.IncludeExceptionDetails = (ctx, _) => false; // Optional: or enable for development
 });
 
 // DI layers

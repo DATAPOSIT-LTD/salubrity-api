@@ -42,7 +42,7 @@ namespace Salubrity.Infrastructure.Repositories.Users
 
         public async Task AddUserAsync(User user)
         {
-            user.PasswordHash = _passwordHasher.HashPassword(user.PasswordHash);
+           
             _context.Users.Add(user);          
 
             await _context.SaveChangesAsync();

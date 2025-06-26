@@ -36,7 +36,7 @@ namespace Salubrity.Application.Services.Auth
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
         {
-            Console.WriteLine("📝 [Register] Starting registration process...");
+            Console.WriteLine("📝 [Register] Starting registration process... Password: " + input.Password);
 
             if (!input.AcceptTerms)
             {

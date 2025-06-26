@@ -141,8 +141,8 @@ builder.Services.AddProblemDetails(options =>
     options.MapToStatusCode<NotFoundException>(StatusCodes.Status404NotFound);
     options.MapToStatusCode<ForbiddenException>(StatusCodes.Status403Forbidden);
 
-    options.IncludeExceptionDetails = (ctx, _) =>
-        ctx.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
+    options.IncludeExceptionDetails = (ctx, _) => true;
+        //ctx.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
 });
 
 // -------------------- CORS --------------------

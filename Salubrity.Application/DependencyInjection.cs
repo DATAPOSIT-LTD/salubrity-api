@@ -3,10 +3,12 @@ using FluentValidation.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Services.Auth;
+using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Organizations;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
+using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
@@ -32,6 +34,8 @@ namespace Salubrity.Application
             services.AddAutoMapper(typeof(MenuMappingProfile).Assembly);
             services.AddScoped<IOrganizationService, OrganizationService>();
             services.AddAutoMapper(typeof(OrganizationMappingProfile).Assembly);
+            services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
+
 
 
 

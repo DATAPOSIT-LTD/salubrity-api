@@ -41,6 +41,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<OrganizationStatus> OrganizationStatuses => Set<OrganizationStatus>();
         public DbSet<Menu> Menus => Set<Menu>();
         public DbSet<MenuRole> MenuRoles => Set<MenuRole>();
+        public DbSet<InsuranceProvider> InsuranceProviders { get; set; }
+
 
         // ─────────────────────────────────────
         // 🔧 Model Configuration

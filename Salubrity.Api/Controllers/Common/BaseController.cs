@@ -38,16 +38,22 @@ public class BaseController : ControllerBase
 
     protected Guid GetCurrentUserId()
     {
-       
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
-                  ?? User.FindFirst(JwtRegisteredClaimNames.Sub)
-                  ?? User.FindFirst("sub"); // fallback
+        Console.WriteLine("===== ClaimsPrincipal (User) Details =====");
+
+        Console.WriteLine($"Identity Name: {User.Identity?.Name}");
+        Console.WriteLine($"Is Authenticated: {User.Identity?.IsAuthenticated}");
+        Console.WriteLine($"Authentication Type: {User.Identity?.AuthenticationType}");
 
         foreach (var claim in User.Claims)
         {
             Console.WriteLine($"CLAIM: {claim.Type} = {claim.Value}");
         }
 
+        Console.WriteLine("===== End of Claims =====");
+
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
+                        ?? User.FindFirst(JwtRegisteredClaimNames.Sub)
+                        ?? User.FindFirst("sub"); // fallback
 
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
@@ -56,4 +62,5 @@ public class BaseController : ControllerBase
 
         return userId;
     }
+
 }

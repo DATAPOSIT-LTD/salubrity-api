@@ -87,7 +87,7 @@ builder.Services.AddProblemDetails(options =>
     options.MapToStatusCode<NotFoundException>(StatusCodes.Status404NotFound);
     options.MapToStatusCode<ForbiddenException>(StatusCodes.Status403Forbidden);
 
-    options.IncludeExceptionDetails = (ctx, _) => false; // Optional: or enable for development
+    options.IncludeExceptionDetails = (ctx, _) => true; // Optional: or enable for development
 });
 
 // DI layers

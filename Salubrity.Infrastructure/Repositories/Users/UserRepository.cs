@@ -1,5 +1,7 @@
+using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.Users;
+using Salubrity.Infrastructure.Security;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Infrastructure.Persistence;
 
@@ -8,10 +10,12 @@ namespace Salubrity.Infrastructure.Repositories.Users
     public class UserRepository : IUserRepository
     {
         private readonly AppDbContext _context;
+        private readonly PasswordHasher _passwordHasher; // Add an instance of PasswordHasher
 
         public UserRepository(AppDbContext context)
         {
             _context = context;
+            _passwordHasher = new PasswordHasher(); // Initialize the PasswordHasher instance
         }
 
         public async Task<User?> FindUserByEmailAsync(string email)
@@ -38,7 +42,9 @@ namespace Salubrity.Infrastructure.Repositories.Users
 
         public async Task AddUserAsync(User user)
         {
-            _context.Users.Add(user);
+            user.PasswordHash = _passwordHasher.HashPassword(user.PasswordHash);
+            _context.Users.Add(user);          
+
             await _context.SaveChangesAsync();
         }
 
@@ -48,17 +54,15 @@ namespace Salubrity.Infrastructure.Repositories.Users
             await _context.SaveChangesAsync();
         }
 
-
         public async Task RevokeUserRefreshTokenAsync(Guid userId)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user is not null)
             {
-                //user.RefreshToken = null;
-                //user.RefreshTokenExpiryTime = null;
-                //await _context.SaveChangesAsync();
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
+                await _context.SaveChangesAsync();
             }
         }
-
     }
 }

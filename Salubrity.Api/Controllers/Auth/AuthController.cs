@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
@@ -43,22 +43,20 @@ public class AuthController : BaseController
 
     [Authorize]
     [HttpGet("me")]
-    [ProducesResponseType(typeof(ApiResponse<MeResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Me()
+    public IActionResult Me()
     {
-        var userIdValue = User.FindFirst("user_id")?.Value;
+        var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
 
+        Console.WriteLine("🔎 CLAIMS:");
+        foreach (var c in claims)
+            Console.WriteLine($"{c.Type} => {c.Value}");
 
-
-        if (!Guid.TryParse(userIdValue, out var userId))
-            return Failure("Invalid or missing user_id claim" + userIdValue, StatusCodes.Status401Unauthorized);
-
-        var result = await _authService.GetMeAsync(userId);
-        return Success(result);
+        return Ok(new
+        {
+            IsAuthenticated = User.Identity?.IsAuthenticated,
+            Claims = claims
+        });
     }
-
-
 
 
     [Authorize]

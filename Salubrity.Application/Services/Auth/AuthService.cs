@@ -34,7 +34,7 @@ namespace Salubrity.Application.Services.Auth
             ITotpService totpService,
             IRoleRepository roleRepository,
             IMenuRoleService menuRoleService,
-            IRolePermissionGroupService _rolePermissionGroupService;
+            IRolePermissionGroupService rolePermissionGroupService
             
             )
         {

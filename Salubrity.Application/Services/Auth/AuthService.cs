@@ -64,7 +64,7 @@ namespace Salubrity.Application.Services.Auth
                 FirstName = input.FirstName,
                 MiddleName = input.MiddleName,
                 LastName = input.LastName,
-                Email = input.Email.ToLowerInvariant(),
+                Email = input.Email.Trim().ToLowerInvariant(),
                 PasswordHash = hashed,
                 IsActive = true,
                 IsVerified = false,
@@ -96,18 +96,25 @@ namespace Salubrity.Application.Services.Auth
 
         public async Task<AuthResponseDto> LoginAsync(LoginRequestDto input)
         {
-            var user = await _userRepository.FindUserByEmailAsync(input.Email);
-            if (user is null || !_passwordHasher.VerifyPassword(input.Password, user.PasswordHash))
+            var normalizedEmail = input.Email.Trim().ToLowerInvariant(); // 🛠 Normalize
+            var user = await _userRepository.FindUserByEmailAsync(normalizedEmail);
+
+            if (user is null)
                 throw new UnauthorizedAccessException("Invalid credentials.");
 
-            // Ensure roles array is not null
-            var roles = user.UserRoles?.Select(ur => ur.Role.Name).ToArray() ?? Array.Empty<string>();
+            if (!_passwordHasher.VerifyPassword(input.Password, user.PasswordHash))
+                throw new UnauthorizedAccessException("Invalid credentials.");
+
+            var roles = user.UserRoles?.Select(ur => ur.Role?.Name).Where(n => !string.IsNullOrWhiteSpace(n)).ToArray()
+                        ?? Array.Empty<string>();
+
             var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
             var refreshToken = _jwtService.GenerateRefreshToken();
             var expiresAt = DateTime.UtcNow.AddMinutes(30);
 
             return new AuthResponseDto(token, refreshToken, expiresAt);
         }
+
 
         public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto input)
         {

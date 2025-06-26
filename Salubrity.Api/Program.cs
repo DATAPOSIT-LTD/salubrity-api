@@ -1,4 +1,5 @@
-﻿using Hellang.Middleware.ProblemDetails;
+﻿using System.Text;
+using Hellang.Middleware.ProblemDetails;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
@@ -6,10 +7,9 @@ using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Salubrity.Application;
-using Salubrity.Application.Interfaces;
-using Salubrity.Application.Services;
+using Salubrity.Application.Interfaces.Security;
 using Salubrity.Infrastructure;
-using Salubrity.Infrastructure.Seeders;
+using Salubrity.Infrastructure.Security;
 using Salubrity.Shared;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Shared.Extensions;
@@ -17,17 +17,28 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Logging
+// -------------------- Logging --------------------
 builder.Host.UseSerilog((context, services, config) =>
 {
     config.ReadFrom.Configuration(context.Configuration)
           .WriteTo.Console();
 });
 
+// -------------------- DI --------------------
+builder.Services.AddApplicationLayer();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddSharedServices(builder.Configuration);
 
-// ✅ Configure Auth *before* middleware pipeline is built
-builder.Services.AddAuthentication("Bearer")
-    .AddJwtBearer("Bearer", options =>
+// Register your key provider and JWT service
+builder.Services.AddSingleton<IKeyProvider, RsaKeyProvider>(); // or however yours is implemented
+builder.Services.AddScoped<IJwtService, JwtService>();
+
+// -------------------- Auth (RSA-based) --------------------
+var sp = builder.Services.BuildServiceProvider();
+var keyProvider = sp.GetRequiredService<IKeyProvider>();
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -37,17 +48,14 @@ builder.Services.AddAuthentication("Bearer")
             ValidateIssuerSigningKey = true,
             ValidIssuer = "Salubrity",
             ValidAudience = "SalubrityClient",
-            //IssuerSigningKey = keyProvider.GetPublicKey()
+            IssuerSigningKey = keyProvider.GetPublicKey()
         };
     });
 
-
-// Framework services
+// -------------------- API + Swagger --------------------
 builder.Services.AddControllers();
-
 builder.Services.AddEndpointsApiExplorer();
 
-// API Versioning
 builder.Services.AddApiVersioning(options =>
 {
     options.DefaultApiVersion = new ApiVersion(1, 0);
@@ -61,7 +69,6 @@ builder.Services.AddVersionedApiExplorer(options =>
     options.GroupNameFormat = "'v'VVV";
     options.SubstituteApiVersionInUrl = true;
 });
-
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -97,7 +104,7 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
-
+// -------------------- ProblemDetails --------------------
 builder.Services.AddProblemDetails(options =>
 {
     options.Map<BaseAppException>(ex =>
@@ -134,15 +141,11 @@ builder.Services.AddProblemDetails(options =>
     options.MapToStatusCode<NotFoundException>(StatusCodes.Status404NotFound);
     options.MapToStatusCode<ForbiddenException>(StatusCodes.Status403Forbidden);
 
-    options.IncludeExceptionDetails = (ctx, _) => true; // Optional: or enable for development
+    options.IncludeExceptionDetails = (ctx, _) =>
+        ctx.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
 });
 
-// DI layers
-builder.Services.AddApplicationLayer();
-builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddSharedServices(builder.Configuration);
-
-// CORS
+// -------------------- CORS --------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -151,26 +154,15 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader());
 });
 
-// Health checks
+// -------------------- Health --------------------
 builder.Services.AddHealthChecks();
 
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    //serverOptions.ListenAnyIP(80); 
-
-    // Optional: If you also want HTTPS support
-    // serverOptions.ListenAnyIP(443, listenOptions => {
-    //     listenOptions.UseHttps();
-    // });
-});
-
-
-// Build pipeline
+// -------------------- App --------------------
 var app = builder.Build();
 
 app.UseProblemDetails();
 
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -181,7 +173,6 @@ app.UseRouting();
 app.UseCors("AllowAll");
 
 app.UseAuthentication();
-
 app.UseAuthorization();
 
 app.MapControllers();
@@ -192,6 +183,5 @@ app.MapGet("/", context =>
     context.Response.Redirect("/swagger");
     return Task.CompletedTask;
 });
-
 
 app.Run();

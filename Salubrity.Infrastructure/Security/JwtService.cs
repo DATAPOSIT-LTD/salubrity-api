@@ -10,6 +10,7 @@ namespace Salubrity.Infrastructure.Security
 {
     public class JwtService : IJwtService
     {
+
         private readonly IKeyProvider _keyProvider;
 
         public JwtService(IKeyProvider keyProvider)
@@ -20,11 +21,12 @@ namespace Salubrity.Infrastructure.Security
         public string GenerateAccessToken(Guid userId, string email, string[] roles)
         {
             var claims = new List<Claim>
-            {
-                new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-                new(JwtRegisteredClaimNames.Email, email),
-                new("user_id", userId.ToString())
-            };
+        {
+            new(JwtRegisteredClaimNames.Sub, userId.ToString()),               // standard
+            new(ClaimTypes.NameIdentifier, userId.ToString()),                // compatibility
+            new(JwtRegisteredClaimNames.Email, email),
+            new("user_id", userId.ToString())                                 // optional custom
+        };
 
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));

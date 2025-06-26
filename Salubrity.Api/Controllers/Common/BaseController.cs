@@ -38,29 +38,21 @@ public class BaseController : ControllerBase
 
     protected Guid GetCurrentUserId()
     {
-        Console.WriteLine("===== ClaimsPrincipal (User) Details =====");
-
-        Console.WriteLine($"Identity Name: {User.Identity?.Name}");
-        Console.WriteLine($"Is Authenticated: {User.Identity?.IsAuthenticated}");
-        Console.WriteLine($"Authentication Type: {User.Identity?.AuthenticationType}");
-
+        Console.WriteLine("=== DEBUG: Auth Claims ===");
         foreach (var claim in User.Claims)
         {
             Console.WriteLine($"CLAIM: {claim.Type} = {claim.Value}");
         }
 
-        Console.WriteLine("===== End of Claims =====");
-
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
-                        ?? User.FindFirst(JwtRegisteredClaimNames.Sub)
-                        ?? User.FindFirst("sub"); // fallback
+        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)
+                        ?? User.FindFirst("sub")
+                        ?? User.FindFirst("user_id"); // if needed
 
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-        {
             throw new UnauthorizedAccessException("User ID claim missing or invalid.");
-        }
 
         return userId;
     }
+
 
 }

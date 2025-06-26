@@ -1,10 +1,9 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Auth;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Shared.Responses;
+using Salubrity.Api.Controllers.Common;
 
 namespace Salubrity.Api.Controllers.Auth;
 
@@ -40,7 +39,7 @@ public class AuthController : BaseController
         return Success(result, "Login successful.");
     }
 
-    [Authorize]
+
     [HttpGet("me")]
     [ProducesResponseType(typeof(ApiResponse<MeResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
@@ -50,18 +49,6 @@ public class AuthController : BaseController
         var result = await _authService.GetMeAsync(userId);
         return Success(result);
     }
-
-    [Authorize]
-    [HttpGet("me/debug")]
-    public IActionResult MeDebug()
-    {
-        return Ok(new
-        {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Claims = User.Claims.Select(c => new { c.Type, c.Value })
-        });
-    }
-
 
 
     [HttpPost("refresh-token")]

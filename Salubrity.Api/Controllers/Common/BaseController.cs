@@ -43,6 +43,11 @@ public class BaseController : ControllerBase
                   ?? User.FindFirst(JwtRegisteredClaimNames.Sub)
                   ?? User.FindFirst("sub"); // fallback
 
+        foreach (var claim in User.Claims)
+        {
+            Console.WriteLine($"CLAIM: {claim.Type} = {claim.Value}");
+        }
+
 
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {

@@ -48,10 +48,17 @@ namespace Salubrity.Infrastructure.Repositories.Users
             await _context.SaveChangesAsync();
         }
 
+
         public async Task RevokeUserRefreshTokenAsync(Guid userId)
         {
-            // TODO: Implement actual refresh token revocation
-            await Task.CompletedTask;
+            var user = await _context.Users.FindAsync(userId);
+            if (user is not null)
+            {
+                //user.RefreshToken = null;
+                //user.RefreshTokenExpiryTime = null;
+                //await _context.SaveChangesAsync();
+            }
         }
+
     }
 }

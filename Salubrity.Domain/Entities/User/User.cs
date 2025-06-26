@@ -61,5 +61,9 @@ public class User : BaseAuditableEntity
     [NotMapped]
     public string FullName => $"{FirstName} {MiddleName} {LastName}".Replace("  ", " ");
 
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiryTime { get; set; }
+
+
     public string? TotpSecret { get; set; }
 }

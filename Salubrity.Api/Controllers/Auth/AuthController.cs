@@ -41,7 +41,7 @@ public class AuthController : BaseController
         return Success(result, "Login successful.");
     }
 
-    [Authorize]
+    //[Authorize]
     [HttpGet("me")]
     [ProducesResponseType(typeof(ApiResponse<MeResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]

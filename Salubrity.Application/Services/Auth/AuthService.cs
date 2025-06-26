@@ -33,7 +33,9 @@ namespace Salubrity.Application.Services.Auth
             IPasswordHasher passwordHasher,
             ITotpService totpService,
             IRoleRepository roleRepository,
-            IMenuRoleService menuRoleService
+            IMenuRoleService menuRoleService,
+            IRolePermissionGroupService _rolePermissionGroupService;
+            
             )
         {
             _userRepository = userRepository;
@@ -42,6 +44,8 @@ namespace Salubrity.Application.Services.Auth
             _totpService = totpService;
             _roleRepository = roleRepository;
             _menuRoleService = menuRoleService;
+            _rolePermissionGroupService = rolePermissionGroupService;
+
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)

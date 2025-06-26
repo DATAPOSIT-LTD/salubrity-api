@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Salubrity.Shared.Responses;
 using System.IdentityModel.Tokens.Jwt;
@@ -44,15 +44,18 @@ public class BaseController : ControllerBase
             Console.WriteLine($"CLAIM: {claim.Type} = {claim.Value}");
         }
 
-        var userIdClaim = User.FindFirst(JwtRegisteredClaimNames.Sub)
-                        ?? User.FindFirst("sub")
-                        ?? User.FindFirst("user_id"); // if needed
+        var userIdClaim =
+            User.FindFirst(JwtRegisteredClaimNames.Sub) ??
+            User.FindFirst("sub") ??
+            User.FindFirst(ClaimTypes.NameIdentifier) ?? // ✅ THIS FIXES IT
+            User.FindFirst("user_id");
 
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
             throw new UnauthorizedAccessException("User ID claim missing or invalid.");
 
         return userId;
     }
+
 
 
 }

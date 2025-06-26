@@ -47,13 +47,16 @@ public class AuthController : BaseController
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Me()
     {
-        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!Guid.TryParse(userIdClaim, out var userId))
-            return Failure("Invalid user identity", StatusCodes.Status401Unauthorized);
+        var userIdValue = User.FindFirst("user_id")?.Value;
+
+        if (!Guid.TryParse(userIdValue, out var userId))
+            return Failure("Invalid or missing user_id claim", StatusCodes.Status401Unauthorized);
 
         var result = await _authService.GetMeAsync(userId);
         return Success(result);
     }
+
+
 
 
     [Authorize]
@@ -132,3 +135,5 @@ public class AuthController : BaseController
         return valid ? SuccessMessage("MFA code verified.") : Unauthorized("Invalid MFA code.");
     }
 }
+
+

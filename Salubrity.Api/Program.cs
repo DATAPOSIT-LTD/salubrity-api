@@ -50,7 +50,6 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1"
     });
 
-    // Add JWT Bearer Authorization
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -76,11 +75,6 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
-
-
-// Swagger (just declared once)
-builder.Services.AddSwaggerGen();
-
 
 
 builder.Services.AddProblemDetails(options =>
@@ -164,6 +158,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowAll");
+
+app.UseAuthentication(); 
 
 app.UseAuthorization();
 

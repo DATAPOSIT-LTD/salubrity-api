@@ -43,20 +43,25 @@ public class AuthController : BaseController
 
     [Authorize]
     [HttpGet("me")]
-    public IActionResult Me()
+    [ProducesResponseType(typeof(ApiResponse<MeResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Me()
     {
-        var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+        var userIdValue = User.Claims.FirstOrDefault(c => c.Type == "user_id")?.Value;
 
-        Console.WriteLine("🔎 CLAIMS:");
-        foreach (var c in claims)
-            Console.WriteLine($"{c.Type} => {c.Value}");
-
-        return Ok(new
+        if (!Guid.TryParse(userIdValue, out var userId))
         {
-            IsAuthenticated = User.Identity?.IsAuthenticated,
-            Claims = claims
-        });
+            Console.WriteLine("❌ user_id claim not found or invalid:");
+            foreach (var c in User.Claims)
+                Console.WriteLine($"  {c.Type} = {c.Value}");
+
+            return Failure("Invalid or missing user_id claim: " + userIdValue, StatusCodes.Status401Unauthorized);
+        }
+
+        var result = await _authService.GetMeAsync(userId);
+        return Success(result);
     }
+
 
 
     [Authorize]

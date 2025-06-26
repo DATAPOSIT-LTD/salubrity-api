@@ -51,6 +51,18 @@ public class AuthController : BaseController
         return Success(result);
     }
 
+    [Authorize]
+    [HttpGet("me/debug")]
+    public IActionResult MeDebug()
+    {
+        return Ok(new
+        {
+            IsAuthenticated = User.Identity?.IsAuthenticated,
+            Claims = User.Claims.Select(c => new { c.Type, c.Value })
+        });
+    }
+
+
 
     [HttpPost("refresh-token")]
     [ProducesResponseType(typeof(ApiResponse<AuthResponseDto>), StatusCodes.Status200OK)]

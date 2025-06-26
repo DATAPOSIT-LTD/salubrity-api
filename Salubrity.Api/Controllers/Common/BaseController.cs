@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Salubrity.Shared.Responses;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Salubrity.Api.Controllers.Common;
 
@@ -37,8 +38,11 @@ public class BaseController : ControllerBase
 
     protected Guid GetCurrentUserId()
     {
+       
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)
-                          ?? User.FindFirst("sub");
+                  ?? User.FindFirst(JwtRegisteredClaimNames.Sub)
+                  ?? User.FindFirst("sub"); // fallback
+
 
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {

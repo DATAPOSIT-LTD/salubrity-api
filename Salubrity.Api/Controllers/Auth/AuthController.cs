@@ -41,7 +41,7 @@ public class AuthController : BaseController
         return Success(result, "Login successful.");
     }
 
-    //[Authorize]
+    [Authorize]
     [HttpGet("me")]
     [ProducesResponseType(typeof(ApiResponse<MeResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]
@@ -49,8 +49,10 @@ public class AuthController : BaseController
     {
         var userIdValue = User.FindFirst("user_id")?.Value;
 
+
+
         if (!Guid.TryParse(userIdValue, out var userId))
-            return Failure("Invalid or missing user_id claim", StatusCodes.Status401Unauthorized);
+            return Failure("Invalid or missing user_id claim" + userIdValue, StatusCodes.Status401Unauthorized);
 
         var result = await _authService.GetMeAsync(userId);
         return Success(result);

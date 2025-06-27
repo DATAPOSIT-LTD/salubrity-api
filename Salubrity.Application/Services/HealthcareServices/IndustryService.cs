@@ -34,8 +34,8 @@ public class IndustryService : IIndustryService
 
     public async Task<IndustryResponseDto> CreateAsync(CreateIndustryDto dto)
     {
-        //if (await _repo.ExistsByNameAsync(dto.Name))
-        //    throw new ValidationException("Industry name already exists");
+        if (await _repo.ExistsByNameAsync(dto.Name))
+            throw new ValidationException(["Industry name already exists"]);
 
         var entity = _mapper.Map<Industry>(dto);
         await _repo.AddAsync(entity);

@@ -39,7 +39,9 @@ namespace Salubrity.Application
             services.AddAutoMapper(typeof(OrganizationMappingProfile).Assembly);
             services.AddAutoMapper(typeof(IndustryProfile).Assembly);
             services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
-            services.AddScoped<IIndustryService, IndustryService>();
+            services.AddScoped<IIndustryService, IndustryService>();         
+            services.AddScoped<IServiceService, ServiceService>();
+
 
 
             // Auth services

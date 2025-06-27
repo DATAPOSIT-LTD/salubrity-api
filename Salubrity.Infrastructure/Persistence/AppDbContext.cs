@@ -44,6 +44,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<MenuRole> MenuRoles => Set<MenuRole>();
         public DbSet<InsuranceProvider> InsuranceProviders => Set<InsuranceProvider>();
         public DbSet<Industry> Industries => Set<Industry>();
+        public DbSet<Service> Services => Set<Service>();
 
 
 

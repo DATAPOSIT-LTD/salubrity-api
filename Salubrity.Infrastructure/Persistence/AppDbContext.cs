@@ -13,6 +13,7 @@ using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Menus;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Camps;
 
 namespace Salubrity.Infrastructure.Persistence
 {
@@ -48,6 +49,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
         public DbSet<ServiceSubcategory> ServiceSubcategories => Set<ServiceSubcategory>();
         public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
+        public DbSet<Camp> Camps => Set<Camp>();
 
 
 

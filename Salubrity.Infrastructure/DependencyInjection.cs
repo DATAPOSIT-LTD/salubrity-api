@@ -7,8 +7,11 @@ using Salubrity.Application.Interfaces.Repositories.Menus;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
+using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Infrastructure.Repositories.HealthcareServices;
+using Salubrity.Infrastructure.Repositories.Camps;
+
 
 
 using Salubrity.Application.Interfaces.Security;
@@ -20,6 +23,7 @@ using Salubrity.Infrastructure.Repositories.Menus;
 using Salubrity.Infrastructure.Repositories.Organizations;
 using Salubrity.Infrastructure.Repositories.Rbac;
 using Salubrity.Infrastructure.Repositories.Users;
+using Salubrity.Infrastructure.Repositories.Camps;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
 
@@ -52,7 +56,8 @@ public static class DependencyInjection
         services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
         services.AddScoped<IServiceSubcategoryRepository, ServiceSubcategoryRepository>();
         services.AddScoped<IServicePackageRepository, ServicePackageRepository>();
-       
+        services.AddScoped<ICampRepository, CampRepository>();
+
 
 
 

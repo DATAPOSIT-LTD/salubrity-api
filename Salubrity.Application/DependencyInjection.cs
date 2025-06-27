@@ -43,7 +43,7 @@ namespace Salubrity.Application
             services.AddScoped<IServiceService, ServiceService>();
             services.AddScoped<IServiceCategoryService, ServiceCategoryService>();   
             services.AddScoped<IServiceSubcategoryService, ServiceSubcategoryService>();
-
+            services.AddScoped<IServicePackageService, ServicePackageService>();
 
 
 

@@ -51,6 +51,9 @@ public static class DependencyInjection
         services.AddScoped<IServiceRepository, ServiceRepository>();
         services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
         services.AddScoped<IServiceSubcategoryRepository, ServiceSubcategoryRepository>();
+        services.AddScoped<IServicePackageRepository, ServicePackageRepository>();
+       
+
 
 
 

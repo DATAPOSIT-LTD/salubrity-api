@@ -47,6 +47,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<Service> Services => Set<Service>();
         public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
         public DbSet<ServiceSubcategory> ServiceSubcategories => Set<ServiceSubcategory>();
+        public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
+
 
 
 

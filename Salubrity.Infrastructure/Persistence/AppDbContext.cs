@@ -46,6 +46,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<Industry> Industries => Set<Industry>();
         public DbSet<Service> Services => Set<Service>();
         public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
+        public DbSet<ServiceSubcategory> ServiceSubcategories => Set<ServiceSubcategory>();
 
 
 
@@ -120,6 +121,10 @@ namespace Salubrity.Infrastructure.Persistence
                 .IsUnique();
 
             modelBuilder.Entity<ServiceCategory>()
+                .HasIndex(u => u.Name)
+                .IsUnique();
+
+            modelBuilder.Entity<ServiceSubcategory>()
                 .HasIndex(u => u.Name)
                 .IsUnique();
 

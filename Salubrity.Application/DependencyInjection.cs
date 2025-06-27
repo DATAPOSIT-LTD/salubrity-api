@@ -41,7 +41,9 @@ namespace Salubrity.Application
             services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
             services.AddScoped<IIndustryService, IndustryService>();         
             services.AddScoped<IServiceService, ServiceService>();
-            services.AddScoped<IServiceCategoryService, ServiceCategoryService>();
+            services.AddScoped<IServiceCategoryService, ServiceCategoryService>();   
+            services.AddScoped<IServiceSubcategoryService, ServiceSubcategoryService>();
+
 
 
 

@@ -12,6 +12,7 @@ using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Menus;
+using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Infrastructure.Persistence
 {
@@ -41,7 +42,9 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<OrganizationStatus> OrganizationStatuses => Set<OrganizationStatus>();
         public DbSet<Menu> Menus => Set<Menu>();
         public DbSet<MenuRole> MenuRoles => Set<MenuRole>();
-        public DbSet<InsuranceProvider> InsuranceProviders { get; set; }
+        public DbSet<InsuranceProvider> InsuranceProviders => Set<InsuranceProvider>();
+        public DbSet<Industry> Industries => Set<Industry>();
+
 
 
         // ─────────────────────────────────────
@@ -108,6 +111,10 @@ namespace Salubrity.Infrastructure.Persistence
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.RefreshToken)
                 .IsUnique(false); 
+
+            modelBuilder.Entity<Industry>()
+                .HasIndex(u => u.Name)
+                .IsUnique();
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);

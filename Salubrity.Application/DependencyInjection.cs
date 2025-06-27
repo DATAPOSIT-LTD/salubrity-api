@@ -12,6 +12,9 @@ using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Application.Services.HealthcareServices;
+
 
 namespace Salubrity.Application
 {
@@ -34,9 +37,9 @@ namespace Salubrity.Application
             services.AddAutoMapper(typeof(MenuMappingProfile).Assembly);
             services.AddScoped<IOrganizationService, OrganizationService>();
             services.AddAutoMapper(typeof(OrganizationMappingProfile).Assembly);
+            services.AddAutoMapper(typeof(IndustryProfile).Assembly);
             services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
-
-
+            services.AddScoped<IIndustryService, IndustryService>();
 
 
             // Auth services

@@ -2,15 +2,16 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Menus;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
+using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
+using Salubrity.Infrastructure.Repositories.HealthcareServices;
+
+
 using Salubrity.Application.Interfaces.Security;
-using Salubrity.Application.Services.Lookups;
-using Salubrity.Domain.Entities;
 using Salubrity.Domain.Seeders;
 using Salubrity.Infrastructure.EventHandlers;
 using Salubrity.Infrastructure.Persistence;
@@ -21,7 +22,6 @@ using Salubrity.Infrastructure.Repositories.Rbac;
 using Salubrity.Infrastructure.Repositories.Users;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
-
 
 namespace Salubrity.Infrastructure;
 
@@ -47,6 +47,8 @@ public static class DependencyInjection
         services.AddScoped<IMenuRoleRepository, MenuRoleRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
         services.AddScoped<IInsuranceProviderRepository, InsuranceProviderRepository>();
+        services.AddScoped<IIndustryRepository, IndustryRepository>();
+
 
 
 

@@ -21,19 +21,21 @@ public class RoleService : IRoleService
         var roles = await _repository.GetAllRolesAsync();
 
         var result = roles
+            .Where(r => !string.Equals(r.Name, "Admin", StringComparison.OrdinalIgnoreCase))
             .OrderBy(r => r.Name)
             .Select(r => new RoleDto
             {
                 Id = r.Id,
                 Name = r.Name,
                 Description = r.Description,
-                IsActive = r.IsActive,    
-                IsGlobal = r.IsGlobal,   
+                IsActive = r.IsActive,
+                IsGlobal = r.IsGlobal,
                 OrganizationId = r.OrganizationId
             });
 
         return ApiResponse<IEnumerable<RoleDto>>.CreateSuccess(result);
     }
+
 
 
     public async Task<ApiResponse<RoleDto>> GetByIdAsync(Guid id)

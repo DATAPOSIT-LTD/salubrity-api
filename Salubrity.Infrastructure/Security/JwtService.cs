@@ -3,30 +3,33 @@ using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Salubrity.Application.Interfaces.Security;
+using Salubrity.Shared.Security.Config;
 
 namespace Salubrity.Infrastructure.Security
 {
     public class JwtService : IJwtService
     {
-
         private readonly IKeyProvider _keyProvider;
+        private readonly JwtSettings _settings;
 
-        public JwtService(IKeyProvider keyProvider)
+        public JwtService(IKeyProvider keyProvider, IOptions<JwtSettings> options)
         {
             _keyProvider = keyProvider;
+            _settings = options.Value;
         }
 
         public string GenerateAccessToken(Guid userId, string email, string[] roles)
         {
             var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, userId.ToString()),               // standard
-            new(ClaimTypes.NameIdentifier, userId.ToString()),                // compatibility
-            new(JwtRegisteredClaimNames.Email, email),
-            new("user_id", userId.ToString())                                 // optional custom
-        };
+            {
+                new(JwtRegisteredClaimNames.Sub, userId.ToString()),
+                new(ClaimTypes.NameIdentifier, userId.ToString()),
+                new(JwtRegisteredClaimNames.Email, email),
+                new("user_id", userId.ToString())
+            };
 
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
@@ -37,11 +40,11 @@ namespace Salubrity.Infrastructure.Security
             );
 
             var token = new JwtSecurityToken(
-                issuer: "Salubrity",
-                audience: "SalubrityClient",
+                issuer: _settings.Issuer,
+                audience: _settings.Audience,
                 claims: claims,
                 notBefore: DateTime.UtcNow,
-                expires: DateTime.UtcNow.AddMinutes(30),
+                expires: DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),
                 signingCredentials: credentials
             );
 
@@ -63,10 +66,10 @@ namespace Salubrity.Infrastructure.Security
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
-                ValidateLifetime = false, // Bypass expiry check
+                ValidateLifetime = false, 
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = "Salubrity",
-                ValidAudience = "SalubrityClient",
+                ValidIssuer = _settings.Issuer,
+                ValidAudience = _settings.Audience,
                 IssuerSigningKey = _keyProvider.GetPublicKey()
             };
 

@@ -99,7 +99,7 @@ var app = builder.Build();
 app.UseHttpsRedirection();
 app.UseRouting();
 
-app.UseMiddleware<ExceptionHandlingMiddleware>(); // ✅ Must be before Swagger and controllers
+app.UseMiddleware<ExceptionHandlingMiddleware>(); 
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
@@ -109,7 +109,7 @@ app.UseSwagger();
 app.UseSwaggerUI(options =>
 {
     options.SwaggerEndpoint("/swagger/v1/swagger.json", "Salubrity API v1");
-    options.RoutePrefix = "docs"; // ✅ Mounts Swagger UI at /docs
+    options.RoutePrefix = "docs"; 
     options.DisplayRequestDuration();
 });
 #endregion
@@ -120,7 +120,7 @@ app.MapHealthChecks("/health");
 
 app.MapGet("/", context =>
 {
-    context.Response.Redirect("/docs"); // ✅ Root redirects to /docs
+    context.Response.Redirect("/docs"); 
     return Task.CompletedTask;
 });
 #endregion

@@ -10,7 +10,7 @@ namespace Salubrity.Api.Controllers.Rbac;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/role-permission-groups")]
 [Produces("application/json")]
-[Tags("Role–Permission Groups")]
+[Tags("Role Permission Groups")]
 public class RolePermissionGroupController : BaseController
 {
     private readonly IRolePermissionGroupService _service;

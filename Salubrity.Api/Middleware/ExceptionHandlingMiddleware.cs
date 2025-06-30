@@ -1,12 +1,12 @@
 using System.Net;
 using System.Text.Json;
 using FluentValidation;
-using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Shared.Responses;
 using FluentValidationException = FluentValidation.ValidationException;
+using SharedValidationException = Salubrity.Shared.Exceptions.ValidationException;
 
 namespace Salubrity.Api.Middleware;
 
@@ -31,63 +31,52 @@ public class ExceptionHandlingMiddleware
         {
             _logger.LogWarning("FluentValidation failed: {Errors}", ex.Errors);
 
-            context.Response.StatusCode = (int)HttpStatusCode.UnprocessableEntity;
-            context.Response.ContentType = "application/json";
+            var errors = ex.Errors.Select(e => new ErrorDetail
+            {
+                Field = e.PropertyName,
+                Message = e.ErrorMessage
+            });
 
-            var errorList = ex.Errors
-                .Select(e => new ErrorDetail
-                {
-                    Field = e.PropertyName,
-                    Message = e.ErrorMessage
-                })
-                .ToList();
-
-            var response = ApiResponse<string>.CreateFailure("Validation failed.", errorList);
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await WriteResponse(context, HttpStatusCode.UnprocessableEntity, "Validation failed.", errors);
         }
-        catch (Shared.Exceptions.ValidationException ex) // Your custom one
+        catch (SharedValidationException ex)
         {
             _logger.LogWarning("Domain validation failed: {Errors}", ex.Errors);
 
-            context.Response.StatusCode = (int)HttpStatusCode.UnprocessableEntity;
-            context.Response.ContentType = "application/json";
+            var errors = ex.Errors.Select(e => new ErrorDetail
+            {
+                Field = "general",
+                Message = e
+            });
 
-            var errorList = ex.Errors
-                .Select(e => new ErrorDetail
-                {
-                    Field = "general", // or customize as needed
-                    Message = e
-                })
-                .ToList();
-
-            var response = ApiResponse<string>.CreateFailure("Validation failed.", errorList);
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await WriteResponse(context, HttpStatusCode.UnprocessableEntity, "Validation failed.", errors);
         }
         catch (BaseAppException ex)
         {
             _logger.LogWarning("Handled AppException: {Message}", ex.Message);
 
-            context.Response.StatusCode = ex.StatusCode;
-            context.Response.ContentType = "application/json";
-
-            var errorList = ex.Errors?.Select(e => new ErrorDetail
+            var errors = ex.Errors?.Select(e => new ErrorDetail
             {
                 Field = "general",
                 Message = e
-            }).ToList();
+            });
 
-            var response = ApiResponse<string>.CreateFailure(ex.Message, errorList);
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await WriteResponse(context, (HttpStatusCode)ex.StatusCode, ex.Message, errors);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled exception");
 
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-            context.Response.ContentType = "application/json";
-
-            var response = ApiResponse<string>.CreateFailure("An unexpected error occurred.");
-            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
+            await WriteResponse(context, HttpStatusCode.InternalServerError, "An unexpected error occurred.");
         }
+    }
+
+    private static async Task WriteResponse(HttpContext context, HttpStatusCode code, string message, IEnumerable<ErrorDetail>? errors = null)
+    {
+        context.Response.StatusCode = (int)code;
+        context.Response.ContentType = "application/json";
+
+        var response = ApiResponse<string>.CreateFailure(message, errors?.ToList());
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response));
     }
 }

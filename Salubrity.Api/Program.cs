@@ -1,58 +1,32 @@
-﻿using System.Text;
-using Hellang.Middleware.ProblemDetails;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Versioning;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Salubrity.Application;
-using Salubrity.Application.Interfaces.Security;
 using Salubrity.Infrastructure;
-using Salubrity.Infrastructure.Security;
-using Salubrity.Shared;
-using Salubrity.Shared.Exceptions;
 using Salubrity.Shared.Extensions;
+using Salubrity.Api.Middleware;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// -------------------- Logging --------------------
+#region Logging
 builder.Host.UseSerilog((context, services, config) =>
 {
     config.ReadFrom.Configuration(context.Configuration)
           .WriteTo.Console();
 });
+#endregion
 
-// -------------------- DI --------------------
+#region Dependency Injection
 builder.Services.AddApplicationLayer();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSharedServices(builder.Configuration);
+builder.Services.AddJwtAuth(builder.Configuration);
+#endregion
 
-// Register your key provider and JWT service
-builder.Services.AddSingleton<IKeyProvider, RsaKeyProvider>(); // or however yours is implemented
-builder.Services.AddScoped<IJwtService, JwtService>();
-
-// -------------------- Auth (RSA-based) --------------------
-var sp = builder.Services.BuildServiceProvider();
-var keyProvider = sp.GetRequiredService<IKeyProvider>();
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "Salubrity",
-            ValidAudience = "SalubrityClient",
-            IssuerSigningKey = keyProvider.GetPublicKey()
-        };
-    });
-
-// -------------------- API + Swagger --------------------
+#region API & Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
@@ -103,49 +77,9 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+#endregion
 
-// -------------------- ProblemDetails --------------------
-builder.Services.AddProblemDetails(options =>
-{
-    options.Map<BaseAppException>(ex =>
-    {
-        var pd = new ProblemDetails
-        {
-            Title = "Application Error",
-            Detail = ex.Message,
-            Status = ex.StatusCode,
-            Type = $"https://httpstatuses.com/{ex.StatusCode}"
-        };
-
-        if (!string.IsNullOrWhiteSpace(ex.ErrorCode))
-        {
-            pd.Extensions["errorCode"] = ex.ErrorCode;
-        }
-
-        if (ex.Errors is not null && ex.Errors.Any())
-        {
-            pd.Extensions["errors"] = ex.Errors;
-        }
-
-        return pd;
-    });
-
-    options.Map<UnauthorizedException>(ex => new ProblemDetails
-    {
-        Title = "Unauthorized",
-        Detail = ex.Message,
-        Status = StatusCodes.Status401Unauthorized,
-        Type = "https://tools.ietf.org/html/rfc7235#section-3.1"
-    });
-
-    options.MapToStatusCode<NotFoundException>(StatusCodes.Status404NotFound);
-    options.MapToStatusCode<ForbiddenException>(StatusCodes.Status403Forbidden);
-
-    options.IncludeExceptionDetails = (ctx, _) => true;
-        //ctx.RequestServices.GetRequiredService<IHostEnvironment>().IsDevelopment();
-});
-
-// -------------------- CORS --------------------
+#region CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -153,35 +87,42 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader());
 });
+#endregion
 
-// -------------------- Health --------------------
+#region Health Checks
 builder.Services.AddHealthChecks();
+#endregion
 
-// -------------------- App --------------------
 var app = builder.Build();
 
-app.UseProblemDetails();
-
-//if (app.Environment.IsDevelopment())
-//{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-//}
-
+#region Middleware
 app.UseHttpsRedirection();
 app.UseRouting();
-app.UseCors("AllowAll");
 
+app.UseMiddleware<ExceptionHandlingMiddleware>(); // ✅ Must be before Swagger and controllers
+
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Salubrity API v1");
+    options.RoutePrefix = "docs"; // ✅ Mounts Swagger UI at /docs
+    options.DisplayRequestDuration();
+});
+#endregion
+
+#region Endpoints
 app.MapControllers();
 app.MapHealthChecks("/health");
 
 app.MapGet("/", context =>
 {
-    context.Response.Redirect("/swagger");
+    context.Response.Redirect("/docs"); // ✅ Root redirects to /docs
     return Task.CompletedTask;
 });
+#endregion
 
 app.Run();

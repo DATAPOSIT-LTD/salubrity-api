@@ -1,8 +1,8 @@
-using Salubrity.Domain.Entities.Camps;
+using Salubrity.Domain.Entities.HealthCamps;
 
-namespace Salubrity.Application.Interfaces.Repositories.Camps;
+namespace Salubrity.Application.Interfaces.Repositories.HealthCamps;
 
-public interface ICampRepository
+public interface IHealthCampRepository
 {
     Task<List<Camp>> GetAllAsync();
     Task<Camp?> GetByIdAsync(Guid id);

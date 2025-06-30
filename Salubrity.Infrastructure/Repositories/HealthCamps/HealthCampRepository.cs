@@ -1,15 +1,15 @@
 using Microsoft.EntityFrameworkCore;
-using Salubrity.Application.Interfaces.Repositories.Camps;
-using Salubrity.Domain.Entities.Camps;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Infrastructure.Persistence;
 
-namespace Salubrity.Infrastructure.Repositories.Camps;
+namespace Salubrity.Infrastructure.Repositories.HealthCamps;
 
-public class CampRepository : ICampRepository
+public class HealthCampRepository : IHealthCampRepository
 {
     private readonly AppDbContext _context;
 
-    public CampRepository(AppDbContext context)
+    public HealthCampRepository(AppDbContext context)
     {
         _context = context;
     }

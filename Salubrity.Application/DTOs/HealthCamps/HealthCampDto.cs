@@ -1,6 +1,6 @@
-namespace Salubrity.Application.DTOs.Camps;
+namespace Salubrity.Application.DTOs.HealthCamps;
 
-public class CampDto
+public class HealthCampDto
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = default!;
@@ -11,7 +11,7 @@ public class CampDto
     public bool IsActive { get; set; }
 }
 
-public class CreateCampDto
+public class CreateHealthCampDto
 {
     public string Name { get; set; } = default!;
     public string? Description { get; set; }
@@ -20,7 +20,7 @@ public class CreateCampDto
     public DateTime? EndDate { get; set; }
 }
 
-public class UpdateCampDto
+public class UpdateHealthCampDto
 {
     public string Name { get; set; } = default!;
     public string? Description { get; set; }

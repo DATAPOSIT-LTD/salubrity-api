@@ -13,9 +13,9 @@ using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
-using Salubrity.Application.Interfaces.Services.Camps;
+using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Services.HealthcareServices;
-using Salubrity.Application.Services.Camps;
+using Salubrity.Application.Services.HealthCamps;
 
 
 
@@ -47,7 +47,7 @@ namespace Salubrity.Application
             services.AddScoped<IServiceCategoryService, ServiceCategoryService>();   
             services.AddScoped<IServiceSubcategoryService, ServiceSubcategoryService>();
             services.AddScoped<IServicePackageService, ServicePackageService>();
-            services.AddScoped<ICampService, CampService>();
+            services.AddScoped<IHealthCampService, HealthCampService>();
 
 
 

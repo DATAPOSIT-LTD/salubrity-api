@@ -13,7 +13,7 @@ using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Menus;
 using Salubrity.Domain.Entities.HealthcareServices;
-using Salubrity.Domain.Entities.Camps;
+using Salubrity.Domain.Entities.HealthCamps;
 
 namespace Salubrity.Infrastructure.Persistence
 {
@@ -28,7 +28,7 @@ namespace Salubrity.Infrastructure.Persistence
         }
 
         // ─────────────────────────────────────
-        // ✅ RBAC & Audit Tables
+        // RBAC & Audit Tables
         // ─────────────────────────────────────
         public DbSet<Role> Roles => Set<Role>();
         public DbSet<Permission> Permissions => Set<Permission>();
@@ -56,7 +56,7 @@ namespace Salubrity.Infrastructure.Persistence
 
 
         // ─────────────────────────────────────
-        // 🔧 Model Configuration
+        //  Model Configuration
         // ─────────────────────────────────────
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -152,7 +152,7 @@ namespace Salubrity.Infrastructure.Persistence
         }
 
         // ─────────────────────────────────────
-        // ✅ Domain Event & Audit Hooks
+        // Domain Event & Audit Hooks
         // ─────────────────────────────────────
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {

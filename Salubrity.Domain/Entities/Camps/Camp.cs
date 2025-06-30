@@ -1,7 +1,7 @@
 using Salubrity.Domain.Common;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Salubrity.Domain.Entities.Camps;
+namespace Salubrity.Domain.Entities.HealthCamps;
 
 [Table("Camps")]
 public class Camp : BaseAuditableEntity

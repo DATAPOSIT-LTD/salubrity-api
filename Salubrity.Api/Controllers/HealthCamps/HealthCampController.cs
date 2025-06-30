@@ -10,7 +10,7 @@ namespace Salubrity.Api.Controllers.HealthCamps;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/health-camps")]
 [Produces("application/json")]
-[Tags("Camps Management")]
+[Tags("Health Camps Management")]
 public class CampController : BaseController
 {
     private readonly IHealthCampService _service;

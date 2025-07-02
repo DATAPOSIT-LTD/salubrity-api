@@ -13,6 +13,7 @@ public class Service : BaseAuditableEntity
 
     [MaxLength(255)]
     public string? Description { get; set; }
+    public decimal? PricePerPerson { get; set; }
 
     public Guid? IndustryId { get; set; }
 

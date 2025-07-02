@@ -69,8 +69,8 @@ namespace Salubrity.Infrastructure.Security
                 ValidateAudience = true,
                 ValidateLifetime = false, 
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = _settings.Issuer,
-                ValidAudience = _settings.Audience,
+                ValidIssuer = "Salubrity",//_settings.Issuer,
+                ValidAudience = "SalubrityClient",//_settings.Audience,
                 IssuerSigningKey = _keyProvider.GetPublicKey()
             };
 

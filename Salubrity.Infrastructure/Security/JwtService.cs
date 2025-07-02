@@ -39,9 +39,10 @@ namespace Salubrity.Infrastructure.Security
                 SecurityAlgorithms.RsaSha256
             );
 
+
             var token = new JwtSecurityToken(
-                issuer: _settings.Issuer,
-                audience: _settings.Audience,
+                issuer: "Salubrity",//_settings.Issuer,
+                audience: "SalubrityClient",//_settings.Audience,
                 claims: claims,
                 notBefore: DateTime.UtcNow,
                 expires: DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),

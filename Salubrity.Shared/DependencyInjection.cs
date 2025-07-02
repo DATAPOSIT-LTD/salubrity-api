@@ -9,6 +9,7 @@ public static class DependencyInjection
     {
         services.AddSingleton<EncryptionHelper>();
         services.AddSingleton<HashingHelper>();
+      
 
         return services;
     }

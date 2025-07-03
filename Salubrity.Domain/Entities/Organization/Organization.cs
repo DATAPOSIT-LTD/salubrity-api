@@ -19,6 +19,8 @@ namespace Salubrity.Domain.Entities.Organizations
         [Phone]
         public string Phone { get; set; } = null!;
 
+        public string? Location { get; set; }
+
         public string? ClientLogoPath { get; set; }
 
         /// <summary>

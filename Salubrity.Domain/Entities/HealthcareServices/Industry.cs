@@ -16,5 +16,5 @@ public class Industry : BaseAuditableEntity
 
     public bool IsActive { get; set; } = true;
 
-    //public ICollection<Service> Services { get; set; } = new List<Service>();
+    public ICollection<Service> Services { get; set; } = new List<Service>();
 }

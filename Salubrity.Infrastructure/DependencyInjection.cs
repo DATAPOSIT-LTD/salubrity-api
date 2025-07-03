@@ -11,6 +11,8 @@ using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Infrastructure.Repositories.HealthcareServices;
 using Salubrity.Infrastructure.Repositories.HealthCamps;
+using Salubrity.Infrastructure.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 
 
 
@@ -23,9 +25,9 @@ using Salubrity.Infrastructure.Repositories.Menus;
 using Salubrity.Infrastructure.Repositories.Organizations;
 using Salubrity.Infrastructure.Repositories.Rbac;
 using Salubrity.Infrastructure.Repositories.Users;
-using Salubrity.Infrastructure.Repositories.HealthCamps;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
+
 
 namespace Salubrity.Infrastructure;
 
@@ -57,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceSubcategoryRepository, ServiceSubcategoryRepository>();
         services.AddScoped<IServicePackageRepository, ServicePackageRepository>();
         services.AddScoped<IHealthCampRepository, HealthCampRepository>();
+        services.AddScoped<IIntakeFormRepository,   IntakeFormRepository>();
 
 
 

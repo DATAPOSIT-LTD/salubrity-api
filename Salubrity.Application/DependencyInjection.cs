@@ -16,6 +16,8 @@ using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Services.HealthcareServices;
 using Salubrity.Application.Services.HealthCamps;
+using Salubrity.Application.Interfaces.IntakeForms;
+using Salubrity.Application.Services.IntakeForms;
 
 
 
@@ -48,6 +50,7 @@ namespace Salubrity.Application
             services.AddScoped<IServiceSubcategoryService, ServiceSubcategoryService>();
             services.AddScoped<IServicePackageService, ServicePackageService>();
             services.AddScoped<IHealthCampService, HealthCampService>();
+            services.AddScoped<IIntakeFormService, IntakeFormService>();
 
 
 

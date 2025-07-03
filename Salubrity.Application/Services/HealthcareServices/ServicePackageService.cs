@@ -37,7 +37,7 @@ public class ServicePackageService : IServicePackageService
         {
             Name = dto.Name,
             Description = dto.Description,
-            ServiceSubcategoryIds = dto.ServiceSubcategoryIds,
+            //ServiceSubcategoryIds = dto.ServiceSubcategoryIds,
             Price = dto.Price,
             RangeOfPeople = dto.RangeOfPeople
         };
@@ -53,7 +53,7 @@ public class ServicePackageService : IServicePackageService
 
         entity.Name = dto.Name;
         entity.Description = dto.Description;
-        entity.ServiceSubcategoryIds = dto.ServiceSubcategoryIds;
+        //entity.ServiceSubcategoryIds = dto.ServiceSubcategoryIds;
         entity.Price = dto.Price;
         entity.RangeOfPeople = dto.RangeOfPeople;
         entity.IsActive = dto.IsActive;
@@ -75,7 +75,7 @@ public class ServicePackageService : IServicePackageService
         Id = e.Id,
         Name = e.Name,
         Description = e.Description,
-        ServiceSubcategoryIds = e.ServiceSubcategoryIds,
+        //ServiceSubcategoryIds = e.ServiceSubcategoryIds,
         Price = e.Price,
         RangeOfPeople = e.RangeOfPeople,
         IsActive = e.IsActive

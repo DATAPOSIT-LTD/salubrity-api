@@ -1,6 +1,7 @@
 // File: Salubrity.Domain.Entities.HealthcareServices.Service.cs
 
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.IntakeForms;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 

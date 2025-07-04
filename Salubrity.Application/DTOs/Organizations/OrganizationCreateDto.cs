@@ -12,12 +12,11 @@ namespace Salubrity.Application.DTOs.Organizations
 
         [Required, Phone]
         public string Phone { get; set; } = null!;
+
         public string? Location { get; set; }
-
+        public Guid? InsuranceProvidingId { get; set; }
         public string? ClientLogoPath { get; set; }
-
         public Guid? ContactPersonId { get; set; }
-
         public Guid? StatusId { get; set; }
     }
 }

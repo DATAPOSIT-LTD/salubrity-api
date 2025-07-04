@@ -15,6 +15,7 @@ using Salubrity.Domain.Entities.Menus;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.IntakeForms;
+using Salubrity.Domain.Entities.Join;
 
 namespace Salubrity.Infrastructure.Persistence
 {
@@ -52,9 +53,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
         public DbSet<Camp> Camps => Set<Camp>();
         public DbSet<IntakeForm> IntakeForms => Set<IntakeForm>();
-
-
-
+        public DbSet<OrganizationInsuranceProvider> OrganizationInsuranceProviders => Set<OrganizationInsuranceProvider>();
 
 
         // ─────────────────────────────────────

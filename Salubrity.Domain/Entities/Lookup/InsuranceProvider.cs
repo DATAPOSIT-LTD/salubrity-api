@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.Join;
 
 namespace Salubrity.Domain.Entities.Lookup;
 
@@ -16,4 +17,8 @@ public class InsuranceProvider : BaseLookupEntity
     [MaxLength(2048)]
     public string? LogoUrl { get; set; }
 
+    /// <summary>
+    /// Many-to-many relationship: this provider can be associated with many organizations.
+    /// </summary>
+    public ICollection<OrganizationInsuranceProvider> Organizations { get; set; } = new List<OrganizationInsuranceProvider>();
 }

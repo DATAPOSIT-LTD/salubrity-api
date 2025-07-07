@@ -32,7 +32,7 @@ public class HealthCampService : IHealthCampService
 
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
-        var entity = _mapper.Map<Camp>(dto);
+        var entity = _mapper.Map<HealthCamp>(dto);
         entity.Id = Guid.NewGuid();
         entity.CreatedAt = DateTime.UtcNow;
         entity.IsActive = true;

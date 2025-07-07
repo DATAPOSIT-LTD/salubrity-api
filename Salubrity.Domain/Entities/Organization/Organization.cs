@@ -26,4 +26,6 @@ public class Organization : BaseAuditableEntity
     public OrganizationStatus? Status { get; set; }
 
     public ICollection<OrganizationInsuranceProvider> InsuranceProviders { get; set; } = new List<OrganizationInsuranceProvider>();
+    public ICollection<OrganizationPackage> Packages { get; set; } = new List<OrganizationPackage>();
+
 }

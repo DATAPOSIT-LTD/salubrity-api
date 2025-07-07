@@ -1,8 +1,7 @@
 namespace Salubrity.Application.DTOs.HealthCamps;
 
-public class HealthCampDto
+public class UpdateHealthCampDto
 {
-    public Guid Id { get; set; }
     public string Name { get; set; } = default!;
     public string? Description { get; set; }
     public string? Location { get; set; }
@@ -10,10 +9,7 @@ public class HealthCampDto
     public DateTime? EndDate { get; set; }
     public TimeSpan? StartTime { get; set; }
     public bool IsActive { get; set; }
-
     public Guid OrganizationId { get; set; }
-    public string OrganizationName { get; set; } = default!;
 
-    public List<HealthCampPackageItemDto> PackageItems { get; set; } = new();
-    public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = new();
+    public List<UpdateHealthCampPackageItemDto> PackageItems { get; set; } = new();
 }

@@ -1,21 +1,22 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Audit;
+using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.IntakeForms;
+using Salubrity.Domain.Entities.Join;
+using Salubrity.Domain.Entities.Lookup;
+using Salubrity.Domain.Entities.Menus;
+using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Rbac;
-using MediatR;
+using Salubrity.Domain.Entities.Subcontractor;
 using System;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Salubrity.Domain.Entities.Lookup;
-using Salubrity.Domain.Entities.Organizations;
-using Salubrity.Domain.Entities.Identity;
-using Salubrity.Domain.Entities.Menus;
-using Salubrity.Domain.Entities.HealthcareServices;
-using Salubrity.Domain.Entities.HealthCamps;
-using Salubrity.Domain.Entities.IntakeForms;
-using Salubrity.Domain.Entities.Join;
 
 namespace Salubrity.Infrastructure.Persistence
 {
@@ -51,9 +52,22 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
         public DbSet<ServiceSubcategory> ServiceSubcategories => Set<ServiceSubcategory>();
         public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
-        public DbSet<Camp> Camps => Set<Camp>();
         public DbSet<IntakeForm> IntakeForms => Set<IntakeForm>();
         public DbSet<OrganizationInsuranceProvider> OrganizationInsuranceProviders => Set<OrganizationInsuranceProvider>();
+        public DbSet<HealthCamp> HealthCamps => Set<HealthCamp>();
+        public DbSet<HealthCampService> HealthCampServices => Set<HealthCampService>();
+        public DbSet<HealthCampServiceAssignment> HealthCampServiceAssignments => Set<HealthCampServiceAssignment>();
+        public DbSet<Subcontractor> Subcontractors => Set<Subcontractor>();
+        public DbSet<SubcontractorSpecialty> SubcontractorSpecialties => Set<SubcontractorSpecialty>();
+        public DbSet<SubcontractorHealthCampAssignment> SubcontractorHealthCampAssignments => Set<SubcontractorHealthCampAssignment>();
+        public DbSet<SubcontractorHealthCampAssignmentStatus> SubcontractorHealthCampAssignmentStatuses => Set<SubcontractorHealthCampAssignmentStatus>();
+        public DbSet<SubcontractorStatus> SubcontractorStatuses => Set<SubcontractorStatus>();
+        public DbSet<SubcontractorRole> SubcontractorRoles => Set<SubcontractorRole>();
+        public DbSet<SubcontractorRoleAssignment> SubcontractorRoleAssignments => Set<SubcontractorRoleAssignment>();
+        public DbSet<HealthCampPackageItem> HealthCampPackageItems => Set<HealthCampPackageItem>();
+
+
+
 
 
         // ─────────────────────────────────────

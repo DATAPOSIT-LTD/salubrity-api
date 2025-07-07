@@ -10,4 +10,5 @@ public interface IServiceRepository
 	Task UpdateAsync(Service entity);
 	Task DeleteAsync(Service entity);
 	Task<bool> ExistsByNameAsync(string name);
+    Task<bool> ExistsByIdAsync(Guid id);
 }

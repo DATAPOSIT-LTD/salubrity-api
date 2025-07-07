@@ -2,8 +2,11 @@ using AutoMapper;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Shared.Exceptions;
+using System.Text.Json.Serialization;
 
 namespace Salubrity.Application.Services.HealthCamps;
 
@@ -11,11 +14,13 @@ public class HealthCampService : IHealthCampService
 {
     private readonly IHealthCampRepository _repo;
     private readonly IMapper _mapper;
+    private readonly IPackageReferenceResolver _referenceResolver;
 
-    public HealthCampService(IHealthCampRepository repo, IMapper mapper)
+    public HealthCampService(IHealthCampRepository repo, IPackageReferenceResolver _pResolver, IMapper mapper)
     {
         _repo = repo;
         _mapper = mapper;
+        _referenceResolver = _pResolver;
     }
 
     public async Task<List<HealthCampDto>> GetAllAsync()
@@ -37,9 +42,25 @@ public class HealthCampService : IHealthCampService
         entity.CreatedAt = DateTime.UtcNow;
         entity.IsActive = true;
 
+        // Manually create and add HealthCampPackageItems
+        foreach (var item in dto.PackageItems)
+        {
+            var packageItem = new HealthCampPackageItem
+            {
+                Id = Guid.NewGuid(),
+                HealthCampId = entity.Id,
+                ReferenceId = item.ReferenceId,
+                // ReferenceType should be resolved on backend logic, not passed from DTO
+                ReferenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId)
+            };
+
+            entity.PackageItems.Add(packageItem);
+        }
+
         await _repo.CreateAsync(entity);
         return _mapper.Map<HealthCampDto>(entity);
     }
+
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)
     {

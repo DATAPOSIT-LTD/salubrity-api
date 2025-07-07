@@ -37,4 +37,10 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
         _db.ServiceCategories.Remove(entity);
         await _db.SaveChangesAsync();
     }
+
+    public async Task<bool> ExistsByIdAsync(Guid id)
+    {
+        return await _db.ServiceCategories.AnyAsync(s => s.Id == id);
+    }
+
 }

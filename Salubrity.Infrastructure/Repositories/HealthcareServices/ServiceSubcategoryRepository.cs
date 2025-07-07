@@ -48,4 +48,8 @@ public class ServiceSubcategoryRepository : IServiceSubcategoryRepository
     {
         return await _db.ServiceSubcategories.AnyAsync(s => s.Name == name);
     }
+    public async Task<bool> ExistsByIdAsync(Guid id)
+    {
+        return await _db.ServiceSubcategories.AnyAsync(s => s.Id == id);
+    }
 }

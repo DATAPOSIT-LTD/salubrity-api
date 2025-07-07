@@ -46,4 +46,9 @@ public class ServiceRepository : IServiceRepository
     {
         return await _db.Services.AnyAsync(x => x.Name == name);
     }
+
+    public async Task<bool> ExistsByIdAsync(Guid id)
+    {
+        return await _db.Services.AnyAsync(s => s.Id == id);
+    }
 }

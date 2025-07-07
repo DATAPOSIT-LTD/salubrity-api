@@ -52,6 +52,7 @@ namespace Salubrity.Application
             services.AddScoped<IServicePackageService, ServicePackageService>();
             services.AddScoped<IHealthCampService, HealthCampService>();
             services.AddScoped<IIntakeFormService, IntakeFormService>();
+            services.AddScoped<IPackageReferenceResolver, PackageReferenceResolverService>();
 
 
 

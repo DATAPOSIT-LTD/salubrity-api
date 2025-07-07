@@ -75,4 +75,6 @@ public class ServiceCategoryService : IServiceCategoryService
         DurationMinutes = entity.DurationMinutes,
         IsActive = entity.IsActive
     };
+
+
 }

@@ -9,4 +9,5 @@ public interface IServiceCategoryRepository
     Task AddAsync(ServiceCategory entity);
     Task UpdateAsync(ServiceCategory entity);
     Task DeleteAsync(ServiceCategory entity);
+    Task<bool> ExistsByIdAsync(Guid id);
 }

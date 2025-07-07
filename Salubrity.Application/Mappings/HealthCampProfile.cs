@@ -1,0 +1,21 @@
+// File: Salubrity.Application/Mappings/HealthCampProfile.cs
+
+using AutoMapper;
+using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Domain.Entities.HealthCamps;
+
+namespace Salubrity.Application.Mappings;
+
+public class HealthCampProfile : Profile
+{
+    public HealthCampProfile()
+    {
+        CreateMap<CreateHealthCampDto, HealthCamp>()
+            .ForMember(dest => dest.PackageItems, opt => opt.Ignore())
+            .ForMember(dest => dest.ServiceAssignments, opt => opt.Ignore())
+            .ForMember(dest => dest.Organization, opt => opt.Ignore());
+
+        CreateMap<HealthCamp, HealthCampDto>()
+            .ForMember(dest => dest.OrganizationName, opt => opt.MapFrom(src => src.Organization.BusinessName));
+    }
+}

@@ -43,6 +43,7 @@ namespace Salubrity.Application
             services.AddScoped<IOrganizationService, OrganizationService>();
             services.AddAutoMapper(typeof(OrganizationMappingProfile).Assembly);
             services.AddAutoMapper(typeof(IndustryProfile).Assembly);
+            services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
             services.AddScoped<IIndustryService, IndustryService>();         
             services.AddScoped<IServiceService, ServiceService>();

@@ -18,6 +18,7 @@ using Salubrity.Application.Services.HealthcareServices;
 using Salubrity.Application.Services.HealthCamps;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Services.IntakeForms;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 
 
 
@@ -53,8 +54,9 @@ namespace Salubrity.Application
             services.AddScoped<IHealthCampService, HealthCampService>();
             services.AddScoped<IIntakeFormService, IntakeFormService>();
             services.AddScoped<IPackageReferenceResolver, PackageReferenceResolverService>();
+            services.AddScoped<IHealthCampManagementService, HealthCampManagementService>();
 
-
+                    
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();

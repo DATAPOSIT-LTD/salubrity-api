@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IServicePackageRepository, ServicePackageRepository>();
         services.AddScoped<IHealthCampRepository, HealthCampRepository>();
         services.AddScoped<IIntakeFormRepository,   IntakeFormRepository>();
+        services.AddScoped<IHealthCampManagementRepository, HealthCampManagementRepository>();
 
 
 

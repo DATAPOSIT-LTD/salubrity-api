@@ -11,4 +11,5 @@ public class CreateHealthCampDto
 	public Guid OrganizationId { get; set; }
 
 	public List<CreateHealthCampPackageItemDto> PackageItems { get; set; } = new();
+	public List<CreateHealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = new();
 }

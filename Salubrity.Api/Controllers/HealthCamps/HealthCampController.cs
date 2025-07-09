@@ -21,7 +21,7 @@ public class CampController : BaseController
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<List<HealthCampDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {
         var result = await _service.GetAllAsync();
@@ -29,7 +29,7 @@ public class CampController : BaseController
     }
 
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<HealthCampDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<HealthCampDetailDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await _service.GetByIdAsync(id);

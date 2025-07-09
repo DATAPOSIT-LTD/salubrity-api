@@ -23,43 +23,64 @@ public class HealthCampService : IHealthCampService
         _referenceResolver = _pResolver;
     }
 
-    public async Task<List<HealthCampDto>> GetAllAsync()
+    public async Task<List<HealthCampListDto>> GetAllAsync()
     {
         var items = await _repo.GetAllAsync();
-        return _mapper.Map<List<HealthCampDto>>(items);
+        return _mapper.Map<List<HealthCampListDto>>(items);
     }
 
-    public async Task<HealthCampDto> GetByIdAsync(Guid id)
+    public async Task<HealthCampDetailDto> GetByIdAsync(Guid id)
     {
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
-        return _mapper.Map<HealthCampDto>(camp);
+        return _mapper.Map<HealthCampDetailDto>(camp);
     }
 
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
-        var entity = _mapper.Map<HealthCamp>(dto);
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        entity.IsActive = true;
+        var entity = new HealthCamp
+        {
+            Id = Guid.NewGuid(),
+            Name = dto.Name,
+            Description = dto.Description,
+            Location = dto.Location,
+            StartDate = dto.StartDate,
+            EndDate = dto.EndDate,
+            StartTime = dto.StartTime,
+            OrganizationId = dto.OrganizationId,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            PackageItems = new List<HealthCampPackageItem>(),
+            ServiceAssignments = new List<HealthCampServiceAssignment>()
+        };
 
-        // Manually create and add HealthCampPackageItems
         foreach (var item in dto.PackageItems)
         {
-            var packageItem = new HealthCampPackageItem
+            var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
+
+            entity.PackageItems.Add(new HealthCampPackageItem
             {
                 Id = Guid.NewGuid(),
                 HealthCampId = entity.Id,
                 ReferenceId = item.ReferenceId,
-                // ReferenceType should be resolved on backend logic, not passed from DTO
-                ReferenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId)
-            };
-
-            entity.PackageItems.Add(packageItem);
+                ReferenceType = referenceType
+            });
         }
 
-        await _repo.CreateAsync(entity);
-        return _mapper.Map<HealthCampDto>(entity);
+        foreach (var assignment in dto.ServiceAssignments)
+        {
+            entity.ServiceAssignments.Add(new HealthCampServiceAssignment
+            {
+                Id = Guid.NewGuid(),
+                HealthCampId = entity.Id,
+                ServiceId = assignment.ServiceId,
+                SubcontractorId = assignment.SubcontractorId
+            });
+        }
+
+        var created = await _repo.CreateAsync(entity);
+        return _mapper.Map<HealthCampDto>(created);
     }
+
 
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)

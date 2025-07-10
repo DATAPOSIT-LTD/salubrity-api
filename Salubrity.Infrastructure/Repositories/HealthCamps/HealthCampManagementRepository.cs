@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Infrastructure.Persistence;
 using System.Text.Json.Serialization;
@@ -96,4 +97,18 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 		// Assuming billing/invoice relationship via patients or services
 		return new(); // Stubbed
 	}
+
+    public async Task<HealthCamp?> GetWithDetailsAsync(Guid id)
+    {
+        return await _context.HealthCamps
+            .Include(h => h.Organization)
+                .ThenInclude(o => o.InsuranceProviders)
+                    .ThenInclude(oi => oi.InsuranceProvider)
+            .Include(h => h.Organization)
+                .ThenInclude(o => o.Packages)
+                    .ThenInclude(op => op.ServicePackage)
+            .Include(h => h.ServiceAssignments)
+            .Include(h => h.PackageItems)
+            .FirstOrDefaultAsync(h => h.Id == id);
+    }
 }

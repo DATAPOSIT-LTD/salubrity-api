@@ -8,7 +8,7 @@ namespace Salubrity.Api.Controllers.HealthCamps;
 
 [ApiController]
 [ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/health-camps/{healthCampId:guid}")]
+[Route("api/v{version:apiVersion}/health-camps")]
 [Produces("application/json")]
 [Tags("Health Camps Management View")]
 public class HealthCampManagementController : BaseController
@@ -20,7 +20,15 @@ public class HealthCampManagementController : BaseController
         _service = service;
     }
 
-    [HttpGet("service-stations")]
+    [HttpGet("{healthCampId:guid}/organization-summary")]
+    [ProducesResponseType(typeof(ApiResponse<OrganizationCampDetailsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOrganizationCampSummary(Guid healthCampId)
+    {
+        var result = await _service.GetOrganizationCampDetailsAsync(healthCampId);
+        return Success(result);
+    }
+
+    [HttpGet("{healthCampId:guid}/service-stations")]
     [ProducesResponseType(typeof(ApiResponse<List<ServiceStationSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetServiceStations(Guid healthCampId)
     {
@@ -28,7 +36,7 @@ public class HealthCampManagementController : BaseController
         return Success(result);
     }
 
-    [HttpGet("patients")]
+    [HttpGet("{healthCampId:guid}/patients")]
     [ProducesResponseType(typeof(ApiResponse<List<CampPatientSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPatients(Guid healthCampId)
     {
@@ -36,7 +44,7 @@ public class HealthCampManagementController : BaseController
         return Success(result);
     }
 
-    [HttpGet("activity-summary")]
+    [HttpGet("{healthCampId:guid}/activity-summary")]
     [ProducesResponseType(typeof(ApiResponse<List<CampDailyActivityDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActivitySummary(Guid healthCampId)
     {
@@ -44,7 +52,7 @@ public class HealthCampManagementController : BaseController
         return Success(result);
     }
 
-    [HttpGet("billing")]
+    [HttpGet("{healthCampId:guid}/billing")]
     [ProducesResponseType(typeof(ApiResponse<List<CampBillingSummaryDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBillingSummary(Guid healthCampId)
     {

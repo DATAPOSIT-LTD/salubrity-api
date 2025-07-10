@@ -11,4 +11,5 @@ public interface IHealthCampRepository
     Task<HealthCamp> CreateAsync(HealthCamp entity);
     Task<HealthCamp> UpdateAsync(HealthCamp entity);
     Task DeleteAsync(Guid id);
+ 
 }

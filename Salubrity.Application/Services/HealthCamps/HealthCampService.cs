@@ -99,6 +99,9 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<HealthCampDto>(camp);
     }
 
+   
+
+
     public async Task DeleteAsync(Guid id)
     {
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");

@@ -16,4 +16,5 @@ public class HealthCampDto
 
     public List<HealthCampPackageItemDto> PackageItems { get; set; } = new();
     public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = new();
+    public List<HealthCampParticipantDto> Participants { get; set; } = new();
 }

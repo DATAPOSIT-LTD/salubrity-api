@@ -1,5 +1,6 @@
 ﻿using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Organizations;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -35,4 +36,6 @@ public class HealthCamp : BaseAuditableEntity
 
     // Assignments per subcontractor per service
     public virtual ICollection<HealthCampServiceAssignment> ServiceAssignments { get; set; } = new List<HealthCampServiceAssignment>();
+    public ICollection<HealthCampParticipant> Participants { get; set; } = new List<HealthCampParticipant>();
+
 }

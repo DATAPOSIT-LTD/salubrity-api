@@ -65,6 +65,12 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<SubcontractorRole> SubcontractorRoles => Set<SubcontractorRole>();
         public DbSet<SubcontractorRoleAssignment> SubcontractorRoleAssignments => Set<SubcontractorRoleAssignment>();
         public DbSet<HealthCampPackageItem> HealthCampPackageItems => Set<HealthCampPackageItem>();
+        public DbSet<HealthCampParticipant> HealthCampParticipants => Set<HealthCampParticipant>();
+        public DbSet<Patient> Patients => Set<Patient>();
+        public DbSet<Employee> Employees => Set<Employee>();
+
+
+
 
 
 

@@ -1,24 +1,26 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
+using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Services.Auth;
+using Salubrity.Application.Interfaces.Services.HealthCamps;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Organizations;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
+using Salubrity.Application.Services.HealthCamps;
+using Salubrity.Application.Services.HealthcareServices;
+using Salubrity.Application.Services.IntakeForms;
 using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
-using Salubrity.Application.Interfaces.Services.HealthcareServices;
-using Salubrity.Application.Interfaces.Services.HealthCamps;
-using Salubrity.Application.Services.HealthcareServices;
-using Salubrity.Application.Services.HealthCamps;
-using Salubrity.Application.Interfaces.IntakeForms;
-using Salubrity.Application.Services.IntakeForms;
-using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Domain.Entities.Lookup;
 
 
 
@@ -55,8 +57,10 @@ namespace Salubrity.Application
             services.AddScoped<IIntakeFormService, IntakeFormService>();
             services.AddScoped<IPackageReferenceResolver, PackageReferenceResolverService>();
             services.AddScoped<IHealthCampManagementService, HealthCampManagementService>();
+            services.AddScoped<ILookupService, GenericLookupService<Gender>>(); // for gender
 
-                    
+
+
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();

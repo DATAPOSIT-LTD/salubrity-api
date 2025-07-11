@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Lookups;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Services.Lookups;
@@ -11,7 +12,7 @@ namespace Salubrity.Api.Controllers.Lookups;
 [Route("api/v{version:apiVersion}/lookups/insurance-providers")]
 [Produces("application/json")]
 [Tags("Lookup: Insurance Providers")]
-public class InsuranceProviderController : ControllerBase
+public class InsuranceProviderController : BaseController
 {
     private readonly IInsuranceProviderService _service;
 

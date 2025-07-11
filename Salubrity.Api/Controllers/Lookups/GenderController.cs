@@ -24,6 +24,7 @@ public class GenderController : BaseController
     public async Task<IActionResult> Get()
     {
         var result = await _genderService.GetAllAsync();
-        return Ok(result);
+        return Success(result);
+
     }
 }

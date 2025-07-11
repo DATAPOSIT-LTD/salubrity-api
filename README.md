@@ -1,7 +1,7 @@
 ﻿
 ---
 
-## ✅ `README.md` (Hand-off Ready)
+## ✅ `README.md`
 
 ```md
 # Salubrity Backend – API Documentation

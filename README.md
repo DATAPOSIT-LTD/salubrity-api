@@ -27,7 +27,7 @@ This document provides an overview of the project structure, setup steps, develo
 
 ## 🏗️ Project Structure
 
-```
+
 
 Salubrity/
 │
@@ -54,7 +54,6 @@ Salubrity/
 │
 └── Migrations/                     # EF Core migrations (auto-generated)
 
-````
 
 ---
 

@@ -1,21 +1,4 @@
-﻿Yes, I do — you’re using a **clean architecture** approach with:
-
-* **ASP.NET Core 9**
-* **PostgreSQL**
-* **Polymorphic `User` model** (extending into `Employee`, `Patient`, etc.)
-* **Entity separation** for medical logic (`Patient`, `HealthCampParticipant`, etc.)
-* **Generic lookup system**
-* **Service-layer-first logic**
-* **Audit and soft-delete via `BaseAuditableEntity`**
-* Clean, scalable domain boundaries.
-
-Let’s write a professional `README.md` that:
-
-* ✅ Explains the architecture
-* ✅ Guides new devs through core modules
-* ✅ Defines development and contribution practices
-* ✅ Provides essential commands
-
+﻿
 ---
 
 ## ✅ `README.md` (Hand-off Ready)

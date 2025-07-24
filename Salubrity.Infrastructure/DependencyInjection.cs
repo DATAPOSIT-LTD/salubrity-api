@@ -65,6 +65,8 @@ public static class DependencyInjection
         services.AddScoped<IHealthCampManagementRepository, HealthCampManagementRepository>();
         services.AddScoped(typeof(ILookupRepository<>), typeof(LookupRepository<>));
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+        //services.AddScoped(typeof(ILookupRepository<>), typeof(EfLookupRepository<>));
+
 
 
 

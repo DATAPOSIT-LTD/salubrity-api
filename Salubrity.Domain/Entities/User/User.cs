@@ -1,9 +1,10 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Rbac;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Salubrity.Domain.Entities.Identity;
 
@@ -66,4 +67,6 @@ public class User : BaseAuditableEntity
 
 
     public string? TotpSecret { get; set; }
+    public ICollection<UserLanguage> UserLanguages { get; set; } = new List<UserLanguage>();
+
 }

@@ -1,4 +1,4 @@
-// File: Api/Controllers/Lookups/GenderController.cs
+// File: Api/Controllers/Lookups/LanguageController.cs
 
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
@@ -11,14 +11,14 @@ namespace Salubrity.Api.Controllers.Lookups;
 
 [ApiController]
 [ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/lookups/genders")]
+[Route("api/v{version:apiVersion}/lookups/languages")]
 [Produces("application/json")]
-[Tags("Lookup: Genders")]
-public class GenderController : BaseController
+[Tags("Lookup: Languages")]
+public class LanguageController : BaseController
 {
-    private readonly ILookupRepository<Gender> _repository;
+    private readonly ILookupRepository<Language> _repository;
 
-    public GenderController(ILookupRepository<Gender> repository)
+    public LanguageController(ILookupRepository<Language> repository)
     {
         _repository = repository;
     }
@@ -27,7 +27,7 @@ public class GenderController : BaseController
     [ProducesResponseType(typeof(ApiResponse<List<BaseLookupResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get()
     {
-        var service = new GenericLookupService<Gender>(_repository);
+        var service = new GenericLookupService<Language>(_repository);
         var result = await service.GetAllAsync();
         return Success(result);
     }

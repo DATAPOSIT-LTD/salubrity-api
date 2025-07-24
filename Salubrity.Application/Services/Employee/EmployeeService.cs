@@ -10,12 +10,10 @@ namespace Salubrity.Application.Services.EmployeeServices;
 public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _repo;
-    
 
     public EmployeeService(IEmployeeRepository repo)
     {
         _repo = repo;
-       
     }
 
     public async Task<List<EmployeeResponseDto>> GetAllAsync()
@@ -25,8 +23,10 @@ public class EmployeeService : IEmployeeService
         {
             Id = e.Id,
             OrganizationId = e.OrganizationId,
-            JobTitle = e.JobTitle,
-            Department = e.Department,
+            JobTitleId = e.JobTitleId,
+            JobTitleName = e.JobTitle?.Name,
+            DepartmentId = e.DepartmentId,
+            DepartmentName = e.Department?.Name,
             User = new UserResponse
             {
                 Id = e.User.Id,
@@ -43,12 +43,15 @@ public class EmployeeService : IEmployeeService
     public async Task<EmployeeResponseDto?> GetByIdAsync(Guid id)
     {
         var employee = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Employee not found");
+
         return new EmployeeResponseDto
         {
             Id = employee.Id,
             OrganizationId = employee.OrganizationId,
-            JobTitle = employee.JobTitle,
-            Department = employee.Department,
+            JobTitleId = employee.JobTitleId,
+            JobTitleName = employee.JobTitle?.Name,
+            DepartmentId = employee.DepartmentId,
+            DepartmentName = employee.Department?.Name,
             User = new UserResponse
             {
                 Id = employee.User.Id,
@@ -63,30 +66,33 @@ public class EmployeeService : IEmployeeService
     }
 
     public async Task<EmployeeResponseDto> CreateAsync(EmployeeRequestDto dto)
-{
-    var entity = new Employee
     {
-        Id = Guid.NewGuid(),
-        OrganizationId = dto.OrganizationId,
-        JobTitle = dto.JobTitle,
-        Department = dto.Department,
-        User = new User
+        var entity = new Employee
         {
             Id = Guid.NewGuid(),
-            FirstName = dto.User.FirstName,
-            MiddleName = dto.User.MiddleName,
-            LastName = dto.User.LastName,
-            Email = dto.User.Email,
-            Phone = dto.User.Phone,
-            DateOfBirth = dto.User.DateOfBirth,
-        }
-    };
+            OrganizationId = dto.OrganizationId,
+            JobTitleId = dto.JobTitleId,
+            DepartmentId = dto.DepartmentId,
+            User = new User
+            {
+                Id = Guid.NewGuid(),
+                FirstName = dto.User.FirstName,
+                MiddleName = dto.User.MiddleName,
+                LastName = dto.User.LastName,
+                Email = dto.User.Email,
+                Phone = dto.User.Phone,
+                DateOfBirth = dto.User.DateOfBirth,
+            }
+        };
+
+        await _repo.CreateAsync(entity);
+
         return new EmployeeResponseDto
         {
             Id = entity.Id,
             OrganizationId = entity.OrganizationId,
-            JobTitle = entity.JobTitle,
-            Department = entity.Department,
+            JobTitleId = entity.JobTitleId,
+            DepartmentId = entity.DepartmentId,
             User = new UserResponse
             {
                 Id = entity.User.Id,
@@ -98,17 +104,44 @@ public class EmployeeService : IEmployeeService
                 DateOfBirth = entity.User.DateOfBirth
             }
         };
-}
+    }
 
     public async Task<EmployeeResponseDto> UpdateAsync(Guid id, EmployeeRequestDto dto)
     {
-       throw new NotImplementedException("Update functionality is not implemented yet.");
-        // You would typically fetch the existing employee, update its properties, and save it back.
-        // var existingEmployee = await _repo.GetByIdAsync(id);
-        // if (existingEmployee == null) throw new NotFoundException("Employee not found");
-        // Update properties here...
-        // await _repo.UpdateAsync(existingEmployee);
-        // return _repo.Map<EmployeeResponseDto>(existingEmployee);
+        Employee existingEmployee = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Employee not found");
+
+        existingEmployee.JobTitleId = dto.JobTitleId;
+        existingEmployee.DepartmentId = dto.DepartmentId;
+        existingEmployee.OrganizationId = dto.OrganizationId;
+
+        existingEmployee.User.FirstName = dto.User.FirstName;
+        existingEmployee.User.MiddleName = dto.User.MiddleName;
+        existingEmployee.User.LastName = dto.User.LastName;
+        existingEmployee.User.Email = dto.User.Email;
+        existingEmployee.User.Phone = dto.User.Phone;
+        existingEmployee.User.DateOfBirth = dto.User.DateOfBirth;  
+
+        await _repo.UpdateAsync(existingEmployee);
+
+        return new EmployeeResponseDto
+        {
+            Id = existingEmployee.Id,
+            OrganizationId = existingEmployee.OrganizationId,
+            JobTitleId = existingEmployee.JobTitleId,
+            JobTitleName = existingEmployee.JobTitle?.Name,
+            DepartmentId = existingEmployee.DepartmentId,
+            DepartmentName = existingEmployee.Department?.Name,
+            User = new UserResponse
+            {
+                Id = existingEmployee.User.Id,
+                FirstName = existingEmployee.User.FirstName,
+                MiddleName = existingEmployee.User.MiddleName,
+                LastName = existingEmployee.User.LastName,
+                Email = existingEmployee.User.Email,
+                Phone = existingEmployee.User.Phone,
+                DateOfBirth = existingEmployee.User.DateOfBirth
+            }
+        };
     }
 
     public async Task DeleteAsync(Guid id)

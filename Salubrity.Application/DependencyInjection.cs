@@ -61,6 +61,8 @@ namespace Salubrity.Application
             services.AddScoped<IHealthCampManagementService, HealthCampManagementService>();
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<ILookupService, GenericLookupService<Gender>>(); // for gender
+            services.AddScoped(typeof(ILookupRepository<>), typeof(EfLookupRepository<>));
+
 
 
 

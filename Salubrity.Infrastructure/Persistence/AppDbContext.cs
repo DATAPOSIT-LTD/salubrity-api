@@ -68,6 +68,11 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<HealthCampParticipant> HealthCampParticipants => Set<HealthCampParticipant>();
         public DbSet<Patient> Patients => Set<Patient>();
         public DbSet<Employee> Employees => Set<Employee>();
+        public DbSet<Language> Languages => Set<Language>();
+        public DbSet<JobTitle> JobTitles => Set<JobTitle>();
+        public DbSet<Department> Departments => Set<Department>();
+        public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>();
+
 
 
 
@@ -152,6 +157,29 @@ namespace Salubrity.Infrastructure.Persistence
             modelBuilder.Entity<ServiceSubcategory>()
                 .HasIndex(u => u.Name)
                 .IsUnique();
+
+            modelBuilder.Entity<UserLanguage>()
+          .HasKey(ul => new { ul.UserId, ul.LanguageId });
+
+            modelBuilder.Entity<UserLanguage>()
+                .HasOne(ul => ul.User)
+                .WithMany(u => u.UserLanguages)
+                .HasForeignKey(ul => ul.UserId);
+
+            modelBuilder.Entity<UserLanguage>()
+                .HasOne(ul => ul.Language)
+                .WithMany(l => l.UserLanguages)
+                .HasForeignKey(ul => ul.LanguageId);
+
+            modelBuilder.Entity<JobTitle>()
+                .HasMany<Employee>()
+                .WithOne(e => e.JobTitle)
+                .HasForeignKey(e => e.JobTitleId);
+
+            modelBuilder.Entity<Department>()
+                .HasMany<Employee>()
+                .WithOne(e => e.Department)
+                .HasForeignKey(e => e.DepartmentId);
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);

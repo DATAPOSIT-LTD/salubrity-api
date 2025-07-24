@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250724181915_AddDepartmentJobTitleLanguageLookups")]
+    partial class AddDepartmentJobTitleLanguageLookups
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -563,17 +566,11 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<string>("Department")
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("DepartmentId")
-                        .HasColumnType("uuid");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<string>("JobTitle")
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("JobTitleId")
-                        .HasColumnType("uuid");
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid");
@@ -588,10 +585,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("DepartmentId");
-
-                    b.HasIndex("JobTitleId");
 
                     b.HasIndex("OrganizationId");
 
@@ -686,9 +679,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<bool>("IsVerified")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid?>("LanguageId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -748,8 +738,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("GenderId");
-
-                    b.HasIndex("LanguageId");
 
                     b.HasIndex("OrganizationId");
 
@@ -1140,47 +1128,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("OrganizationPackage");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Department", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Departments");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Gender", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1265,88 +1212,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("InsuranceProviders");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.JobTitle", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("JobTitles");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Language", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Languages");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.OrganizationStatus", b =>
@@ -2272,14 +2137,6 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Identity.Employee", b =>
                 {
-                    b.HasOne("Salubrity.Domain.Entities.Lookup.Department", null)
-                        .WithMany("Employees")
-                        .HasForeignKey("DepartmentId");
-
-                    b.HasOne("Salubrity.Domain.Entities.Lookup.JobTitle", null)
-                        .WithMany("Employees")
-                        .HasForeignKey("JobTitleId");
-
                     b.HasOne("Salubrity.Domain.Entities.Organizations.Organization", "Organization")
                         .WithMany()
                         .HasForeignKey("OrganizationId")
@@ -2319,10 +2176,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasOne("Salubrity.Domain.Entities.Lookup.Gender", "Gender")
                         .WithMany("Users")
                         .HasForeignKey("GenderId");
-
-                    b.HasOne("Salubrity.Domain.Entities.Lookup.Language", null)
-                        .WithMany("Users")
-                        .HasForeignKey("LanguageId");
 
                     b.HasOne("Salubrity.Domain.Entities.Organizations.Organization", "Organization")
                         .WithMany()
@@ -2705,11 +2558,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Sections");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Department", b =>
-                {
-                    b.Navigation("Employees");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Gender", b =>
                 {
                     b.Navigation("Users");
@@ -2718,16 +2566,6 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.InsuranceProvider", b =>
                 {
                     b.Navigation("Organizations");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.JobTitle", b =>
-                {
-                    b.Navigation("Employees");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Language", b =>
-                {
-                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.SubcontractorRole", b =>

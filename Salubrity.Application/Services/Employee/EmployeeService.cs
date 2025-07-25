@@ -87,7 +87,12 @@ public class EmployeeService : IEmployeeService
         //  Create User
         var user = new User
         {
+            FirstName = dto.User.FirstName.Trim(),
+            MiddleName = dto.User.MiddleName?.Trim(),
+            LastName = dto.User.LastName.Trim(),
             Id = userId,
+            Phone = dto.User.Phone?.Trim(),
+            GenderId = dto.User.GenderId,
             Email = normalizedEmail,
             PasswordHash = hashed,
             IsActive = true,

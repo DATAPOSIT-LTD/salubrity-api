@@ -38,10 +38,12 @@ public class RoleRepository : IRoleRepository
         _context.Roles.Remove(role);
         await _context.SaveChangesAsync();
     }
+  
     public async Task<Role?> FindByNameAsync(string roleName)
     {
         return await _context.Roles
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Name.Equals(roleName, StringComparison.OrdinalIgnoreCase));
+            .Where(r => !r.IsDeleted && r.Name.ToLower() == roleName.ToLower())
+            .FirstOrDefaultAsync();
     }
+
 }

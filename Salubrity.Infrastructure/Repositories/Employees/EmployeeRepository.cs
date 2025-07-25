@@ -3,6 +3,7 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Infrastructure.Persistence;
 using Salubrity.Shared.Exceptions;
+using System.Linq.Expressions;
 
 namespace Salubrity.Infrastructure.Repositories.Employees;
 
@@ -34,6 +35,17 @@ public class EmployeeRepository : IEmployeeRepository
             .Include(e => e.Department)
             .FirstOrDefaultAsync(e => e.Id == id);
     }
+
+    public async Task<List<Employee>> WhereAsync(Expression<Func<Employee, bool>> predicate)
+    {
+        return await _context.Employees
+            .Include(e => e.User)               // include User navigation property
+            .Include(e => e.JobTitle)           // optional
+            .Include(e => e.Department)         // optional
+            .Where(predicate)
+            .ToListAsync();
+    }
+
 
     public async Task<Employee> CreateAsync(Employee entity)
     {

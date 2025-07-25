@@ -45,6 +45,15 @@ public class EmployeeController : BaseController
         return CreatedSuccess(nameof(GetById), new { id = result.Id }, result);
     }
 
+    [HttpGet("by-organization/{organizationId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<List<EmployeeLeanResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetByOrganization(Guid organizationId)
+    {
+        var result = await _employeeService.GetByOrganizationAsync(organizationId);
+        return Success(result);
+    }
+
+
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Update(Guid id, [FromBody] EmployeeRequestDto dto)

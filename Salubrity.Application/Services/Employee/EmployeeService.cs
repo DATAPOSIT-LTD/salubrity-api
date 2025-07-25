@@ -190,4 +190,31 @@ public class EmployeeService : IEmployeeService
     {
         return await _repo.ExistsAsync(id);
     }
+
+    public async Task<List<EmployeeLeanResponseDto>> GetByOrganizationAsync(Guid organizationId)
+    {
+        var employees = await _repo.WhereAsync(e =>
+            !e.IsDeleted && e.OrganizationId == organizationId);
+
+        return employees.Select(e => new EmployeeLeanResponseDto
+        {
+            Id = e.Id,
+            Email = e.User.Email,
+            FirstName = e.User.FirstName,
+            MiddleName = e.User.MiddleName,
+            LastName = e.User.LastName,
+            Phone = e.User.Phone,
+            NationalId = e.User.NationalId,
+            DateOfBirth = e.User.DateOfBirth,
+            PrimaryLanguage = e.User.PrimaryLanguage,
+            ProfileImage = e.User.ProfileImage,
+            GenderId = e.User.GenderId,
+            OrganizationId = e.OrganizationId,
+            IsActive = e.User.IsActive,
+            IsVerified = e.User.IsVerified,
+            LastLoginAt = e.User.LastLoginAt
+        }).ToList();
+    }
+
+
 }

@@ -10,4 +10,5 @@ public interface IRoleRepository
     Task AddRoleAsync(Role role);
     Task UpdateRoleAsync(Role role);
     Task DeleteRoleAsync(Role role);
+    Task FindByNameAsync(string roleName);
 }

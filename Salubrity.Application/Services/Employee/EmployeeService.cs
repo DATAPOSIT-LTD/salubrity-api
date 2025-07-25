@@ -1,19 +1,27 @@
-using Salubrity.Application.DTOs.Employees;
+﻿using Salubrity.Application.DTOs.Employees;
 using Salubrity.Application.DTOs.Users;
 using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.Rbac;
+using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Shared.Exceptions;
+using System.Collections.Generic;
 
 namespace Salubrity.Application.Services.EmployeeServices;
 
 public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _repo;
+    private readonly IRoleRepository _roleRepo;
+    private readonly IPasswordHasher _passwordHasher;
 
-    public EmployeeService(IEmployeeRepository repo)
+    public EmployeeService(IEmployeeRepository repo, IPasswordHasher passwordHasher, IRoleRepository roleRepo)
     {
         _repo = repo;
+        _passwordHasher = passwordHasher;
+        _roleRepo = roleRepo;
     }
 
     public async Task<List<EmployeeResponseDto>> GetAllAsync()
@@ -67,22 +75,42 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeResponseDto> CreateAsync(EmployeeRequestDto dto)
     {
+        var hashed = _passwordHasher.HashPassword(dto.User.Password);
+        var normalizedEmail = dto.User.Email.Trim().ToLowerInvariant();
+        var userId = Guid.NewGuid();
+
+        //  Get the Patient Role ID
+        var patientRole = await _roleRepo.FindByNameAsync("Patient");
+        if (patientRole == null)
+            throw new Exception("Patient role not found");
+
+        //  Create User
+        var user = new User
+        {
+            Id = userId,
+            Email = normalizedEmail,
+            PasswordHash = hashed,
+            IsActive = true,
+            IsVerified = false,
+            CreatedAt = DateTime.UtcNow,
+            UserRoles = new List<UserRole>
+        {
+            new UserRole
+            {
+                UserId = userId,
+                RoleId = patientRole.Id //  Assign Patient Role
+            }
+        }
+        };
+
+        // Create Employee
         var entity = new Employee
         {
             Id = Guid.NewGuid(),
             OrganizationId = dto.OrganizationId,
             JobTitleId = dto.JobTitleId,
             DepartmentId = dto.DepartmentId,
-            User = new User
-            {
-                Id = Guid.NewGuid(),
-                FirstName = dto.User.FirstName,
-                MiddleName = dto.User.MiddleName,
-                LastName = dto.User.LastName,
-                Email = dto.User.Email,
-                Phone = dto.User.Phone,
-                DateOfBirth = dto.User.DateOfBirth,
-            }
+            User = user
         };
 
         await _repo.CreateAsync(entity);
@@ -95,16 +123,17 @@ public class EmployeeService : IEmployeeService
             DepartmentId = entity.DepartmentId,
             User = new UserResponse
             {
-                Id = entity.User.Id,
-                FirstName = entity.User.FirstName,
-                MiddleName = entity.User.MiddleName,
-                LastName = entity.User.LastName,
-                Email = entity.User.Email,
-                Phone = entity.User.Phone,
-                DateOfBirth = entity.User.DateOfBirth
+                Id = user.Id,
+                FirstName = user.FirstName,
+                MiddleName = user.MiddleName,
+                LastName = user.LastName,
+                Email = user.Email,
+                Phone = user.Phone,
+                DateOfBirth = user.DateOfBirth
             }
         };
     }
+
 
     public async Task<EmployeeResponseDto> UpdateAsync(Guid id, EmployeeRequestDto dto)
     {

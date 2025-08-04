@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250801003221_formsections")]
+    partial class formsections
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -954,13 +957,12 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
@@ -995,11 +997,10 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
-                    b.Property<Guid>("FieldTypeId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("FieldType")
+                        .HasColumnType("integer");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -1009,15 +1010,13 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.Property<string>("Label")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("text");
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");
 
                     b.Property<string>("Placeholder")
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("SectionId")
                         .HasColumnType("uuid");
@@ -1029,8 +1028,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("FieldTypeId");
 
                     b.HasIndex("SectionId");
 
@@ -1058,16 +1055,12 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Label")
                         .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
+                        .HasColumnType("text");
 
                     b.Property<int>("Order")
                         .HasColumnType("integer");
@@ -1079,108 +1072,13 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Value")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
                     b.HasIndex("FieldId");
 
                     b.ToTable("IntakeFormFieldOptions");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormFieldResponse", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("FieldId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ResponseId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Value")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FieldId");
-
-                    b.HasIndex("ResponseId");
-
-                    b.ToTable("IntakeFormFieldResponses");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormResponse", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("IntakeFormVersionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ResponseStatusId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SubmittedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IntakeFormVersionId");
-
-                    b.HasIndex("ResponseStatusId");
-
-                    b.ToTable("IntakeFormResponses");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormSection", b =>
@@ -1202,8 +1100,7 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("IntakeFormVersionId")
                         .HasColumnType("uuid");
@@ -1211,13 +1108,12 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("character varying(150)");
-
                     b.Property<int>("Order")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1253,18 +1149,11 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid>("IntakeFormId")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("InternalNotes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("MetadataJson")
-                        .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1511,50 +1400,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("Departments");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.FieldType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ComponentHint")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("FieldTypes");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Gender", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1639,47 +1484,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("InsuranceProviders");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.IntakeFormResponseStatus", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("IntakeFormResponseStatuses");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.JobTitle", b =>
@@ -2801,19 +2605,11 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormField", b =>
                 {
-                    b.HasOne("Salubrity.Domain.Entities.Lookup.FieldType", "FieldType")
-                        .WithMany("Fields")
-                        .HasForeignKey("FieldTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormSection", "Section")
                         .WithMany("Fields")
                         .HasForeignKey("SectionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("FieldType");
 
                     b.Navigation("Section");
                 });
@@ -2827,44 +2623,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Field");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormFieldResponse", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormField", "Field")
-                        .WithMany()
-                        .HasForeignKey("FieldId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormResponse", "Response")
-                        .WithMany("FieldResponses")
-                        .HasForeignKey("ResponseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Field");
-
-                    b.Navigation("Response");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormResponse", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormVersion", "Version")
-                        .WithMany()
-                        .HasForeignKey("IntakeFormVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.Lookup.IntakeFormResponseStatus", "Status")
-                        .WithMany("Responses")
-                        .HasForeignKey("ResponseStatusId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Status");
-
-                    b.Navigation("Version");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormSection", b =>
@@ -3243,11 +3001,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Options");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormResponse", b =>
-                {
-                    b.Navigation("FieldResponses");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormSection", b =>
                 {
                     b.Navigation("Fields");
@@ -3263,11 +3016,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Employees");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.FieldType", b =>
-                {
-                    b.Navigation("Fields");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Gender", b =>
                 {
                     b.Navigation("Users");
@@ -3276,11 +3024,6 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.InsuranceProvider", b =>
                 {
                     b.Navigation("Organizations");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.IntakeFormResponseStatus", b =>
-                {
-                    b.Navigation("Responses");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.JobTitle", b =>

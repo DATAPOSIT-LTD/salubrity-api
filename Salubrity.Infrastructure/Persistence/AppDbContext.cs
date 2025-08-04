@@ -2,6 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Audit;
+using Salubrity.Domain.Entities.FormFields;
+using Salubrity.Domain.Entities.Forms;
+using Salubrity.Domain.Entities.FormSections;
+using Salubrity.Domain.Entities.FormsOptions;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Identity;
@@ -53,6 +57,10 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<ServiceSubcategory> ServiceSubcategories => Set<ServiceSubcategory>();
         public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
         public DbSet<IntakeForm> IntakeForms => Set<IntakeForm>();
+        public DbSet<Form> Forms => Set<Form>();
+        public DbSet<FormSection> FormSections => Set<FormSection>();
+        public DbSet<FormField> FormFields => Set<FormField>();
+        public DbSet<FieldOption> FormFieldOptions => Set<FieldOption>();
         public DbSet<OrganizationInsuranceProvider> OrganizationInsuranceProviders => Set<OrganizationInsuranceProvider>();
         public DbSet<HealthCamp> HealthCamps => Set<HealthCamp>();
         public DbSet<HealthCampService> HealthCampServices => Set<HealthCampService>();

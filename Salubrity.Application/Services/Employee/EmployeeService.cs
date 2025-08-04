@@ -7,7 +7,6 @@ using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Shared.Exceptions;
-using System.Collections.Generic;
 
 namespace Salubrity.Application.Services.EmployeeServices;
 

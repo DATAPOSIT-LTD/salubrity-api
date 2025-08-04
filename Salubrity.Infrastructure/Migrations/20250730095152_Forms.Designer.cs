@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250730095152_Forms")]
+    partial class Forms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -107,9 +110,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("integer");
 
-                    b.Property<Guid?>("SectionId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -120,39 +120,7 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.HasIndex("FormId");
 
-                    b.HasIndex("SectionId");
-
                     b.ToTable("FormFields");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.FormSections.FormSection", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("FormId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("FormId1")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FormId1");
-
-                    b.ToTable("FormSections");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Forms.Form", b =>
@@ -192,6 +160,12 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime>("createdAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("updatedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
@@ -2380,25 +2354,8 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.FormFields.FormField", b =>
                 {
                     b.HasOne("Salubrity.Domain.Entities.Forms.Form", "Form")
-                        .WithMany()
+                        .WithMany("Fields")
                         .HasForeignKey("FormId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.FormSections.FormSection", "Section")
-                        .WithMany("SectionFields")
-                        .HasForeignKey("SectionId");
-
-                    b.Navigation("Form");
-
-                    b.Navigation("Section");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.FormSections.FormSection", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.Forms.Form", "Form")
-                        .WithMany("Sections")
-                        .HasForeignKey("FormId1")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -2942,14 +2899,9 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Options");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.FormSections.FormSection", b =>
-                {
-                    b.Navigation("SectionFields");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Forms.Form", b =>
                 {
-                    b.Navigation("Sections");
+                    b.Navigation("Fields");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCamp", b =>

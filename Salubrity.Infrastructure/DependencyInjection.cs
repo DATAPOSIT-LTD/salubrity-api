@@ -29,6 +29,7 @@ using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Infrastructure.Repositories.Employees;
+using Salubrity.Application.Interfaces.Repositories.Forms;
 
 
 namespace Salubrity.Infrastructure;
@@ -65,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<IHealthCampManagementRepository, HealthCampManagementRepository>();
         services.AddScoped(typeof(ILookupRepository<>), typeof(LookupRepository<>));
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+        services.AddScoped<IFormRepository, FormRepository>();
 
 
 

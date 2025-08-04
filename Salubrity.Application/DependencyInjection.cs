@@ -3,10 +3,9 @@ using FluentValidation.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
-using Salubrity.Application.Interfaces.Repositories.HealthCamps;
-using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
+using Salubrity.Application.Interfaces.Services.Forms;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.Lookups;
@@ -15,6 +14,7 @@ using Salubrity.Application.Interfaces.Services.Organizations;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
 using Salubrity.Application.Services.EmployeeServices;
+using Salubrity.Application.Services.Forms;
 using Salubrity.Application.Services.HealthCamps;
 using Salubrity.Application.Services.HealthcareServices;
 using Salubrity.Application.Services.IntakeForms;
@@ -60,6 +60,7 @@ namespace Salubrity.Application
             services.AddScoped<IPackageReferenceResolver, PackageReferenceResolverService>();
             services.AddScoped<IHealthCampManagementService, HealthCampManagementService>();
             services.AddScoped<IEmployeeService, EmployeeService>();
+            services.AddScoped<IFormService, FormService>();
             services.AddScoped<ILookupService, GenericLookupService<Gender>>(); // for gender
 
 

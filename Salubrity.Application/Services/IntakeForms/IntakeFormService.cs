@@ -20,7 +20,7 @@ public class IntakeFormService : IIntakeFormService
         return forms.Select(f => new IntakeFormDto
         {
             Id = f.Id,
-            Title = f.Title,
+            Name = f.Name,
             Description = f.Description
         }).ToList();
     }
@@ -33,7 +33,7 @@ public class IntakeFormService : IIntakeFormService
         return new IntakeFormDto
         {
             Id = form.Id,
-            Title = form.Title,
+            Name = form.Name,
             Description = form.Description
         };
     }
@@ -42,11 +42,11 @@ public class IntakeFormService : IIntakeFormService
     {
         var form = new IntakeForm
         {
-            Title = dto.Title,
+            Name = dto.Name,
             Description = dto.Description
         };
 
-        await _repo.AddAsync(form);    ;
+        await _repo.AddAsync(form); ;
 
         return form.Id;
     }
@@ -56,7 +56,7 @@ public class IntakeFormService : IIntakeFormService
         var form = await _repo.GetByIdAsync(id);
         if (form == null) return false;
 
-        form.Title = dto.Title;
+        form.Name = dto.Name;
         form.Description = dto.Description;
 
         await _repo.UpdateAsync(form);

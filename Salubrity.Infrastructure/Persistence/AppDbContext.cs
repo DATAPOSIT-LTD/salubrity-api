@@ -72,6 +72,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<JobTitle> JobTitles => Set<JobTitle>();
         public DbSet<Department> Departments => Set<Department>();
         public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>();
+        public DbSet<FieldType> FieldTypes => Set<FieldType>();
+        public DbSet<IntakeFormResponseStatus> IntakeFormResponseStatuses => Set<IntakeFormResponseStatus>();
 
 
 
@@ -112,7 +114,7 @@ namespace Salubrity.Infrastructure.Persistence
             modelBuilder.Entity<Role>()
                 .HasIndex(u => u.Name)
                 .IsUnique();
-            
+
 
 
             modelBuilder.Entity<Menu>()
@@ -144,7 +146,7 @@ namespace Salubrity.Infrastructure.Persistence
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.RefreshToken)
-                .IsUnique(false); 
+                .IsUnique(false);
 
             modelBuilder.Entity<Industry>()
                 .HasIndex(u => u.Name)
@@ -251,6 +253,6 @@ namespace Salubrity.Infrastructure.Persistence
             }
         }
 
-    
+
     }
 }

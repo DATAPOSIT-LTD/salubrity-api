@@ -6,8 +6,6 @@ namespace Salubrity.Domain.Entities.Menus
 {
     public class MenuRole : BaseAuditableEntity
     {
-        public Guid Id { get; set; }
-
         public Guid MenuId { get; set; }
         public Menu Menu { get; set; } = default!;
 

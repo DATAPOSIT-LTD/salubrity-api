@@ -17,12 +17,12 @@ public class IntakeFormService : IIntakeFormService
     public async Task<List<IntakeFormDto>> GetAllAsync()
     {
         var forms = await _repo.GetAllAsync();
-        return forms.Select(f => new IntakeFormDto
+        return [.. forms.Select(f => new IntakeFormDto
         {
             Id = f.Id,
             Name = f.Name,
             Description = f.Description
-        }).ToList();
+        })];
     }
 
     public async Task<IntakeFormDto?> GetByIdAsync(Guid id)

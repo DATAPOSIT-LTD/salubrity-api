@@ -35,5 +35,5 @@ public class Service : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
 
     // Navigation property for linked categories
-    public ICollection<ServiceCategory> Categories { get; set; } = new List<ServiceCategory>();
+    public ICollection<ServiceCategory> Categories { get; set; } = [];
 }

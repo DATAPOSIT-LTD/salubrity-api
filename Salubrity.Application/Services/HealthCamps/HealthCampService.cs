@@ -49,8 +49,8 @@ public class HealthCampService : IHealthCampService
             OrganizationId = dto.OrganizationId,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
-            PackageItems = new List<HealthCampPackageItem>(),
-            ServiceAssignments = new List<HealthCampServiceAssignment>()
+            PackageItems = [],
+            ServiceAssignments = []
         };
 
         foreach (var item in dto.PackageItems)
@@ -99,7 +99,7 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<HealthCampDto>(camp);
     }
 
-   
+
 
 
     public async Task DeleteAsync(Guid id)

@@ -51,7 +51,7 @@ namespace Salubrity.Domain.Common
         /// <summary>
         /// List of domain events raised by the entity.
         /// </summary>
-        private readonly List<IDomainEvent> _domainEvents = new();
+        private readonly List<IDomainEvent> _domainEvents = [];
 
         /// <inheritdoc />
         public List<IDomainEvent> DomainEvents => _domainEvents;

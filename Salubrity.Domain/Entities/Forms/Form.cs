@@ -11,7 +11,8 @@ public class Form : BaseAuditableEntity
     public string Description { get; set; } = null!;
 
     public bool IsActive { get; set; } = true;
-    
 
-    public ICollection<FormSection> Sections { get; set; } = new List<FormSection>();
+
+    public ICollection<FormSection> Sections { get; set; } = [];
+    public ICollection<FormField> Fields { get; set; } = [];
 }

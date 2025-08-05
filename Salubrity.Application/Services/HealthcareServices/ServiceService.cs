@@ -19,14 +19,14 @@ public class ServiceService : IServiceService
     public async Task<List<ServiceResponseDto>> GetAllAsync()
     {
         var data = await _repo.GetAllAsync();
-        return data.Select(x => new ServiceResponseDto
+        return [.. data.Select(x => new ServiceResponseDto
         {
             Id = x.Id,
             Name = x.Name,
             Description = x.Description,
             IndustryId = x.IndustryId,
             IsActive = x.IsActive
-        }).ToList();
+        })];
     }
 
     public async Task<ServiceResponseDto> GetByIdAsync(Guid id)

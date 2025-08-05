@@ -20,5 +20,5 @@ public class InsuranceProvider : BaseLookupEntity
     /// <summary>
     /// Many-to-many relationship: this provider can be associated with many organizations.
     /// </summary>
-    public ICollection<OrganizationInsuranceProvider> Organizations { get; set; } = new List<OrganizationInsuranceProvider>();
+    public ICollection<OrganizationInsuranceProvider> Organizations { get; set; } = [];
 }

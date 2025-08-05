@@ -22,5 +22,5 @@ public class IntakeFormSection : BaseAuditableEntity
 
     public int Order { get; set; }
 
-    public ICollection<IntakeFormField> Fields { get; set; } = new List<IntakeFormField>();
+    public ICollection<IntakeFormField> Fields { get; set; } = [];
 }

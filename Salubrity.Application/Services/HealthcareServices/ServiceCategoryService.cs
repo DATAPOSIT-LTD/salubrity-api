@@ -18,7 +18,7 @@ public class ServiceCategoryService : IServiceCategoryService
     public async Task<List<ServiceCategoryResponseDto>> GetAllAsync()
     {
         var items = await _repository.GetAllAsync();
-        return items.Select(MapToDto).ToList();
+        return [.. items.Select(MapToDto)];
     }
 
     public async Task<ServiceCategoryResponseDto> GetByIdAsync(Guid id)

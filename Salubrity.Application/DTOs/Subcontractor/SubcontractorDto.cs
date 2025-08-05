@@ -16,6 +16,6 @@ public class SubcontractorDto
     public Guid? StatusId { get; set; }
     public string? StatusName { get; set; }
 
-    public List<SubcontractorSpecialtyDto> Specialties { get; set; } = new();
-    public List<SubcontractorRoleDto> Roles { get; set; } = new();
+    public List<SubcontractorSpecialtyDto> Specialties { get; set; } = [];
+    public List<SubcontractorRoleDto> Roles { get; set; } = [];
 }

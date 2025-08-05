@@ -18,7 +18,7 @@ public class ServicePackageService : IServicePackageService
     public async Task<List<ServicePackageResponseDto>> GetAllAsync()
     {
         var items = await _repository.GetAllAsync();
-        return items.Select(x => MapToDto(x)).ToList();
+        return [.. items.Select(x => MapToDto(x))];
     }
 
     public async Task<ServicePackageResponseDto> GetByIdAsync(Guid id)

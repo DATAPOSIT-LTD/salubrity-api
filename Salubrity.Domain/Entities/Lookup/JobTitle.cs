@@ -6,6 +6,6 @@ namespace Salubrity.Domain.Entities.Lookup
 {
     public class JobTitle : BaseLookupEntity
     {
-        public ICollection<Employee> Employees { get; set; } = new List<Employee>();
+        public ICollection<Employee> Employees { get; set; } = [];
     }
 }

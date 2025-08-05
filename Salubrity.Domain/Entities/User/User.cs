@@ -57,7 +57,7 @@ public class User : BaseAuditableEntity
     public DateTime? LastPasswordChangeAt { get; set; }
 
     // Navigation
-    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public ICollection<UserRole> UserRoles { get; set; } = [];
 
     [NotMapped]
     public string FullName => $"{FirstName} {MiddleName} {LastName}".Replace("  ", " ");
@@ -67,6 +67,6 @@ public class User : BaseAuditableEntity
 
 
     public string? TotpSecret { get; set; }
-    public ICollection<UserLanguage> UserLanguages { get; set; } = new List<UserLanguage>();
+    public ICollection<UserLanguage> UserLanguages { get; set; } = [];
 
 }

@@ -26,5 +26,5 @@ public class ServiceCategory : BaseAuditableEntity
 
     public bool IsActive { get; set; } = true;
 
-    public virtual ICollection<ServiceSubcategory> Subcategories { get; set; } = new List<ServiceSubcategory>();
+    public virtual ICollection<ServiceSubcategory> Subcategories { get; set; } = [];
 }

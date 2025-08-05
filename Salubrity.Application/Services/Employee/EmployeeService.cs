@@ -26,7 +26,7 @@ public class EmployeeService : IEmployeeService
     public async Task<List<EmployeeResponseDto>> GetAllAsync()
     {
         var employees = await _repo.GetAllAsync();
-        return employees.Select(e => new EmployeeResponseDto
+        return [.. employees.Select(e => new EmployeeResponseDto
         {
             Id = e.Id,
             OrganizationId = e.OrganizationId,
@@ -44,7 +44,7 @@ public class EmployeeService : IEmployeeService
                 Phone = e.User.Phone,
                 DateOfBirth = e.User.DateOfBirth
             }
-        }).ToList();
+        })];
     }
 
     public async Task<EmployeeResponseDto?> GetByIdAsync(Guid id)
@@ -97,14 +97,14 @@ public class EmployeeService : IEmployeeService
             IsActive = true,
             IsVerified = false,
             CreatedAt = DateTime.UtcNow,
-            UserRoles = new List<UserRole>
-        {
+            UserRoles =
+        [
             new UserRole
             {
                 UserId = userId,
                 RoleId = patientRole.Id //  Assign Patient Role
             }
-        }
+        ]
         };
 
         // Create Employee
@@ -152,7 +152,7 @@ public class EmployeeService : IEmployeeService
         existingEmployee.User.LastName = dto.User.LastName;
         existingEmployee.User.Email = dto.User.Email;
         existingEmployee.User.Phone = dto.User.Phone;
-        existingEmployee.User.DateOfBirth = dto.User.DateOfBirth;  
+        existingEmployee.User.DateOfBirth = dto.User.DateOfBirth;
 
         await _repo.UpdateAsync(existingEmployee);
 
@@ -195,7 +195,7 @@ public class EmployeeService : IEmployeeService
         var employees = await _repo.WhereAsync(e =>
             !e.IsDeleted && e.OrganizationId == organizationId);
 
-        return employees.Select(e => new EmployeeLeanResponseDto
+        return [.. employees.Select(e => new EmployeeLeanResponseDto
         {
             Id = e.Id,
             Email = e.User.Email,
@@ -212,7 +212,7 @@ public class EmployeeService : IEmployeeService
             IsActive = e.User.IsActive,
             IsVerified = e.User.IsVerified,
             LastLoginAt = e.User.LastLoginAt
-        }).ToList();
+        })];
     }
 
 

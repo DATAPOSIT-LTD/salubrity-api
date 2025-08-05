@@ -7,8 +7,8 @@ namespace Salubrity.Domain.Entities.Lookup
 {
     public class Language : BaseLookupEntity
     {
-        public ICollection<User>? Users { get; set; } = new List<User>();
-        public ICollection<UserLanguage> UserLanguages { get; set; } = new List<UserLanguage>();
+        public ICollection<User>? Users { get; set; } = [];
+        public ICollection<UserLanguage> UserLanguages { get; set; } = [];
 
     }
 }

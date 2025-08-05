@@ -11,5 +11,5 @@ public class UpdateHealthCampDto
     public bool IsActive { get; set; }
     public Guid OrganizationId { get; set; }
 
-    public List<UpdateHealthCampPackageItemDto> PackageItems { get; set; } = new();
+    public List<UpdateHealthCampPackageItemDto> PackageItems { get; set; } = [];
 }

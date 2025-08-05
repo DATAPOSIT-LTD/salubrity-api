@@ -14,7 +14,7 @@ public class HealthCampDto
     public Guid OrganizationId { get; set; }
     public string OrganizationName { get; set; } = default!;
 
-    public List<HealthCampPackageItemDto> PackageItems { get; set; } = new();
-    public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = new();
-    public List<HealthCampParticipantDto> Participants { get; set; } = new();
+    public List<HealthCampPackageItemDto> PackageItems { get; set; } = [];
+    public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = [];
+    public List<HealthCampParticipantDto> Participants { get; set; } = [];
 }

@@ -10,8 +10,8 @@ namespace Salubrity.Application.DTOs.Subcontractor
 
         public Guid? StatusId { get; set; }
 
-        public List<Guid> SpecialtyIds { get; set; } = new();
+        public List<Guid> SpecialtyIds { get; set; } = [];
 
-        public List<Guid> RoleIds { get; set; } = new();
+        public List<Guid> RoleIds { get; set; } = [];
     }
 }

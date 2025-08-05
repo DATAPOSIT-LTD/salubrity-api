@@ -6,6 +6,6 @@ namespace Salubrity.Domain.Entities.Lookup
 {
     public class SubcontractorRole : BaseLookupEntity
     {
-        public ICollection<SubcontractorRoleAssignment> SubcontractorAssignments { get; set; } = new List<SubcontractorRoleAssignment>();
+        public ICollection<SubcontractorRoleAssignment> SubcontractorAssignments { get; set; } = [];
     }
 }

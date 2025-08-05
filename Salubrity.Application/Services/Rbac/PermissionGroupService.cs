@@ -18,14 +18,14 @@ public class PermissionGroupService : IPermissionGroupService
     public async Task<List<PermissionGroupDto>> GetAllAsync()
     {
         var groups = await _repo.GetAllAsync();
-        return groups.Select(g => new PermissionGroupDto
+        return [.. groups.Select(g => new PermissionGroupDto
         {
             Id = g.Id,
             Name = g.Name,
             Description = g.Description,
             CreatedAt = g.CreatedAt,
             UpdatedAt = g.UpdatedAt
-        }).ToList();
+        })];
     }
 
     public async Task<PermissionGroupDto> GetByIdAsync(Guid id)

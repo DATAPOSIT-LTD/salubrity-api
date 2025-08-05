@@ -35,7 +35,7 @@ namespace Salubrity.Application.Services.Auth
             IRoleRepository roleRepository,
             IMenuRoleService menuRoleService,
             IRolePermissionGroupService rolePermissionGroupService
-            
+
             )
         {
             _userRepository = userRepository;
@@ -99,14 +99,14 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles = new List<UserRole>
-        {
+                UserRoles =
+        [
             new UserRole
             {
                 UserId = userId,
                 RoleId = input.RoleId
             }
-        }
+        ]
             };
 
             Console.WriteLine("💾 [Register] Saving user...");
@@ -287,7 +287,7 @@ namespace Salubrity.Application.Services.Auth
                     Label = menu.Label,
                     Path = menu.Path,
                     Icon = menu.Icon,
-                    Children = new List<MenuResponseDto>()
+                    Children = []
                 };
                 menuDtos[menu.Id] = dto;
 
@@ -307,7 +307,7 @@ namespace Salubrity.Application.Services.Auth
                 Email = user.Email,
                 FullName = $"{user.FirstName} {user.LastName}",
                 Roles = roles,
-                Permissions = permissions.ToList(),
+                Permissions = [.. permissions],
                 Menus = roots
             };
         }

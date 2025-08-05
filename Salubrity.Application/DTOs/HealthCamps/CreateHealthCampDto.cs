@@ -10,6 +10,6 @@ public class CreateHealthCampDto
 	public TimeSpan? StartTime { get; set; }
 	public Guid OrganizationId { get; set; }
 
-	public List<CreateHealthCampPackageItemDto> PackageItems { get; set; } = new();
-	public List<CreateHealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = new();
+	public List<CreateHealthCampPackageItemDto> PackageItems { get; set; } = [];
+	public List<CreateHealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = [];
 }

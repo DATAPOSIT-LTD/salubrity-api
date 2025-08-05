@@ -2579,7 +2579,7 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.FormFields.FormField", b =>
                 {
                     b.HasOne("Salubrity.Domain.Entities.Forms.Form", "Form")
-                        .WithMany()
+                        .WithMany("Fields")
                         .HasForeignKey("FormId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3194,6 +3194,8 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Forms.Form", b =>
                 {
+                    b.Navigation("Fields");
+
                     b.Navigation("Sections");
                 });
 

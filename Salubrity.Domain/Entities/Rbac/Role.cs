@@ -46,10 +46,10 @@ public class Role : BaseAuditableEntity
     /// <summary>
     /// Users assigned to this role.
     /// </summary>
-    public ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();
+    public ICollection<UserRole> UserRoles { get; set; } = [];
 
     /// <summary>
     /// Permission groups associated with this role.
     /// </summary>
-    public ICollection<RolePermissionGroup> RolePermissionGroups { get; set; } = new List<RolePermissionGroup>();
+    public ICollection<RolePermissionGroup> RolePermissionGroups { get; set; } = [];
 }

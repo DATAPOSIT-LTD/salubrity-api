@@ -34,5 +34,5 @@ public class IntakeFormVersion : BaseAuditableEntity
     [Column(TypeName = "jsonb")]
     public string? MetadataJson { get; set; }
 
-    public ICollection<IntakeFormSection> Sections { get; set; } = new List<IntakeFormSection>();
+    public ICollection<IntakeFormSection> Sections { get; set; } = [];
 }

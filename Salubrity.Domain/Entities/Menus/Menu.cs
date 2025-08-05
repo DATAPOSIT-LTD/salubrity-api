@@ -16,13 +16,13 @@ namespace Salubrity.Domain.Entities.Menus
 
         public Guid? ParentId { get; set; }
         public Menu? Parent { get; set; }
-        public ICollection<Menu> Children { get; set; } = new List<Menu>();
+        public ICollection<Menu> Children { get; set; } = [];
 
         public Guid? RequiredPermissionId { get; set; }
         public Permission? RequiredPermission { get; set; }
 
         public bool IsActive { get; set; } = true;
 
-        public ICollection<MenuRole> MenuRoles { get; set; } = new List<MenuRole>();
+        public ICollection<MenuRole> MenuRoles { get; set; } = [];
     }
 }

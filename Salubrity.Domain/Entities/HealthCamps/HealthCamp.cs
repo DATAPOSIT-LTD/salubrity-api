@@ -32,10 +32,10 @@ public class HealthCamp : BaseAuditableEntity
     public virtual Organization Organization { get; set; } = default!;
 
     // This defines the actual camp package dynamically
-    public virtual ICollection<HealthCampPackageItem> PackageItems { get; set; } = new List<HealthCampPackageItem>();
+    public virtual ICollection<HealthCampPackageItem> PackageItems { get; set; } = [];
 
     // Assignments per subcontractor per service
-    public virtual ICollection<HealthCampServiceAssignment> ServiceAssignments { get; set; } = new List<HealthCampServiceAssignment>();
-    public ICollection<HealthCampParticipant> Participants { get; set; } = new List<HealthCampParticipant>();
+    public virtual ICollection<HealthCampServiceAssignment> ServiceAssignments { get; set; } = [];
+    public ICollection<HealthCampParticipant> Participants { get; set; } = [];
 
 }

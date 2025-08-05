@@ -1,9 +1,8 @@
-﻿
----
+﻿---
 
-## ✅ `README.md`
+## `README.md`
 
-```md
+```
 # Salubrity Backend – API Documentation
 
 Welcome to the Salubrity Backend API – a clean-architecture-based .NET 9 project built for scalable healthcare systems.
@@ -27,33 +26,32 @@ This document provides an overview of the project structure, setup steps, develo
 
 ## 🏗️ Project Structure
 
-
-
+```
 Salubrity/
 │
-├── Salubrity.Domain/                # Core entities (no infrastructure dependencies)
-│   ├── Entities/
-│   │   ├── Identity/                # User, Employee, Patient (polymorphic)
-│   │   ├── HealthCamps/            # Health camp core models
-│   │   ├── Join/                   # Many-to-many or event participation models
-│   │   ├── Lookups/                # Lookup entities (Gender, BloodType, etc.)
-│   │   └── Common/                 # BaseAuditableEntity, enums, shared structures
+├── Salubrity.Domain/ # Core entities (no infrastructure dependencies)
+│ ├── Entities/
+│ │ ├── Identity/ # User, Employee, Patient (polymorphic)
+│ │ ├── HealthCamps/ # Health camp core models
+│ │ ├── Join/ # Many-to-many or event participation models
+│ │ ├── Lookups/ # Lookup entities (Gender, BloodType, etc.)
+│ │ └── Common/ # BaseAuditableEntity, enums, shared structures
 │
-├── Salubrity.Application/          # Application layer (DTOs, interfaces, services)
-│   ├── DTOs/                       # Strongly typed DTOs per domain
-│   ├── Interfaces/                 # IService and IRepository contracts
-│   └── Services/                   # Service implementations (business logic)
+├── Salubrity.Application/ # Application layer (DTOs, interfaces, services)
+│ ├── DTOs/ # Strongly typed DTOs per domain
+│ ├── Interfaces/ # IService and IRepository contracts
+│ └── Services/ # Service implementations (business logic)
 │
-├── Salubrity.Infrastructure/       # Data access + external services (EF Core)
-│   └── Persistence/
-│       └── Repositories/           # EF-based repository implementations
+├── Salubrity.Infrastructure/ # Data access + external services (EF Core)
+│ └── Persistence/
+│ └── Repositories/ # EF-based repository implementations
 │
-├── Salubrity.Api/                  # API layer (controllers, Swagger, DI, etc.)
-│   ├── Controllers/
-│   └── Program.cs / Startup.cs     # App config and middleware
+├── Salubrity.Api/ # API layer (controllers, Swagger, DI, etc.)
+│ ├── Controllers/
+│ └── Program.cs / Startup.cs # App config and middleware
 │
-└── Migrations/                     # EF Core migrations (auto-generated)
-
+└── Migrations/ # EF Core migrations (auto-generated)
+```
 
 ---
 
@@ -64,7 +62,7 @@ Salubrity/
 ```bash
 git clone https://github.com/DATAPOSIT-LTD/salubrity-api.git
 cd salubrity-api
-````
+```
 
 ### 2. Database Setup
 
@@ -104,9 +102,9 @@ Navigate to: `https://localhost:{PORT}/docs`
 
 Every `User` is a base identity. Depending on context, they may be:
 
-* `Employee` → if working for an organization
-* `Patient` → if medically profiled
-* `HealthCampParticipant` → if attending a camp
+- `Employee` → if working for an organization
+- `Patient` → if medically profiled
+- `HealthCampParticipant` → if attending a camp
 
 Use the `RelatedEntityType` field to distinguish roles.
 
@@ -116,19 +114,19 @@ Use the `RelatedEntityType` field to distinguish roles.
 
 All lookup tables (e.g. Genders, BloodTypes) follow this pattern:
 
-* Lookup entity in `Salubrity.Domain.Entities.Lookup`
-* DTO: `BaseLookupResponse`
-* Generic services and repositories
-* API: `/api/v1/lookups/{type}`
+- Lookup entity in `Salubrity.Domain.Entities.Lookup`
+- DTO: `BaseLookupResponse`
+- Generic services and repositories
+- API: `/api/v1/lookups/{type}`
 
 ---
 
 ### 💼 Clean Architecture Practices
 
-* **Entities are pure** (no EF logic)
-* **Services contain business logic**
-* **Repositories are injected into services**
-* **Controllers only handle request/response (thin)**
+- **Entities are pure** (no EF logic)
+- **Services contain business logic**
+- **Repositories are injected into services**
+- **Controllers only handle request/response (thin)**
 
 ---
 
@@ -167,7 +165,7 @@ dotnet ef database update
 
 ```sql
 INSERT INTO "Genders" ("Id", "Name", "Description", "CreatedAt", "IsDeleted")
-VALUES 
+VALUES
   (gen_random_uuid(), 'Male', 'Male gender', NOW(), FALSE),
   (gen_random_uuid(), 'Female', 'Female gender', NOW(), FALSE);
 ```
@@ -176,13 +174,13 @@ VALUES
 
 ## 🧭 Contribution Guide
 
-* ✅ Follow the existing structure for all domains
-* ✅ Use `BaseAuditableEntity` for soft delete + tracking
-* ✅ Keep controller logic minimal
-* ✅ Use DTOs – do not return EF entities directly
-* ✅ Always include standard response: `ApiResponse<T>`
-* ✅ Write migrations when updating models
-* ✅ Use `Success()` or `CreatedSuccess()` helpers in controllers
+- ✅ Follow the existing structure for all domains
+- ✅ Use `BaseAuditableEntity` for soft delete + tracking
+- ✅ Keep controller logic minimal
+- ✅ Use DTOs – do not return EF entities directly
+- ✅ Always include standard response: `ApiResponse<T>`
+- ✅ Write migrations when updating models
+- ✅ Use `Success()` or `CreatedSuccess()` helpers in controllers
 
 ---
 
@@ -190,12 +188,10 @@ VALUES
 
 If you're picking this up, check:
 
-* [Swagger UI local server](https://localhost:{PORT}) or [Swagger UI live server](https://api-salubrity.dataposit.co.ke/docs/index.html)
-* `BaseController.cs` for standard response patterns
-* Seed scripts in `Migrations/Seeds/` if available
+- [Swagger UI local server](https://localhost:{PORT}) or [Swagger UI live server](https://api-salubrity.dataposit.co.ke/docs/index.html)
+- `BaseController.cs` for standard response patterns
+- Seed scripts in `Migrations/Seeds/` if available
 
 If anything breaks, ping the lead developer or refer to this file first.
 
 ---
-
-```

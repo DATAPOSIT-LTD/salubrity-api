@@ -21,10 +21,10 @@ public class PermissionGroup : BaseAuditableEntity
     /// <summary>
     /// Permissions associated with this group.
     /// </summary>
-    public ICollection<PermissionGroupPermission> PermissionGroupPermissions { get; set; } = new List<PermissionGroupPermission>();
+    public ICollection<PermissionGroupPermission> PermissionGroupPermissions { get; set; } = [];
 
     /// <summary>
     /// Roles associated with this permission group.
     /// </summary>
-    public ICollection<RolePermissionGroup> RolePermissionGroups { get; set; } = new List<RolePermissionGroup>();
+    public ICollection<RolePermissionGroup> RolePermissionGroups { get; set; } = [];
 }

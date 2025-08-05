@@ -12,7 +12,7 @@ public class Subcontractor : BaseAuditableEntity
 {
     [ForeignKey("User")]
     public Guid UserId { get; set; }
-    public virtual Salubrity.Domain.Entities.Identity.User User { get; set; } = default!; 
+    public virtual Salubrity.Domain.Entities.Identity.User User { get; set; } = default!;
 
     [ForeignKey("Industry")]
     public Guid IndustryId { get; set; }
@@ -29,7 +29,7 @@ public class Subcontractor : BaseAuditableEntity
     public virtual SubcontractorStatus Status { get; set; } = default!;
 
     // Navigation Properties
-    public virtual ICollection<SubcontractorSpecialty> Specialties { get; set; } = new List<SubcontractorSpecialty>();
-    public virtual ICollection<SubcontractorRole> Roles { get; set; } = new List<SubcontractorRole>();
-    public virtual ICollection<SubcontractorHealthCampAssignment> CampAssignments { get; set; } = new List<SubcontractorHealthCampAssignment>();
+    public virtual ICollection<SubcontractorSpecialty> Specialties { get; set; } = [];
+    public virtual ICollection<SubcontractorRole> Roles { get; set; } = [];
+    public virtual ICollection<SubcontractorHealthCampAssignment> CampAssignments { get; set; } = [];
 }

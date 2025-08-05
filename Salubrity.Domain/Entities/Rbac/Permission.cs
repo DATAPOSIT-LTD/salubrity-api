@@ -20,7 +20,7 @@ namespace Salubrity.Domain.Entities.Rbac
         /// <summary>
         /// Permission groups that include this permission.
         /// </summary>
-        public ICollection<PermissionGroupPermission> GroupPermissions { get; set; } = new List<PermissionGroupPermission>();
+        public ICollection<PermissionGroupPermission> GroupPermissions { get; set; } = [];
 
         /// <summary>
         /// Generate a user-friendly name from the permission code.

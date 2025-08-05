@@ -25,5 +25,5 @@ public class IntakeFormResponse : BaseAuditableEntity
     [ForeignKey(nameof(ResponseStatusId))]
     public IntakeFormResponseStatus Status { get; set; } = default!;
 
-    public ICollection<IntakeFormFieldResponse> FieldResponses { get; set; } = new List<IntakeFormFieldResponse>();
+    public ICollection<IntakeFormFieldResponse> FieldResponses { get; set; } = [];
 }

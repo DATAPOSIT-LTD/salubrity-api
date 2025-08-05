@@ -16,5 +16,5 @@ public class SubcontractorHealthCampAssignmentStatus : BaseAuditableEntity
 
 	public bool IsActive { get; set; } = true;
 
-	public virtual ICollection<SubcontractorHealthCampAssignment> Assignments { get; set; } = new List<SubcontractorHealthCampAssignment>();
+	public virtual ICollection<SubcontractorHealthCampAssignment> Assignments { get; set; } = [];
 }

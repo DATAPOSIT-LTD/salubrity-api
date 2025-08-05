@@ -10,6 +10,6 @@ namespace Salubrity.Application.DTOs.Menus
         public Guid? ParentId { get; set; }
         public Guid? RequiredPermissionId { get; set; }
         public bool IsActive { get; set; }
-        public List<MenuResponseDto> Children { get; set; } = new();
+        public List<MenuResponseDto> Children { get; set; } = [];
     }
 }

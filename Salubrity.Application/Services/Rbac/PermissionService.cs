@@ -18,13 +18,13 @@ public class PermissionService : IPermissionService
     public async Task<List<PermissionDto>> GetAllPermissionsAsync()
     {
         var permissions = await _permissionRepository.GetAllPermissionsAsync();
-        return permissions.Select(p => new PermissionDto
+        return [.. permissions.Select(p => new PermissionDto
         {
             Id = p.Id,
             Code = p.Code,
             Description = p.Description,
             Name = p.GetPermissionName()
-        }).ToList();
+        })];
     }
 
     public async Task<PermissionDto> GetPermissionByIdAsync(Guid id)
@@ -92,12 +92,12 @@ public class PermissionService : IPermissionService
     {
         var permissions = await _permissionRepository.GetPermissionsByRoleIdAsync(roleId);
 
-        return permissions.Select(p => new PermissionDto
+        return [.. permissions.Select(p => new PermissionDto
         {
             Id = p.Id,
             Code = p.Code,
             Description = p.Description,
             Name = p.GetPermissionName()
-        }).ToList();
+        })];
     }
 }

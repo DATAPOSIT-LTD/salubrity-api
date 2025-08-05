@@ -18,14 +18,14 @@ public class UserRoleService : IUserRoleService
     public async Task<List<UserRoleDto>> GetAllUserRolesAsync()
     {
         var data = await _repo.GetAllAsync();
-        return data.Select(x => new UserRoleDto
+        return [.. data.Select(x => new UserRoleDto
         {
             Id = x.Id,
             UserId = x.UserId,
             RoleId = x.RoleId,
             CreatedAt = x.CreatedAt,
             UpdatedAt = x.UpdatedAt
-        }).ToList();
+        })];
     }
 
     public async Task<UserRoleDto> GetUserRoleByIdAsync(Guid id)

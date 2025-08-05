@@ -33,11 +33,11 @@ namespace Salubrity.Application.Services.Rbac
 
             var groups = await _rolePermissionGroupRepository.GetPermissionGroupsByRoleAsync(roleId);
 
-            return groups.Select(g => new PermissionGroupDto
+            return [.. groups.Select(g => new PermissionGroupDto
             {
                 Id = g.Id,
                 Name = g.Name
-            }).ToList();
+            })];
         }
 
         public async Task AssignPermissionGroupsToRoleAsync(AssignPermissionGroupsToRoleDto input)

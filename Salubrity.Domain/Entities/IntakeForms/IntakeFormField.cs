@@ -34,5 +34,5 @@ public class IntakeFormField : BaseAuditableEntity
 
     public int Order { get; set; }
 
-    public ICollection<IntakeFormFieldOption> Options { get; set; } = new List<IntakeFormFieldOption>();
+    public ICollection<IntakeFormFieldOption> Options { get; set; } = [];
 }

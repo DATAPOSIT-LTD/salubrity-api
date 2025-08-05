@@ -46,7 +46,7 @@ public class CreateServiceDto
     public bool IsActive { get; set; } = true;
 
     // Unified list of category/subcategory IDs
-    public List<Guid> LinkedServiceIds { get; set; } = new();
+    public List<Guid> LinkedServiceIds { get; set; } = [];
 }
 
 public class UpdateServiceDto
@@ -70,5 +70,5 @@ public class UpdateServiceDto
 
     public bool IsActive { get; set; } = true;
 
-    public List<Guid> LinkedServiceIds { get; set; } = new();
+    public List<Guid> LinkedServiceIds { get; set; } = [];
 }

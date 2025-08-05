@@ -13,8 +13,8 @@ public class CreateSubcontractorDto
     public Guid? StatusId { get; set; }
 
     // FK to services (specialties)
-    public List<Guid>? SpecialtyIds { get; set; } = new();
+    public List<Guid>? SpecialtyIds { get; set; } = [];
 
     // FK to SubcontractorRole lookup table
-    public List<Guid> SubcontractorRoleIds { get; set; } = new();
+    public List<Guid> SubcontractorRoleIds { get; set; } = [];
 }

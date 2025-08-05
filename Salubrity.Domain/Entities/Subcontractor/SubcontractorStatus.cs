@@ -16,5 +16,5 @@ public class SubcontractorStatus : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
 
     // Optional reverse nav
-    public virtual ICollection<Subcontractor> Subcontractors { get; set; } = new List<Subcontractor>();
+    public virtual ICollection<Subcontractor> Subcontractors { get; set; } = [];
 }

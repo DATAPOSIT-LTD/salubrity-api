@@ -14,5 +14,5 @@ public class IntakeForm : BaseAuditableEntity
     [MaxLength(500)]
     public string? Description { get; set; }
 
-    public ICollection<IntakeFormVersion> Versions { get; set; } = new List<IntakeFormVersion>();
+    public ICollection<IntakeFormVersion> Versions { get; set; } = [];
 }

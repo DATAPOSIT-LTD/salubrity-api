@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
-using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.DTOs.Employees;
+using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Shared.Responses;
 
 namespace Salubrity.Api.Controllers.Employee;
@@ -11,14 +11,17 @@ namespace Salubrity.Api.Controllers.Employee;
 [Route("api/v{version:apiVersion}/employees")]
 [Produces("application/json")]
 [Tags("Employee Management")]
-
 public class EmployeeController : BaseController
 {
     private readonly IEmployeeService _employeeService;
+    private readonly IEmployeeTemplateService _employeeTemplateService;
 
-    public EmployeeController(IEmployeeService employeeService)
+    public EmployeeController(
+        IEmployeeService employeeService,
+        IEmployeeTemplateService employeeTemplateService)
     {
         _employeeService = employeeService;
+        _employeeTemplateService = employeeTemplateService;
     }
 
     [HttpGet]
@@ -45,6 +48,24 @@ public class EmployeeController : BaseController
         return CreatedSuccess(nameof(GetById), new { id = result.Id }, result);
     }
 
+    [HttpPost("upload-template")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> UploadExcelTemplate([FromForm] EmployeeTemplateUploadRequestDto request)
+    {
+        var result = await _employeeTemplateService.ProcessAndUpsertTemplateAsync(request.File);
+        return Success(result);
+    }
+
+    [HttpGet("template")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> DownloadTemplate()
+    {
+        var (content, fileName) = await _employeeTemplateService.GetTemplateAsync();
+        return File(content, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
+
     [HttpPost("bulk-upload")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(BulkUploadResultDto), StatusCodes.Status200OK)]
@@ -54,7 +75,6 @@ public class EmployeeController : BaseController
         return Ok(result);
     }
 
-
     [HttpGet("by-organization/{organizationId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<List<EmployeeLeanResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByOrganization(Guid organizationId)
@@ -62,7 +82,6 @@ public class EmployeeController : BaseController
         var result = await _employeeService.GetByOrganizationAsync(organizationId);
         return Success(result);
     }
-
 
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<EmployeeResponseDto>), StatusCodes.Status200OK)]

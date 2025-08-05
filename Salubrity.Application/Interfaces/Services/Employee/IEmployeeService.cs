@@ -17,5 +17,4 @@ public interface IEmployeeService
     Task<BulkUploadResultDto> BulkCreateFromCsvAsync(IFormFile file);
 
 
-
 }

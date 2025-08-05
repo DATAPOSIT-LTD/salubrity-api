@@ -67,6 +67,7 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<Department>>();
             services.AddScoped<GenericLookupService<JobTitle>>();
             services.AddScoped<ILookupServiceFactory, LookupServiceFactory>();
+            services.AddScoped<IEmployeeTemplateService, EmployeeTemplateService>();
 
 
 

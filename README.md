@@ -1,167 +1,151 @@
-﻿---
+﻿# Salubrity Backend – API Documentation
 
-## `README.md`
-
-```
-# Salubrity Backend – API Documentation
-
-Welcome to the Salubrity Backend API – a clean-architecture-based .NET 9 project built for scalable healthcare systems.
-
-This document provides an overview of the project structure, setup steps, development conventions, and contribution guidelines for future developers.
+Salubrity is a scalable, clean-architecture-based .NET 9 backend for modern healthcare systems. This documentation explains how the backend works and how to extend it.
 
 ---
 
-## 🔧 Tech Stack
+## Tech Stack
 
-- **Language**: C# (.NET Core 9)
-- **Database**: PostgreSQL
-- **ORM**: Entity Framework Core
-- **Architecture**: Clean Architecture (Domain-Driven Design)
-- **API Style**: RESTful
-- **Auth**: JWT-based Authentication with RBAC
-- **Migrations**: EF Core
-- **Soft Deletes & Auditing**: `BaseAuditableEntity`
+| Layer        | Tech                                      |
+| ------------ | ----------------------------------------- |
+| Language     | C# (.NET 9 / .NET Core)                   |
+| Database     | PostgreSQL                                |
+| ORM          | Entity Framework Core                     |
+| Architecture | Clean Architecture / Domain-Driven Design |
+| Auth         | JWT + RBAC                                |
+| API Style    | RESTful + Swagger UI                      |
+| Migrations   | EF Core CLI                               |
+| Auditing     | `BaseAuditableEntity` on all entities     |
 
 ---
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 Salubrity/
+├── Salubrity.Domain/                 Core business entities
+│   ├── Entities/
+│   │   ├── Identity/                 User, Employee, Patient
+│   │   ├── HealthCamps/             Health camp models
+│   │   ├── Join/                    Many-to-many joins
+│   │   ├── Lookups/                 Genders, BloodTypes, etc.
+│   │   └── Common/                  BaseEntity, enums
 │
-├── Salubrity.Domain/ # Core entities (no infrastructure dependencies)
-│ ├── Entities/
-│ │ ├── Identity/ # User, Employee, Patient (polymorphic)
-│ │ ├── HealthCamps/ # Health camp core models
-│ │ ├── Join/ # Many-to-many or event participation models
-│ │ ├── Lookups/ # Lookup entities (Gender, BloodType, etc.)
-│ │ └── Common/ # BaseAuditableEntity, enums, shared structures
+├── Salubrity.Application/           DTOs, Interfaces, Services
+│   ├── DTOs/                        Request/response models
+│   ├── Interfaces/                  IService & IRepository contracts
+│   └── Services/                    Core business logic
 │
-├── Salubrity.Application/ # Application layer (DTOs, interfaces, services)
-│ ├── DTOs/ # Strongly typed DTOs per domain
-│ ├── Interfaces/ # IService and IRepository contracts
-│ └── Services/ # Service implementations (business logic)
+├── Salubrity.Infrastructure/        Data access & integration
+│   ├── Persistence/                 DbContext and config
+│   └── Repositories/                EF Core implementations
 │
-├── Salubrity.Infrastructure/ # Data access + external services (EF Core)
-│ └── Persistence/
-│ └── Repositories/ # EF-based repository implementations
+├── Salubrity.Api/                   Web API endpoints
+│   ├── Controllers/                 RESTful controllers
+│   └── Program.cs                   DI & Middleware
 │
-├── Salubrity.Api/ # API layer (controllers, Swagger, DI, etc.)
-│ ├── Controllers/
-│ └── Program.cs / Startup.cs # App config and middleware
-│
-└── Migrations/ # EF Core migrations (auto-generated)
+└── Migrations/                      EF Core migrations
 ```
 
 ---
 
-## 🧪 Getting Started
+## Getting Started
 
-### 1. Clone the Repo
+### 1. Clone the repo
 
 ```bash
 git clone https://github.com/DATAPOSIT-LTD/salubrity-api.git
 cd salubrity-api
 ```
 
-### 2. Database Setup
-
-Ensure PostgreSQL is installed and running.
-
-Create the database:
+### 2. Create the database
 
 ```sql
 CREATE DATABASE salubrity;
-```
-
-Enable UUID extension:
-
-```sql
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 ```
 
-### 3. Apply Migrations
+### 3. Run migrations
 
 ```bash
 dotnet ef database update
 ```
 
-### 4. Run the API
+### 4. Start the API
 
 ```bash
 dotnet run --project Salubrity.Api
 ```
 
-Navigate to: `https://localhost:{PORT}/docs`
+Visit `https://localhost:{PORT}/docs` to test endpoints via Swagger.
 
 ---
 
-## 🧱 Key Concepts
+## Polymorphic User Handling
 
-### 🧩 Polymorphic User
+A single `User` can map to:
 
-Every `User` is a base identity. Depending on context, they may be:
+- `Employee` — Internal staff
+- `Patient` — Registered client
+- `HealthCampParticipant` — Event attendee
 
-- `Employee` → if working for an organization
-- `Patient` → if medically profiled
-- `HealthCampParticipant` → if attending a camp
-
-Use the `RelatedEntityType` field to distinguish roles.
+Resolved via `RelatedEntityType` field + joins.
 
 ---
 
-### 📒 Lookups
+## Lookup Management
 
-All lookup tables (e.g. Genders, BloodTypes) follow this pattern:
+All lookups (e.g., Gender, Province, Insurance):
 
-- Lookup entity in `Salubrity.Domain.Entities.Lookup`
-- DTO: `BaseLookupResponse`
-- Generic services and repositories
-- API: `/api/v1/lookups/{type}`
-
----
-
-### 💼 Clean Architecture Practices
-
-- **Entities are pure** (no EF logic)
-- **Services contain business logic**
-- **Repositories are injected into services**
-- **Controllers only handle request/response (thin)**
+- Live under `Domain.Entities.Lookups`
+- Served from `/api/v1/lookups/{type}`
+- Use `BaseLookupResponse` DTOs
 
 ---
 
-## 🧑‍💻 Development Workflow
+## Clean Architecture Summary
 
-1. **Add model** to `Domain.Entities`
-2. **Add DTO** in `Application.DTOs`
-3. **Add interface** in `Application.Interfaces`
-4. **Implement service** in `Application.Services`
-5. **Expose via controller** in `Api.Controllers`
-6. **Test via Swagger or Postman**
+| Layer          | Purpose                       |
+| -------------- | ----------------------------- |
+| Domain         | Pure POCOs, no EF annotations |
+| Application    | DTOs, interfaces, services    |
+| Infrastructure | Persistence, integrations     |
+| API            | Thin controller endpoints     |
 
 ---
 
-## 🛠 Common Commands
+## Developer Workflow
 
-### Generate migration
+1. Define model in `Domain.Entities`
+2. Create request/response DTOs
+3. Add interface in `Application.Interfaces`
+4. Implement logic in `Application.Services`
+5. Wire up controller in `Api.Controllers`
+6. Test via Swagger/Postman
+
+---
+
+## Common Commands
+
+### Create migration
 
 ```bash
-dotnet ef migrations add <Name>
+dotnet ef migrations add AddSomethingImportant
 ```
 
-### Update DB
+### Apply latest migrations
 
 ```bash
 dotnet ef database update
 ```
 
-### List DB tables
+### List PostgreSQL tables
 
 ```sql
 \dt
 ```
 
-### Seed Gender Lookup
+### Example seed
 
 ```sql
 INSERT INTO "Genders" ("Id", "Name", "Description", "CreatedAt", "IsDeleted")
@@ -172,26 +156,26 @@ VALUES
 
 ---
 
-## 🧭 Contribution Guide
+## Contribution Standards
 
-- ✅ Follow the existing structure for all domains
-- ✅ Use `BaseAuditableEntity` for soft delete + tracking
-- ✅ Keep controller logic minimal
-- ✅ Use DTOs – do not return EF entities directly
-- ✅ Always include standard response: `ApiResponse<T>`
-- ✅ Write migrations when updating models
-- ✅ Use `Success()` or `CreatedSuccess()` helpers in controllers
+- Always use DTOs — never expose EF entities
+- Use `BaseAuditableEntity` on all tracked tables
+- Keep controllers thin — no logic inside
+- Responses wrapped with `ApiResponse<T>`
+- Migrations must be tested
+- Follow directory structure strictly
+
+---
+
+## Debugging & Support
+
+- Swagger: `/docs`
+- Seeds: `Migrations/Seeds/`
+- Use `BaseController` as your controller scaffold
+- Review existing services before adding new ones
 
 ---
 
-## 📬 Support
+## License
 
-If you're picking this up, check:
-
-- [Swagger UI local server](https://localhost:{PORT}) or [Swagger UI live server](https://api-salubrity.dataposit.co.ke/docs/index.html)
-- `BaseController.cs` for standard response patterns
-- Seed scripts in `Migrations/Seeds/` if available
-
-If anything breaks, ping the lead developer or refer to this file first.
-
----
+Maintained by DATAPOSIT LTD — internal use only unless explicitly authorized.

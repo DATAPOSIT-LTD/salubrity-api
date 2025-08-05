@@ -17,8 +17,10 @@ using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Shared.Exceptions;
+using Salubrity.Shared.Extensions;
 
 namespace Salubrity.Application.Services.EmployeeServices;
+
 
 public class EmployeeService : IEmployeeService
 {
@@ -51,6 +53,7 @@ public class EmployeeService : IEmployeeService
         _organizationRepo = organizationRepo;
         _genderRepo = genderRepo;
     }
+
 
 
     public async Task<List<EmployeeResponseDto>> GetAllAsync()
@@ -167,6 +170,8 @@ public class EmployeeService : IEmployeeService
             }
         };
     }
+
+
     public async Task<BulkUploadResultDto> BulkCreateFromCsvAsync(IFormFile file)
     {
         var result = new BulkUploadResultDto();
@@ -220,7 +225,7 @@ public class EmployeeService : IEmployeeService
                     NationalId = row.NationalId?.Trim(),
                     GenderId = GenderId,
                     PrimaryLanguage = row.PrimaryLanguage,
-                    DateOfBirth = row.DateOfBirth,
+                    DateOfBirth = row.DateOfBirth.ToUtcSafe(),
                     PasswordHash = _passwordHasher.HashPassword(rawPassword),
                     IsActive = true,
                     IsVerified = false,
@@ -260,6 +265,8 @@ public class EmployeeService : IEmployeeService
 
         return result;
     }
+
+
 
 
 

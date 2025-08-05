@@ -45,6 +45,16 @@ public class EmployeeController : BaseController
         return CreatedSuccess(nameof(GetById), new { id = result.Id }, result);
     }
 
+    [HttpPost("bulk-upload")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(BulkUploadResultDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkUpload([FromForm] BulkEmployeeUploadRequest request)
+    {
+        var result = await _employeeService.BulkCreateFromCsvAsync(request.File);
+        return Ok(result);
+    }
+
+
     [HttpGet("by-organization/{organizationId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<List<EmployeeLeanResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetByOrganization(Guid organizationId)

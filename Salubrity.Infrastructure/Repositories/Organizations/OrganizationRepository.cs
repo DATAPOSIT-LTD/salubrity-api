@@ -50,8 +50,10 @@ namespace Salubrity.Infrastructure.Repositories.Organizations
         public async Task<Organization?> FindByNameAsync(string name)
         {
             return await _context.Organizations
-                .FirstOrDefaultAsync(o => o.BusinessName.Equals(name, StringComparison.CurrentCultureIgnoreCase));
+                .Where(o => !o.IsDeleted)
+                .FirstOrDefaultAsync(o => o.BusinessName.ToLower() == name.ToLower());
         }
+
 
 
     }

@@ -1,3 +1,4 @@
+using Salubrity.Application.DTOs.Organizations;
 using Salubrity.Domain.Entities.Organizations;
 
 namespace Salubrity.Application.Interfaces.Repositories.Organizations
@@ -9,5 +10,7 @@ namespace Salubrity.Application.Interfaces.Repositories.Organizations
         Task<List<Organization>> GetAllAsync();
         Task UpdateAsync(Organization entity);
         Task DeleteAsync(Guid id);
+        Task<Organization?> FindByNameAsync(string name);
+
     }
 }

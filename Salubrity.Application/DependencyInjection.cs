@@ -3,6 +3,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
+using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.Interfaces.Services.Forms;
@@ -50,9 +51,9 @@ namespace Salubrity.Application
             services.AddAutoMapper(typeof(IndustryProfile).Assembly);
             services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             services.AddScoped<IInsuranceProviderService, InsuranceProviderService>();
-            services.AddScoped<IIndustryService, IndustryService>();         
+            services.AddScoped<IIndustryService, IndustryService>();
             services.AddScoped<IServiceService, ServiceService>();
-            services.AddScoped<IServiceCategoryService, ServiceCategoryService>();   
+            services.AddScoped<IServiceCategoryService, ServiceCategoryService>();
             services.AddScoped<IServiceSubcategoryService, ServiceSubcategoryService>();
             services.AddScoped<IServicePackageService, ServicePackageService>();
             services.AddScoped<IHealthCampService, HealthCampService>();
@@ -61,7 +62,11 @@ namespace Salubrity.Application
             services.AddScoped<IHealthCampManagementService, HealthCampManagementService>();
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<IFormService, FormService>();
-            services.AddScoped<ILookupService, GenericLookupService<Gender>>(); // for gender
+            services.AddScoped<ILookupService, GenericLookupService<Gender>>();
+            services.AddScoped<GenericLookupService<Language>>();
+            services.AddScoped<GenericLookupService<Department>>();
+            services.AddScoped<GenericLookupService<JobTitle>>();
+            services.AddScoped<ILookupServiceFactory, LookupServiceFactory>();
 
 
 
@@ -69,7 +74,7 @@ namespace Salubrity.Application
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();
-       
+
 
             return services;
         }

@@ -28,4 +28,9 @@ public class EfLookupRepository<T> : ILookupRepository<T> where T : BaseLookupEn
             Description = x.Description
         }).ToList();
     }
+
+    public async Task<T?> FindByNameAsync(string name)
+    {
+        return await _context.Set<T>().FirstOrDefaultAsync(x => x.Name.ToLower() == name.ToLower());
+    }
 }

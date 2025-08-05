@@ -5,4 +5,5 @@ using Salubrity.Application.DTOs.Lookups;
 public interface ILookupService
 {
     Task<List<BaseLookupResponse>> GetAllAsync();
+    Task<BaseLookupResponse?> FindByNameAsync(string name);
 }

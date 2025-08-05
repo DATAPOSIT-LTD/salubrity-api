@@ -46,5 +46,13 @@ namespace Salubrity.Infrastructure.Repositories.Organizations
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<Organization?> FindByNameAsync(string name)
+        {
+            return await _context.Organizations
+                .FirstOrDefaultAsync(o => o.BusinessName.Equals(name, StringComparison.CurrentCultureIgnoreCase));
+        }
+
+
     }
 }

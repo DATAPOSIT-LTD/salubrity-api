@@ -58,5 +58,14 @@ namespace Salubrity.Application.Services.Organizations
 
             await _repository.DeleteAsync(id);
         }
+
+        public async Task<OrganizationResponseDto> GetByNameAsync(string name)
+        {
+            var org = await _repository.FindByNameAsync(name);
+            if (org == null)
+                throw new NotFoundException("Organization", name);
+
+            return _mapper.Map<OrganizationResponseDto>(org);
+        }
     }
 }

@@ -16,12 +16,17 @@ public class GenericLookupService<T> : ILookupService where T : BaseLookupEntity
 
     public async Task<List<BaseLookupResponse>> GetAllAsync()
     {
-        var items = await _repository.GetAllAsync();
-        return [.. items.Select(x => new BaseLookupResponse
+        return await _repository.GetAllAsync();
+    }
+
+    public async Task<BaseLookupResponse?> FindByNameAsync(string name)
+    {
+        var entity = await _repository.FindByNameAsync(name);
+        return entity == null ? null : new BaseLookupResponse
         {
-            Id = x.Id,
-            Name = x.Name,
-            Description = x.Description
-        })];
+            Id = entity.Id,
+            Name = entity.Name,
+            Description = entity.Description
+        };
     }
 }

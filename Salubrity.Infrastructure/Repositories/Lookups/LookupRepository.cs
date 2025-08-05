@@ -31,5 +31,12 @@ namespace Salubrity.Infrastructure.Repositories.Lookups
                 Description = x.Description
             }).ToList();
         }
+
+        public async Task<T?> FindByNameAsync(string name)
+        {
+            return await _context.Set<T>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Name.ToLower() == name.ToLower() && !x.IsDeleted);
+        }
     }
 }

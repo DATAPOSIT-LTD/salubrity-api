@@ -8,4 +8,5 @@ namespace Salubrity.Application.Interfaces.Repositories.Lookups;
 public interface ILookupRepository<T> where T : BaseLookupEntity
 {
     Task<List<BaseLookupResponse>> GetAllAsync();
+    Task<T?> FindByNameAsync(string name);
 }

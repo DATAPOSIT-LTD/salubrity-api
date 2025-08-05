@@ -62,11 +62,13 @@ public static class DependencyInjection
         services.AddScoped<IServiceSubcategoryRepository, ServiceSubcategoryRepository>();
         services.AddScoped<IServicePackageRepository, ServicePackageRepository>();
         services.AddScoped<IHealthCampRepository, HealthCampRepository>();
-        services.AddScoped<IIntakeFormRepository,   IntakeFormRepository>();
+        services.AddScoped<IIntakeFormRepository, IntakeFormRepository>();
         services.AddScoped<IHealthCampManagementRepository, HealthCampManagementRepository>();
         services.AddScoped(typeof(ILookupRepository<>), typeof(LookupRepository<>));
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IFormRepository, FormRepository>();
+        services.AddScoped<IPasswordGenerator, PasswordGenerator>();
+
 
 
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Salubrity.Application.DTOs.Employees;
 using Salubrity.Application.DTOs.Users;
 
@@ -13,6 +14,8 @@ public interface IEmployeeService
     Task DeleteAsync(Guid id);
     Task<bool> ExistsAsync(Guid id);
     Task<List<EmployeeLeanResponseDto>> GetByOrganizationAsync(Guid organizationId);
+    Task<BulkUploadResultDto> BulkCreateFromCsvAsync(IFormFile file);
+
 
 
 }

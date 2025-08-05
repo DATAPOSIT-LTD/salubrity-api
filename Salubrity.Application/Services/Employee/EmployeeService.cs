@@ -1,10 +1,20 @@
-﻿using Salubrity.Application.DTOs.Employees;
+﻿using System.Formats.Asn1;
+using System.Globalization;
+using System.Text;
+using CsvHelper;
+using CsvHelper.Configuration;
+using Microsoft.AspNetCore.Http;
+using Salubrity.Application.DTOs.Employees;
 using Salubrity.Application.DTOs.Users;
 using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.Lookups;
+using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.Lookup;
+using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Shared.Exceptions;
 
@@ -15,13 +25,33 @@ public class EmployeeService : IEmployeeService
     private readonly IEmployeeRepository _repo;
     private readonly IRoleRepository _roleRepo;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ILookupRepository<JobTitle> _jobTitleRepo;
+    private readonly ILookupRepository<Department> _departmentRepo;
+    private readonly IOrganizationRepository _organizationRepo;
+    private readonly IPasswordGenerator _passwordGenerator;
+    private readonly ILookupRepository<Gender> _genderRepo;
 
-    public EmployeeService(IEmployeeRepository repo, IPasswordHasher passwordHasher, IRoleRepository roleRepo)
+
+    public EmployeeService(
+     IEmployeeRepository repo,
+     IPasswordHasher passwordHasher,
+     IPasswordGenerator passwordGenerator,
+     IRoleRepository roleRepo,
+     ILookupRepository<JobTitle> jobTitleRepo,
+     ILookupRepository<Department> departmentRepo,
+     ILookupRepository<Gender> genderRepo,
+     IOrganizationRepository organizationRepo)
     {
         _repo = repo;
         _passwordHasher = passwordHasher;
+        _passwordGenerator = passwordGenerator;
         _roleRepo = roleRepo;
+        _jobTitleRepo = jobTitleRepo;
+        _departmentRepo = departmentRepo;
+        _organizationRepo = organizationRepo;
+        _genderRepo = genderRepo;
     }
+
 
     public async Task<List<EmployeeResponseDto>> GetAllAsync()
     {
@@ -137,6 +167,100 @@ public class EmployeeService : IEmployeeService
             }
         };
     }
+    public async Task<BulkUploadResultDto> BulkCreateFromCsvAsync(IFormFile file)
+    {
+        var result = new BulkUploadResultDto();
+        var patientRole = await _roleRepo.FindByNameAsync("Patient");
+        if (patientRole == null)
+            throw new Exception("Patient role not found");
+
+        using var stream = file.OpenReadStream();
+        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            HeaderValidated = null,
+            MissingFieldFound = null
+        });
+
+        var rowIndex = 1;
+        var records = csv.GetRecordsAsync<EmployeeCsvRowDto>();
+        await foreach (var row in records)
+        {
+            rowIndex++;
+            try
+            {
+                if (string.IsNullOrWhiteSpace(row.Email))
+                    throw new Exception("Missing required field: Email");
+
+                var jobTitle = await _jobTitleRepo.FindByNameAsync(row.JobTitleName.Trim());
+                if (jobTitle == null) throw new Exception($"Invalid job title: {row.JobTitleName}");
+
+                var department = await _departmentRepo.FindByNameAsync(row.DepartmentName.Trim());
+                if (department == null) throw new Exception($"Invalid department: {row.DepartmentName}");
+
+                var organization = await _organizationRepo.FindByNameAsync(row.OrganizationName.Trim());
+                if (organization == null) throw new Exception($"Invalid organization: {row.OrganizationName}");
+
+                var gender = await _genderRepo.FindByNameAsync(row.Gender.Trim());
+                if (gender == null) throw new Exception($"Invalid gender: {row.Gender}");
+
+                var GenderId = gender.Id;
+
+                var rawPassword = _passwordGenerator.Generate();
+                var userId = Guid.NewGuid();
+
+                var user = new User
+                {
+                    Id = userId,
+                    FirstName = row.FirstName?.Trim(),
+                    MiddleName = row.MiddleName?.Trim(),
+                    LastName = row.LastName?.Trim(),
+                    Email = row.Email.Trim().ToLowerInvariant(),
+                    Phone = row.Phone?.Trim(),
+                    NationalId = row.NationalId?.Trim(),
+                    GenderId = GenderId,
+                    PrimaryLanguage = row.PrimaryLanguage,
+                    DateOfBirth = row.DateOfBirth,
+                    PasswordHash = _passwordHasher.HashPassword(rawPassword),
+                    IsActive = true,
+                    IsVerified = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UserRoles =
+                    [
+                        new UserRole
+                    {
+                        RoleId = patientRole.Id,
+                        UserId = userId
+                    }
+                    ]
+                };
+
+                var employee = new Domain.Entities.Identity.Employee
+                {
+                    Id = Guid.NewGuid(),
+                    OrganizationId = organization.Id,
+                    JobTitleId = jobTitle.Id,
+                    DepartmentId = department.Id,
+                    User = user
+                };
+
+                await _repo.CreateAsync(employee);
+                result.SuccessCount++;
+            }
+            catch (Exception ex)
+            {
+                result.FailureCount++;
+                result.Errors.Add(new BulkUploadError
+                {
+                    Row = rowIndex,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        return result;
+    }
+
 
 
     public async Task<EmployeeResponseDto> UpdateAsync(Guid id, EmployeeRequestDto dto)

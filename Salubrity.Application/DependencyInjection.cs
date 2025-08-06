@@ -26,6 +26,7 @@ using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
 using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Domain.Entities.Lookup;
+using Salubrity.Domain.Entities.Subcontractor;
 
 
 
@@ -71,6 +72,10 @@ namespace Salubrity.Application
             services.AddScoped<ILookupServiceFactory, LookupServiceFactory>();
             services.AddScoped<IEmployeeTemplateService, EmployeeTemplateService>();
             services.AddScoped<ISubcontractorService, SubcontractorService>();
+            services.AddScoped<GenericLookupService<SubcontractorRole>>();
+            services.AddScoped<GenericLookupService<SubcontractorStatus>>();
+            services.AddScoped<GenericLookupService<SubcontractorHealthCampAssignmentStatus>>();
+
 
 
 

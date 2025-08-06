@@ -5,13 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace Salubrity.Domain.Entities.Subcontractor;
 
 [Table("SubcontractorStatuses")]
-public class SubcontractorStatus : BaseAuditableEntity
+public class SubcontractorStatus : BaseLookupEntity
 {
-    [MaxLength(100)]
-    public string Name { get; set; } = default!; // e.g., "Active", "Inactive", "Suspended"
-
-    [MaxLength(255)]
-    public string? Description { get; set; }
 
     public bool IsActive { get; set; } = true;
 

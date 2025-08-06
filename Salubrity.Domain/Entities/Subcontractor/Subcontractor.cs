@@ -30,6 +30,8 @@ public class Subcontractor : BaseAuditableEntity
 
     // Navigation Properties
     public virtual ICollection<SubcontractorSpecialty> Specialties { get; set; } = [];
-    public virtual ICollection<SubcontractorRole> Roles { get; set; } = [];
+    // public virtual ICollection<SubcontractorRole> Roles { get; set; } = [];
+    public virtual ICollection<SubcontractorRoleAssignment> RoleAssignments { get; set; } = [];
+
     public virtual ICollection<SubcontractorHealthCampAssignment> CampAssignments { get; set; } = [];
 }

@@ -30,6 +30,7 @@ using Salubrity.Infrastructure.Seeders;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Application.Interfaces.Repositories.Forms;
+using Salubrity.Infrastructure.Repositories;
 
 
 namespace Salubrity.Infrastructure;
@@ -68,6 +69,7 @@ public static class DependencyInjection
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
         services.AddScoped<IFormRepository, FormRepository>();
         services.AddScoped<IPasswordGenerator, PasswordGenerator>();
+        services.AddScoped<ISubcontractorRepository, SubcontractorRepository>();
 
 
 

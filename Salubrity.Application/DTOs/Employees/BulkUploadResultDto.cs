@@ -2,7 +2,7 @@ public class BulkUploadResultDto
 {
     public int SuccessCount { get; set; }
     public int FailureCount { get; set; }
-    public List<BulkUploadError> Errors { get; set; } = new();
+    public List<BulkUploadError> Errors { get; set; } = [];
 }
 
 public class BulkUploadError

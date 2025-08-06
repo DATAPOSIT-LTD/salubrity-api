@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Security;
+using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.Interfaces.Services.Forms;
@@ -23,6 +24,7 @@ using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
+using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Domain.Entities.Lookup;
 
 
@@ -68,6 +70,8 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<JobTitle>>();
             services.AddScoped<ILookupServiceFactory, LookupServiceFactory>();
             services.AddScoped<IEmployeeTemplateService, EmployeeTemplateService>();
+            services.AddScoped<ISubcontractorService, SubcontractorService>();
+
 
 
 

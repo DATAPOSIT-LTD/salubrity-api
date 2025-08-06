@@ -1,8 +1,17 @@
-namespace Salubrity.Application.DTOs.Subcontractor;
+using System;
 
-public class CreateSubcontractorRoleDto
+namespace Salubrity.Application.DTOs.Subcontractor
 {
-    public string Name { get; set; } = default!; // e.g., "Doctor", "Nurse"
+    public class CreateSubcontractorRoleDto
+    {
+        /// <summary>
+        /// Name of the role (e.g., "Doctor", "Nurse", "Support Staff")
+        /// </summary>
+        public string Name { get; set; } = default!;
 
-    public string? Description { get; set; }
+        /// <summary>
+        /// Optional description for the role
+        /// </summary>
+        public string? Description { get; set; }
+    }
 }

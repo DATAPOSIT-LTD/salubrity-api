@@ -26,6 +26,16 @@ namespace Salubrity.Infrastructure.Repositories
         {
             return await _db.Subcontractors.FindAsync(id);
         }
+        public async Task<List<Subcontractor>> GetAllWithDetailsAsync()
+        {
+            return await _db.Subcontractors
+                .Include(s => s.User)
+                .Include(s => s.Status)
+                .Include(s => s.Specialties)
+                .Include(s => s.RoleAssignments)
+                .ToListAsync();
+        }
+
 
         public async Task<Subcontractor?> GetByIdWithDetailsAsync(Guid id)
         {

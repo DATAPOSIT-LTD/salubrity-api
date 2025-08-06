@@ -8,6 +8,8 @@ namespace Salubrity.Application.Interfaces.Repositories
     {
         Task AddAsync(Subcontractor entity);
         Task<Subcontractor?> GetByIdAsync(Guid id);
+        Task<List<Subcontractor>> GetAllWithDetailsAsync();
+
         Task<Subcontractor?> GetByIdWithDetailsAsync(Guid id);
         Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary);
         Task AssignSpecialtyAsync(Guid subcontractorId, Guid serviceId);

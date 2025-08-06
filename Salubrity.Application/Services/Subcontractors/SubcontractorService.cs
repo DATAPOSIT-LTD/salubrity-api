@@ -105,6 +105,11 @@ namespace Salubrity.Application.Services.Subcontractor
 
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }
+        public async Task<List<SubcontractorDto>> GetAllAsync()
+        {
+            var subs = await _repo.GetAllWithDetailsAsync();
+            return _mapper.Map<List<SubcontractorDto>>(subs);
+        }
 
         public async Task<SubcontractorDto> UpdateAsync(Guid id, UpdateSubcontractorDto dto)
         {

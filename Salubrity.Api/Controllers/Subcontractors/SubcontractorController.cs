@@ -30,6 +30,15 @@ public class SubcontractorController : BaseController
         return CreatedSuccess("GetSubcontractorById", new { id = result.Id }, result, "Subcontractor created.");
     }
 
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<List<SubcontractorDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _service.GetAllAsync();
+        return Success(result);
+    }
+
+
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<SubcontractorDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateSubcontractorDto dto)

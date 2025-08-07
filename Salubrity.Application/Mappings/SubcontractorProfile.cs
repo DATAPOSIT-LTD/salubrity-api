@@ -11,5 +11,11 @@ public class SubcontractorProfile : Profile
         CreateMap<Subcontractor, SubcontractorDto>();
         CreateMap<CreateSubcontractorDto, Subcontractor>();
         CreateMap<UpdateSubcontractorDto, Subcontractor>();
+
+
+        CreateMap<SubcontractorSpecialty, SubcontractorSpecialtyDto>();
+
+
+        CreateMap<SubcontractorSpecialtyDto, SubcontractorSpecialty>();
     }
 }

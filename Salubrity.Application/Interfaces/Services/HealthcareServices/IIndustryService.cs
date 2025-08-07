@@ -10,4 +10,5 @@ public interface IIndustryService
     Task<IndustryResponseDto> CreateAsync(CreateIndustryDto dto);
     Task<IndustryResponseDto> UpdateAsync(Guid id, UpdateIndustryDto dto);
     Task DeleteAsync(Guid id);
+    Task<IndustryResponseDto> GetDefaultIndustryAsync();
 }

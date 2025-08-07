@@ -7,8 +7,10 @@ using Salubrity.Application.DTOs.Subcontractor;
 using Salubrity.Application.DTOs.Users;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
+using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Domain.Entities.Subcontractor;
@@ -23,6 +25,8 @@ namespace Salubrity.Application.Services.Subcontractor
         private readonly IRoleRepository _roleRepo;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IPasswordGenerator _passwordGenerator;
+        private readonly IUserRepository _userRepository;
+        private readonly IIndustryService _industryService;
         private readonly IMapper _mapper;
 
         public SubcontractorService(
@@ -30,6 +34,8 @@ namespace Salubrity.Application.Services.Subcontractor
             IRoleRepository roleRepo,
             IPasswordHasher passwordHasher,
             IPasswordGenerator passwordGenerator,
+            IUserRepository userRepository,
+            IIndustryService industryService,
             IMapper mapper)
         {
             _repo = repo;
@@ -37,6 +43,8 @@ namespace Salubrity.Application.Services.Subcontractor
             _passwordHasher = passwordHasher;
             _passwordGenerator = passwordGenerator;
             _mapper = mapper;
+            _userRepository = userRepository;
+            _industryService = industryService;
         }
 
         public async Task<SubcontractorDto> CreateAsync(CreateSubcontractorDto dto)
@@ -47,9 +55,18 @@ namespace Salubrity.Application.Services.Subcontractor
             if (dto.User == null)
                 throw new ValidationException(["User info is required"]);
 
-            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor");
-            if (subcontractorRole == null)
-                throw new NotFoundException("Subcontractor role not found");
+            var industry = dto.IndustryId.HasValue
+                ? await _industryService.GetByIdAsync(dto.IndustryId.Value)
+                : await _industryService.GetDefaultIndustryAsync();
+
+            if (industry == null)
+                throw new NotFoundException("Industry not found");
+
+            var existing = await _userRepository.FindUserByEmailAsync(dto.User.Email.Trim().ToLowerInvariant());
+            if (existing is not null)
+                throw new ValidationException(["A user with this email already exists."]);
+
+            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor") ?? throw new NotFoundException("Subcontractor role not found");
 
             var userId = Guid.NewGuid();
             var rawPassword = _passwordGenerator.Generate();

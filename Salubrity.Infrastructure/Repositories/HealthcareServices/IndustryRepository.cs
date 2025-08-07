@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Infrastructure.Persistence;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
+using Salubrity.Application.DTOs.HealthcareServices;
 
 namespace Salubrity.Infrastructure.Repositories.HealthcareServices;
 
@@ -46,4 +47,16 @@ public class IndustryRepository : IIndustryRepository
     {
         return await _db.Industries.AnyAsync(i => i.Name == name);
     }
+
+
+
+    public async Task<Industry?> GetByNameAsync(string name)
+    {
+        var industry = await _db.Industries
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.Name == name && !i.IsDeleted);
+
+        return industry;
+    }
+
 }

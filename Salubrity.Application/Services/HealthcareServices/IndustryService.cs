@@ -59,4 +59,19 @@ public class IndustryService : IIndustryService
         var existing = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Industry not found");
         await _repo.DeleteAsync(existing);
     }
+
+    public async Task<IndustryResponseDto> GetDefaultIndustryAsync()
+    {
+        var industry = await _repo.GetByNameAsync("General");
+        if (industry == null)
+            throw new NotFoundException("Default industry 'General' not found.");
+        return new IndustryResponseDto
+        {
+            Id = industry.Id,
+            Name = industry.Name,
+            Description = industry.Description,
+            IsActive = industry.IsActive
+        };
+    }
+
 }

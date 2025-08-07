@@ -1,3 +1,4 @@
+using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Application.Interfaces.Repositories.HealthcareServices;
@@ -10,4 +11,5 @@ public interface IIndustryRepository
     Task UpdateAsync(Industry entity);
     Task DeleteAsync(Industry entity);
     Task<bool> ExistsByNameAsync(string name);
+    Task<Industry> GetByNameAsync(string name);
 }

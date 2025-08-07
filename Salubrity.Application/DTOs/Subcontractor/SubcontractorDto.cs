@@ -19,3 +19,5 @@ public class SubcontractorDto
     public List<SubcontractorSpecialtyDto> Specialties { get; set; } = [];
     public List<SubcontractorRoleDto> Roles { get; set; } = [];
 }
+
+

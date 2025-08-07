@@ -19,3 +19,5 @@ public class SubcontractorProfile : Profile
         CreateMap<SubcontractorSpecialtyDto, SubcontractorSpecialty>();
     }
 }
+
+

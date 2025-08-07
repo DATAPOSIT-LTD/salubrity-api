@@ -16,7 +16,7 @@ public class SubcontractorProfile : Profile
             .ForMember(dest => dest.IndustryName, opt => opt.MapFrom(src => src.Industry.Name))
             .ForMember(dest => dest.StatusName, opt => opt.MapFrom(src => src.Status.Name))
             .ForMember(dest => dest.Specialties, opt => opt.MapFrom(src => src.Specialties))
-            .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.RoleAssignments.Select(ra => ra.SubcontractorRole)))
+            .ForMember(dest => dest.Roles, opt => opt.MapFrom(src => src.RoleAssignments))
             .ForMember(dest => dest.CampAssignmentCount, opt => opt.MapFrom(src => src.CampAssignments.Count));
 
         CreateMap<CreateSubcontractorDto, Subcontractor>();

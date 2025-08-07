@@ -18,6 +18,11 @@ public class SubcontractorDto
 
     public List<SubcontractorSpecialtyDto> Specialties { get; set; } = [];
     public List<SubcontractorRoleDto> Roles { get; set; } = [];
+
+    public string? PhoneNumber { get; set; }
+    public string? Email { get; set; }
+    public int CampAssignmentCount { get; set; }
+
 }
 
 

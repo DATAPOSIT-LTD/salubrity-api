@@ -31,12 +31,14 @@ namespace Salubrity.Infrastructure.Repositories
             return await _db.Subcontractors
                 .Include(s => s.User)
                 .Include(s => s.Status)
+                .Include(s => s.Industry)
                 .Include(s => s.Specialties)
+                    .ThenInclude(ss => ss.Service)
                 .Include(s => s.RoleAssignments)
+                    .ThenInclude(ra => ra.SubcontractorRole)
                 .Include(s => s.CampAssignments)
                 .ToListAsync();
         }
-
 
 
         public async Task<Subcontractor?> GetByIdWithDetailsAsync(Guid id)

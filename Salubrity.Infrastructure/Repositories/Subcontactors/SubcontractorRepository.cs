@@ -33,6 +33,7 @@ namespace Salubrity.Infrastructure.Repositories
                 .Include(s => s.Status)
                 .Include(s => s.Specialties)
                 .Include(s => s.RoleAssignments)
+                .Include(s => s.CampAssignments.Count)
                 .ToListAsync();
         }
 

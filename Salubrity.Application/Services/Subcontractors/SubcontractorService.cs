@@ -101,7 +101,7 @@ namespace Salubrity.Application.Services.Subcontractor
             {
                 Id = Guid.NewGuid(),
                 User = user,
-                IndustryId = dto.IndustryId ?? Guid.Empty,
+                IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,
                 StatusId = dto.StatusId.Value,

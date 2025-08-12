@@ -19,4 +19,26 @@ public class FormField : BaseAuditableEntity
     public int Order { get; set; }
     public ICollection<FieldOption> Options { get; set; } = [];
 
+    // Conditional logic properties
+    public bool HasConditionalLogic { get; set; } = false;
+    public string? ConditionalLogicType { get; set; } // e.g., "Show", "Hide", "Enable", "Disable"
+
+    public Guid? TriggerFieldId { get; set; } // The field that triggers the condition
+    public FormField? TriggerField { get; set; } // For conditional logic
+    public Guid? TriggerValueOptionId { get; set; } // The option that triggers the condition, if applicable
+    public FieldOption? TriggerValueOption { get; set; }
+
+
+    // Validation properties
+    public string? ValidationType { get; set; } // e.g., "Range", "Regex", "MinMaxLength"
+    public string? ValidationPattern { get; set; } // e.g., regex for phone, email
+    public decimal? MinValue { get; set; } // for numbers like BP
+    public decimal? MaxValue { get; set; } // for numbers like BP
+    public int? MinLength { get; set; }
+    public int? MaxLength { get; set; }
+    public string? CustomErrorMessage { get; set; }
+
+    // Layout properties
+    public string? LayoutPosition { get; set; }  // e.g., "Left", "Right", "FullWidth"
+
 }

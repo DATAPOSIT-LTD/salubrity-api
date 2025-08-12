@@ -18,6 +18,9 @@ namespace Salubrity.Application.DTOs.Forms
 
         public int Order { get; set; }
 
+          public Guid? TriggerFieldId { get; set; }
+          
+
         public List<CreateFieldOptionDto> Options { get; set; } = [];
     }
 }

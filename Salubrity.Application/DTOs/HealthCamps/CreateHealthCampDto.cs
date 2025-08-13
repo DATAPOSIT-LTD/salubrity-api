@@ -9,7 +9,7 @@ public class CreateHealthCampDto
 	public DateTime? EndDate { get; set; }
 	public TimeSpan? StartTime { get; set; }
 	public Guid OrganizationId { get; set; }
-
+	public int? ExpectedParticipants { get; set; }
 	public List<CreateHealthCampPackageItemDto> PackageItems { get; set; } = [];
 	public List<CreateHealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = [];
 }

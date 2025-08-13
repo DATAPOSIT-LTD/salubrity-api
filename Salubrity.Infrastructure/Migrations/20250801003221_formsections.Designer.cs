@@ -13,7 +13,7 @@ namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20250801003221_formsections")]
-    partial class formsections
+    partial class Formsections
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

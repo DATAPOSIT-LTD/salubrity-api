@@ -10,5 +10,6 @@ public interface IServiceCategoryService
     Task<ServiceCategoryResponseDto> CreateAsync(CreateServiceCategoryDto dto);
     Task<ServiceCategoryResponseDto> UpdateAsync(Guid id, UpdateServiceCategoryDto dto);
     Task DeleteAsync(Guid id);
+
     //Task<bool> ExistsByIdAsync(Guid id);
 }

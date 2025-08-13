@@ -50,6 +50,7 @@ public class HealthCampService : IHealthCampService
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             PackageItems = [],
+            ExpectedParticipants = dto.ExpectedParticipants,
             ServiceAssignments = []
         };
 

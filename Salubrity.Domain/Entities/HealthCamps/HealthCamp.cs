@@ -30,6 +30,7 @@ public class HealthCamp : BaseAuditableEntity
     [ForeignKey("Organization")]
     public Guid OrganizationId { get; set; }
     public virtual Organization Organization { get; set; } = default!;
+    public int? ExpectedParticipants { get; set; }
 
     // This defines the actual camp package dynamically
     public virtual ICollection<HealthCampPackageItem> PackageItems { get; set; } = [];

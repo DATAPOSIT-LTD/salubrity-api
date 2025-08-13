@@ -5,7 +5,7 @@
 namespace Salubrity.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class formsections : Migration
+    public partial class Formsections : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

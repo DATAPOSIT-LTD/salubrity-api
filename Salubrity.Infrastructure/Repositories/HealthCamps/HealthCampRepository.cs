@@ -36,7 +36,7 @@ public class HealthCampRepository : IHealthCampRepository
                 Id = camp.Id,
                 ClientName = camp.Organization?.BusinessName ?? "N/A",
                 ExpectedPatients = 80, // TODO: Replace with camp.ExpectedPatients
-                Venue = camp.Location??"N/A",
+                Venue = camp.Location ?? "N/A",
                 DateRange = $"{camp.StartDate:dd} - {camp.EndDate:dd MMM, yyyy}",
                 SubcontractorCount = camp.ServiceAssignments?.Count ?? 0,
                 Status = (camp.ServiceAssignments?.Any() ?? false) ? "Ready" : "Incomplete",
@@ -147,6 +147,6 @@ public class HealthCampRepository : IHealthCampRepository
             await _context.SaveChangesAsync();
         }
     }
-  
+
 
 }

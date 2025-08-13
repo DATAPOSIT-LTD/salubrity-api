@@ -191,6 +191,46 @@ namespace Salubrity.Infrastructure.Persistence
                 .WithOne(e => e.Department)
                 .HasForeignKey(e => e.DepartmentId);
 
+            modelBuilder.Entity<FormField>(e =>
+            {
+                e.HasOne(x => x.Form)
+                    .WithMany()
+                    .HasForeignKey(x => x.FormId)
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(x => x.Section)
+                    .WithMany()
+                    .HasForeignKey(x => x.SectionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                e.HasMany(x => x.Options)
+                    .WithOne(o => o.FormField)
+                    .HasForeignKey(o => o.FormFieldId)
+                    .IsRequired()
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                e.HasOne(x => x.TriggerField)
+                    .WithMany()
+                    .HasForeignKey(x => x.TriggerFieldId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                e.HasOne(x => x.TriggerValueOption)
+                    .WithMany()
+                    .HasForeignKey(x => x.TriggerValueOptionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                e.HasIndex(x => new { x.FormId, x.SectionId, x.Order }); // render order within a section
+                e.HasIndex(x => x.TriggerFieldId);
+                e.HasIndex(x => x.TriggerValueOptionId);
+            });
+
+            modelBuilder.Entity<FieldOption>(e =>
+            {
+                e.HasIndex(x => new { x.FormFieldId, x.Value }).IsUnique();
+                e.HasIndex(x => new { x.FormFieldId, x.Order });
+            });
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);
         }

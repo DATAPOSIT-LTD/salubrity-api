@@ -43,4 +43,11 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
         return await _db.ServiceCategories.AnyAsync(s => s.Id == id);
     }
 
+    public async Task<ServiceCategory?> GetByIdWithSubcategoriesAsync(Guid id)
+    {
+        return await _db.ServiceCategories
+            .Include(c => c.Subcategories)
+            .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
+    }
+
 }

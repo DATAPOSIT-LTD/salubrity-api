@@ -13,6 +13,7 @@ public class HealthCampDto
 
     public Guid OrganizationId { get; set; }
     public string OrganizationName { get; set; } = default!;
+    public int? ExpectedParticipants { get; set; }
 
     public List<HealthCampPackageItemDto> PackageItems { get; set; } = [];
     public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = [];

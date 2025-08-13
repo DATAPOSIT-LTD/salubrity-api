@@ -10,4 +10,5 @@ public interface IServiceCategoryRepository
     Task UpdateAsync(ServiceCategory entity);
     Task DeleteAsync(ServiceCategory entity);
     Task<bool> ExistsByIdAsync(Guid id);
+    Task<ServiceCategory?> GetByIdWithSubcategoriesAsync(Guid categoryId);
 }

@@ -12,6 +12,8 @@ public class HealthCamp : BaseAuditableEntity
 {
     [Required]
     public string Name { get; set; } = default!;
+    public Guid? ServicePackageId { get; set; }
+    public virtual ServicePackage? ServicePackage { get; set; }
 
     public string? Description { get; set; }
 

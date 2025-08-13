@@ -3,6 +3,7 @@ namespace Salubrity.Application.DTOs.HealthCamps;
 public class CreateHealthCampDto
 {
 	public string Name { get; set; } = default!;
+	public Guid ServicePackageId { get; set; }
 	public string? Description { get; set; }
 	public string? Location { get; set; }
 	public DateTime StartDate { get; set; }

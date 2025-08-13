@@ -41,6 +41,7 @@ public class HealthCampService : IHealthCampService
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
+            ServicePackageId = dto.ServicePackageId,
             Description = dto.Description,
             Location = dto.Location,
             StartDate = dto.StartDate,

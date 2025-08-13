@@ -1,22 +1,20 @@
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.DTOs.Forms;
-using Salubrity.Application.Interfaces.Repositories.Forms;
-using Salubrity.Application.Interfaces.Services.Forms;
-using Salubrity.Domain.Entities.FormFields;
-using Salubrity.Domain.Entities.Forms;
-using Salubrity.Domain.Entities.FormSections;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Services.IntakeForms;
+using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Application.Services.Forms;
 
 public class FormService : IFormService
 {
-    private readonly IFormRepository _formRepo;
+    private readonly IIntakeFormRepository _formRepo;
     private readonly IMapper _mapper;
     private readonly ILogger<FormService> _logger;
 
-    public FormService(IFormRepository formRepo, IMapper mapper, ILogger<FormService> logger)
+    public FormService(IIntakeFormRepository formRepo, IMapper mapper, ILogger<FormService> logger)
     {
         _formRepo = formRepo;
         _mapper = mapper;
@@ -25,7 +23,7 @@ public class FormService : IFormService
 
     public async Task<FormResponseDto> CreateAsync(CreateFormDto dto)
     {
-        var form = _mapper.Map<Form>(dto);
+        var form = _mapper.Map<IntakeForm>(dto);
         form.Id = Guid.NewGuid();
         form.Sections ??= [];
 
@@ -34,7 +32,7 @@ public class FormService : IFormService
         {
             form.Fields = [.. dto.Fields.Select(fieldDto =>
             {
-                var field = _mapper.Map<FormField>(fieldDto);
+                var field = _mapper.Map<IntakeFormField>(fieldDto);
                 field.FormId = form.Id;
                 field.Id = Guid.NewGuid();
                 return field;

@@ -50,6 +50,6 @@ namespace Salubrity.Application.DTOs.Forms
     [StringLength(50)]
     public string? LayoutPosition { get; set; }       // entity: MaxLength(50)
 
-    public List<CreateFieldOptionDto> Options { get; set; } = new();
+    public List<CreateFieldOptionDto> Options { get; set; } = [];
   }
 }

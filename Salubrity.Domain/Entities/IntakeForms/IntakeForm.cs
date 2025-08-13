@@ -14,5 +14,12 @@ public class IntakeForm : BaseAuditableEntity
     [MaxLength(500)]
     public string? Description { get; set; }
 
+
+    public bool IsActive { get; set; } = true;
+
+
+    public ICollection<IntakeFormSection> Sections { get; set; } = [];
+    public ICollection<IntakeFormField> Fields { get; set; } = [];
+
     public ICollection<IntakeFormVersion> Versions { get; set; } = [];
 }

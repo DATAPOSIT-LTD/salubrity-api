@@ -11,14 +11,25 @@ public class IntakeFormFieldOption : BaseAuditableEntity
     public Guid FieldId { get; set; }
 
     [ForeignKey(nameof(FieldId))]
-    public IntakeFormField Field { get; set; } = default!;
+    public IntakeFormField FormField { get; set; } = default!;
 
     [Required]
     [MaxLength(150)]
     public string Label { get; set; } = default!;
 
     [MaxLength(255)]
-    public string? Value { get; set; }
     public bool IsDefault { get; set; } = false;
+    public bool IsActive { get; set; } = true;
     public int Order { get; set; }
+
+    [Required, MaxLength(200)]
+    public string Value { get; set; } = default!;
+
+    [Required, MaxLength(200)]
+    public string DisplayText { get; set; } = default!;
+
 }
+
+
+
+

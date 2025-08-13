@@ -9,6 +9,7 @@ public class IntakeFormSection : BaseAuditableEntity
 {
     [Required]
     public Guid IntakeFormVersionId { get; set; }
+    public Guid IntakeFormId { get; set; }
 
     [ForeignKey(nameof(IntakeFormVersionId))]
     public IntakeFormVersion Version { get; set; } = default!;

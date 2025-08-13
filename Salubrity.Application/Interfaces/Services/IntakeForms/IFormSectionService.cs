@@ -1,6 +1,6 @@
 using Salubrity.Application.DTOs.Forms;
 
-namespace Salubrity.Application.Interfaces.Services.Forms;
+namespace Salubrity.Application.Interfaces.Services.IntakeForms;
 
 public interface IFormSectionService
 {

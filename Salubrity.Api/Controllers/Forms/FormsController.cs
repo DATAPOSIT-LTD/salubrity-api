@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Forms;
-using Salubrity.Application.Interfaces.Services.Forms;
+using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Shared.Responses;
 
 namespace Salubrity.Api.Controllers.Forms;

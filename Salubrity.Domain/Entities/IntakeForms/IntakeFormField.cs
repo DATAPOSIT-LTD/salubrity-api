@@ -1,38 +1,54 @@
+// IntakeForm.cs
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.IntakeForms;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Salubrity.Domain.Entities.Lookup;
 
 namespace Salubrity.Domain.Entities.IntakeForms;
 
-[Table("IntakeFormFields")]
 public class IntakeFormField : BaseAuditableEntity
 {
-    [Required]
-    public Guid SectionId { get; set; }
+    public Guid FormId { get; set; }
+    public IntakeForm? Form { get; set; }
 
-    [ForeignKey(nameof(SectionId))]
-    public IntakeFormSection Section { get; set; } = default!;
+    public Guid? SectionId { get; set; }
+    public IntakeFormSection? Section { get; set; }
 
-    [Required]
-    [MaxLength(150)]
+    [Required, MaxLength(200)]
     public string Label { get; set; } = default!;
 
-    [MaxLength(150)]
-    public string? Placeholder { get; set; }
-
-    [MaxLength(500)]
-    public string? Description { get; set; }
-
-    [Required]
-    public Guid FieldTypeId { get; set; }
-
-    [ForeignKey(nameof(FieldTypeId))]
-    public FieldType FieldType { get; set; } = default!;
+    [MaxLength(100)]
+    public string? FieldType { get; set; }  // consider enum/lookup later
 
     public bool IsRequired { get; set; }
-
     public int Order { get; set; }
 
     public ICollection<IntakeFormFieldOption> Options { get; set; } = [];
+
+    // Conditional logic
+    public bool HasConditionalLogic { get; set; } = false;
+
+    [MaxLength(50)]
+    public string? ConditionalLogicType { get; set; } // "Show", "Hide", etc.
+
+    public Guid? TriggerFieldId { get; set; }
+    public IntakeFormField? TriggerField { get; set; }
+
+    public Guid? TriggerValueOptionId { get; set; }
+    public IntakeFormFieldOption? TriggerValueOption { get; set; }
+
+    // Validation
+    [MaxLength(100)]
+    public string? ValidationType { get; set; }        // "Range", "Regex"
+    [MaxLength(500)]
+    public string? ValidationPattern { get; set; }
+    public decimal? MinValue { get; set; }
+    public decimal? MaxValue { get; set; }
+    public int? MinLength { get; set; }
+    public int? MaxLength { get; set; }
+    [MaxLength(500)]
+    public string? CustomErrorMessage { get; set; }
+
+    // Layout
+    [MaxLength(50)]
+    public string? LayoutPosition { get; set; }  // "Left", "Right", "FullWidth"
 }

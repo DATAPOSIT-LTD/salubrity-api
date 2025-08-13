@@ -46,7 +46,7 @@ public class IntakeFormService : IIntakeFormService
             Description = dto.Description
         };
 
-        await _repo.AddAsync(form); ;
+        await _repo.CreateAsync(form); ;
 
         return form.Id;
     }
@@ -69,7 +69,7 @@ public class IntakeFormService : IIntakeFormService
         var form = await _repo.GetByIdAsync(id);
         if (form == null) return false;
 
-        await _repo.DeleteAsync(form);
+        await _repo.DeleteAsync(id);
 
         return true;
     }

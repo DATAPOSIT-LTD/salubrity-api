@@ -11,7 +11,6 @@ using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Infrastructure.Repositories.HealthcareServices;
 using Salubrity.Infrastructure.Repositories.HealthCamps;
-using Salubrity.Infrastructure.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 
 
@@ -29,8 +28,8 @@ using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Infrastructure.Repositories.Employees;
-using Salubrity.Application.Interfaces.Repositories.Forms;
 using Salubrity.Infrastructure.Repositories;
+using Salubrity.Infrastructure.Repositories.IntakeForms;
 
 
 namespace Salubrity.Infrastructure;
@@ -64,10 +63,11 @@ public static class DependencyInjection
         services.AddScoped<IServicePackageRepository, ServicePackageRepository>();
         services.AddScoped<IHealthCampRepository, HealthCampRepository>();
         services.AddScoped<IIntakeFormRepository, IntakeFormRepository>();
+        services.AddScoped<IFormBuilderRepository, FormBuilderRepository>();
         services.AddScoped<IHealthCampManagementRepository, HealthCampManagementRepository>();
         services.AddScoped(typeof(ILookupRepository<>), typeof(LookupRepository<>));
         services.AddScoped<IEmployeeRepository, EmployeeRepository>();
-        services.AddScoped<IFormRepository, FormRepository>();
+        services.AddScoped<IIntakeFormRepository, IntakeFormRepository>();
         services.AddScoped<IPasswordGenerator, PasswordGenerator>();
         services.AddScoped<ISubcontractorRepository, SubcontractorRepository>();
 

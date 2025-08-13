@@ -4,9 +4,15 @@ namespace Salubrity.Application.Interfaces.Repositories.IntakeForms;
 
 public interface IIntakeFormRepository
 {
-    Task<List<IntakeForm>> GetAllAsync();
     Task<IntakeForm?> GetByIdAsync(Guid id);
-    Task AddAsync(IntakeForm form);
-    Task UpdateAsync(IntakeForm form);
-    Task DeleteAsync(IntakeForm form);
+    Task<List<IntakeForm>> GetAllAsync();
+    Task<IntakeForm> CreateAsync(IntakeForm entity);
+    Task<IntakeForm> UpdateAsync(IntakeForm entity);
+    Task DeleteAsync(Guid id);
+    Task<bool> FormExistsAsync(Guid formId);
+    Task<int> GetFormCountAsync();
+
+    // Form with related data
+    Task<IntakeForm?> GetWithSectionsAsync(Guid formId); // sections + fields + options
+    Task<IntakeForm?> GetWithFieldsAsync(Guid formId);   // direct fields + options
 }

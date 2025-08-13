@@ -7,9 +7,9 @@ using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
-using Salubrity.Application.Interfaces.Services.Forms;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Organizations;
@@ -65,6 +65,7 @@ namespace Salubrity.Application
             services.AddScoped<IHealthCampManagementService, HealthCampManagementService>();
             services.AddScoped<IEmployeeService, EmployeeService>();
             services.AddScoped<IFormService, FormService>();
+            services.AddScoped<IFormBuilderService, FormBuilderService>();
             services.AddScoped<ILookupService, GenericLookupService<Gender>>();
             services.AddScoped<GenericLookupService<Language>>();
             services.AddScoped<GenericLookupService<Department>>();

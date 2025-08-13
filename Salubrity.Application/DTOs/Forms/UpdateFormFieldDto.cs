@@ -50,7 +50,7 @@ namespace Salubrity.Application.DTOs.Forms
         public string? LayoutPosition { get; set; }
 
         // Upsert-by-Id: if Id is null -> create, if present -> update; missing -> delete
-        public List<UpdateFieldOptionDto> Options { get; set; } = new();
+        public List<UpdateFieldOptionDto> Options { get; set; } = [];
     }
 
 }

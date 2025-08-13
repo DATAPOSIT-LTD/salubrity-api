@@ -26,6 +26,6 @@ namespace Salubrity.Application.DTOs.Forms
 
         public string? LayoutPosition { get; set; }
 
-        public List<FieldOptionResponseDto> Options { get; set; } = new();
+        public List<FieldOptionResponseDto> Options { get; set; } = [];
     }
 }

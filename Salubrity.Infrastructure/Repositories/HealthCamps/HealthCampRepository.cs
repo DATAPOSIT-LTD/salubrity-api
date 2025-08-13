@@ -22,51 +22,48 @@ public class HealthCampRepository : IHealthCampRepository
     public async Task<List<HealthCampListDto>> GetAllAsync()
     {
         var camps = await _context.HealthCamps
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted)
             .Include(c => c.Organization)
-            .Include(c => c.PackageItems)
-            .Include(c => c.ServiceAssignments)
+            .Include(c => c.ServicePackage)     //  load chosen package
+            .Include(c => c.ServiceAssignments) // for counts/status
+            .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
 
-        var list = new List<HealthCampListDto>();
+        var list = new List<HealthCampListDto>(camps.Count);
 
-        foreach (var camp in camps)
+        foreach (var c in camps)
         {
-            var dto = new HealthCampListDto
+            list.Add(new HealthCampListDto
             {
-                Id = camp.Id,
-                ClientName = camp.Organization?.BusinessName ?? "N/A",
-                ExpectedPatients = camp.ExpectedParticipants ?? 0, // TODO: Replace with camp.ExpectedPatients
-                Venue = camp.Location ?? "N/A",
-                DateRange = $"{camp.StartDate:dd} - {camp.EndDate:dd MMM, yyyy}",
-                SubcontractorCount = camp.ServiceAssignments?.Count ?? 0,
-                Status = (camp.ServiceAssignments?.Any() ?? false) ? "Ready" : "Incomplete",
-                PackageName = camp.ServicePackage?.Name ?? "N/A"
-            };
-
-            var firstItem = camp.PackageItems.FirstOrDefault();
-            if (firstItem != null)
-            {
-                dto.PackageName = await _referenceResolver.GetNameAsync(firstItem.ReferenceType, firstItem.ReferenceId);
-            }
-
-            list.Add(dto);
+                Id = c.Id,
+                ClientName = c.Organization?.BusinessName ?? "N/A",
+                ExpectedPatients = c.ExpectedParticipants ?? 0,
+                Venue = c.Location ?? "N/A",
+                DateRange = $"{c.StartDate:dd} - {c.EndDate:dd MMM, yyyy}",
+                SubcontractorCount = c.ServiceAssignments?.Count ?? 0,
+                Status = (c.ServiceAssignments?.Any() ?? false) ? "Ready" : "Incomplete",
+                PackageName = c.ServicePackage?.Name ?? "N/A"   //  chosen package only
+            });
         }
 
         return list;
     }
 
+
     public async Task<HealthCampDetailDto?> GetCampDetailsByIdAsync(Guid id)
     {
         var camp = await _context.HealthCamps
+            .AsNoTracking()
             .Include(c => c.Organization)
                 .ThenInclude(o => o.InsuranceProviders)
                     .ThenInclude(ip => ip.InsuranceProvider)
-            .Include(c => c.PackageItems)
-                .ThenInclude(pi => pi.ReferenceId)
+            .Include(c => c.ServicePackage)   // <-- chosen package
+            .Include(c => c.PackageItems)     // <-- items (services/categories)
             .Include(c => c.ServiceAssignments)
-            .FirstOrDefaultAsync(c => c.Id == id);
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
-        if (camp == null) return null;
+        if (camp is null) return null;
 
         var dto = new HealthCampDetailDto
         {
@@ -75,41 +72,33 @@ public class HealthCampRepository : IHealthCampRepository
             StartDate = camp.StartDate,
             ClientName = camp.Organization?.BusinessName ?? "N/A",
             Venue = camp.Location ?? "N/A",
-            ExpectedPatients = camp.ExpectedParticipants ?? 0, // TODO: Replace with camp.ExpectedPatients
+            ExpectedPatients = camp.ExpectedParticipants ?? 0,
             SubcontractorCount = camp.ServiceAssignments?.Count ?? 0,
+            // chosen package only
             PackageName = camp.ServicePackage?.Name ?? "N/A",
-            PackageCost = null,
-            InsurerName = string.Empty,
+            PackageCost = camp.ServicePackage?.Price,
+            InsurerName = camp.Organization?.InsuranceProviders?.FirstOrDefault()?.InsuranceProvider?.Name ?? string.Empty,
             ServiceStations = new List<ServiceStationDto>()
         };
 
-        var firstItem = camp.PackageItems.FirstOrDefault();
-        if (firstItem != null)
-        {
-            dto.PackageName = await _referenceResolver.GetNameAsync(firstItem.ReferenceType, firstItem.ReferenceId);
-            dto.PackageCost = 0;//firstItem.ServicePackage?.Price;
-        }
-
-        var insurer = camp.Organization?.InsuranceProviders?.FirstOrDefault();
-        if (insurer != null)
-        {
-            dto.InsurerName = insurer.InsuranceProvider?.Name ?? string.Empty;
-        }
-
-        foreach (var pi in camp.PackageItems)
-        {
-            var name = await _referenceResolver.GetNameAsync(pi.ReferenceType, pi.ReferenceId);
-
-            dto.ServiceStations.Add(new ServiceStationDto
+        // Resolve station names (services/categories) concurrently
+        var itemTasks = camp.PackageItems
+            .Where(pi => !pi.IsDeleted)
+            .Select(async pi =>
             {
-                Id = pi.Id,
-                Name = name,
-                PatientsServed = 24,
-                PendingService = 35,
-                AvgTimePerPatient = "3 min",
-                OutlierAlerts = 0
+                var name = await _referenceResolver.GetNameAsync(pi.ReferenceType, pi.ReferenceId);
+                return new ServiceStationDto
+                {
+                    Id = pi.Id,
+                    Name = name,
+                    PatientsServed = 24,     // TODO: replace with real metrics
+                    PendingService = 35,     // TODO: replace with real metrics
+                    AvgTimePerPatient = "3 min",
+                    OutlierAlerts = 0
+                };
             });
-        }
+
+        dto.ServiceStations.AddRange(await Task.WhenAll(itemTasks));
 
         return dto;
     }

@@ -35,12 +35,12 @@ public class HealthCampRepository : IHealthCampRepository
             {
                 Id = camp.Id,
                 ClientName = camp.Organization?.BusinessName ?? "N/A",
-                ExpectedPatients = 80, // TODO: Replace with camp.ExpectedPatients
+                ExpectedPatients = camp.ExpectedParticipants ?? 0, // TODO: Replace with camp.ExpectedPatients
                 Venue = camp.Location ?? "N/A",
                 DateRange = $"{camp.StartDate:dd} - {camp.EndDate:dd MMM, yyyy}",
                 SubcontractorCount = camp.ServiceAssignments?.Count ?? 0,
                 Status = (camp.ServiceAssignments?.Any() ?? false) ? "Ready" : "Incomplete",
-                PackageName = string.Empty
+                PackageName = camp.ServicePackage?.Name ?? "N/A"
             };
 
             var firstItem = camp.PackageItems.FirstOrDefault();
@@ -74,10 +74,10 @@ public class HealthCampRepository : IHealthCampRepository
             Name = camp.Name,
             StartDate = camp.StartDate,
             ClientName = camp.Organization?.BusinessName ?? "N/A",
-            Venue = camp.Location,
-            ExpectedPatients = 80, // TODO: Replace with camp.ExpectedPatients
+            Venue = camp.Location ?? "N/A",
+            ExpectedPatients = camp.ExpectedParticipants ?? 0, // TODO: Replace with camp.ExpectedPatients
             SubcontractorCount = camp.ServiceAssignments?.Count ?? 0,
-            PackageName = string.Empty,
+            PackageName = camp.ServicePackage?.Name ?? "N/A",
             PackageCost = null,
             InsurerName = string.Empty,
             ServiceStations = new List<ServiceStationDto>()

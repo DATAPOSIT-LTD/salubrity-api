@@ -76,10 +76,6 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
                 .Include(s => s.Industry)
                 .Include(s => s.IntakeForm);
 
-            if (!includeInactive)
-            {
-                query = (Microsoft.EntityFrameworkCore.Query.IIncludableQueryable<Service, Domain.Entities.IntakeForms.IntakeForm?>)query.Where(s => s.IsActive);
-            }
 
             return await query.OrderBy(s => s.Name).ToListAsync(ct);
         }

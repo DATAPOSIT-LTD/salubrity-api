@@ -1,10 +1,12 @@
 using AutoMapper;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Shared.Exceptions;
 using System.Text.Json.Serialization;
 
@@ -13,14 +15,16 @@ namespace Salubrity.Application.Services.HealthCamps;
 public class HealthCampService : IHealthCampService
 {
     private readonly IHealthCampRepository _repo;
+    private readonly ILookupRepository<HealthCampStatus> _lookupRepository;
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
 
-    public HealthCampService(IHealthCampRepository repo, IPackageReferenceResolver _pResolver, IMapper mapper)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper)
     {
         _repo = repo;
         _mapper = mapper;
         _referenceResolver = _pResolver;
+        _lookupRepository = lookupRepository;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -37,6 +41,11 @@ public class HealthCampService : IHealthCampService
 
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
+        var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
+
+        if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
+            throw new InvalidOperationException("Upcoming status not found");
+
         var entity = new HealthCamp
         {
             Id = Guid.NewGuid(),
@@ -52,8 +61,10 @@ public class HealthCampService : IHealthCampService
             CreatedAt = DateTime.UtcNow,
             PackageItems = [],
             ExpectedParticipants = dto.ExpectedParticipants,
+            HealthCampStatusId = upcomingStatus.Id,
             ServiceAssignments = []
         };
+
 
         foreach (var item in dto.PackageItems)
         {
@@ -100,9 +111,6 @@ public class HealthCampService : IHealthCampService
         await _repo.UpdateAsync(camp);
         return _mapper.Map<HealthCampDto>(camp);
     }
-
-
-
 
     public async Task DeleteAsync(Guid id)
     {

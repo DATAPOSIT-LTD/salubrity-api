@@ -42,7 +42,7 @@ public class HealthCampRepository : IHealthCampRepository
                 Venue = c.Location ?? "N/A",
                 DateRange = $"{c.StartDate:dd} - {c.EndDate:dd MMM, yyyy}",
                 SubcontractorCount = c.ServiceAssignments?.Count ?? 0,
-                Status = (c.ServiceAssignments?.Any() ?? false) ? "Ready" : "Incomplete",
+                Status = c.HealthCampStatus?.Name ?? "Unknown",
                 PackageName = c.ServicePackage?.Name ?? "N/A"   //  chosen package only
             });
         }

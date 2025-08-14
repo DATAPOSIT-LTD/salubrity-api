@@ -17,6 +17,7 @@ public static class LookupRegistry
         { "jobtitles", typeof(JobTitle) },
         { "subcontractorroles", typeof(SubcontractorRole) },
         { "subcontractorstatuses", typeof(SubcontractorStatus) },
-        { "subcontractorhealthcampassignmentstatuses", typeof(SubcontractorHealthCampAssignmentStatus) }
+        { "subcontractorhealthcampassignmentstatuses", typeof(SubcontractorHealthCampAssignmentStatus) },
+        { "healthcampstatuses", typeof(HealthCampStatus) }
     };
 }

@@ -45,7 +45,7 @@ public class HealthCampProfile : Profile
             .ForMember(dest => dest.Venue, m => m.MapFrom(src => src.Location))
             .ForMember(dest => dest.DateRange, m => m.MapFrom(src => $"{src.StartDate:dd} - {src.EndDate:dd MMM, yyyy}"))
             .ForMember(dest => dest.SubcontractorCount, m => m.MapFrom(src => src.ServiceAssignments.Count))
-            .ForMember(dest => dest.Status, m => m.MapFrom(src => src.ServiceAssignments.Any() ? "Ready" : "Incomplete"))
+            .ForMember(dest => dest.Status, m => m.MapFrom(src => src.HealthCampStatus.Name))
             .ForMember(dest => dest.PackageName, m => m.Ignore());
 
         CreateMap<HealthCamp, HealthCampDetailDto>()

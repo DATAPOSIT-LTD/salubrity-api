@@ -67,6 +67,7 @@ namespace Salubrity.Application
             services.AddScoped<IFormService, FormService>();
             services.AddScoped<IFormBuilderService, FormBuilderService>();
             services.AddScoped<ILookupService, GenericLookupService<Gender>>();
+            services.AddScoped<GenericLookupService<HealthCampStatus>>();
             services.AddScoped<GenericLookupService<Language>>();
             services.AddScoped<GenericLookupService<Department>>();
             services.AddScoped<GenericLookupService<JobTitle>>();

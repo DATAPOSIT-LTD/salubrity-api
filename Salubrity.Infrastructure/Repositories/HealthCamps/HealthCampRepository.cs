@@ -27,6 +27,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Include(c => c.Organization)
             .Include(c => c.ServicePackage)     //  load chosen package
             .Include(c => c.ServiceAssignments) // for counts/status
+            .Include(c => c.HealthCampStatus)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
 

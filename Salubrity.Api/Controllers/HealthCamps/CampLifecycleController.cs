@@ -9,7 +9,7 @@ using Salubrity.Shared.Responses;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/health-camps")]
 [Produces("application/json")]
-[Tags("Health Camps")]
+[Tags("Health Camps Life Cycle")]
 public class CampLifecycleController : BaseController
 {
     private readonly IHealthCampService _svc;

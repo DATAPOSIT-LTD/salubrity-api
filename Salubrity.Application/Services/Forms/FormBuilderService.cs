@@ -124,6 +124,7 @@ namespace Salubrity.Application.Services.Forms
                 {
                     Id = Guid.NewGuid(),
                     FieldId = field.Id,
+                    Label = field.Label,
                     Value = opt.Value,
                     DisplayText = opt.DisplayText,
                     Order = opt.Order,

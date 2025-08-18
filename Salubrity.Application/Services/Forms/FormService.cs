@@ -50,11 +50,22 @@ public class FormService : IFormService
         return _mapper.Map<List<FormResponseDto>>(forms);
     }
 
-
     public async Task<FormResponseDto> GetByIdAsync(Guid id)
     {
         var form = await _formRepo.GetWithSectionsAsync(id)
                    ?? throw new NotFoundException("Form not found.");
+
+        // Order top-level fields (if any)
+        form.Fields = [.. (form.Fields ?? []).OrderBy(static f => f.Order)];
+
+        // Order sections and their fields (if any)
+        form.Sections = [.. (form.Sections ?? [])
+            .OrderBy(static s => s.Order)
+            .Select(static s =>
+            {
+                s.Fields = [.. (s.Fields ?? []).OrderBy(static f => f.Order)];
+                return s;
+            })];
 
         var dto = _mapper.Map<FormResponseDto>(form);
 

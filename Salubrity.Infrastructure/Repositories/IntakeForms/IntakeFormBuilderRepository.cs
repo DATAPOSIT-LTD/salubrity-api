@@ -33,5 +33,11 @@ namespace Salubrity.Infrastructure.Repositories.IntakeForms
                     .ThenInclude(ff => ff.Options)
                 .FirstOrDefaultAsync(f => f.Id == formId, ct);
         }
+
+
+        public Task SaveChangesAsync(CancellationToken ct)
+        {
+            return _db.SaveChangesAsync(ct);
+        }
     }
 }

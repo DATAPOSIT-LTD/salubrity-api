@@ -22,64 +22,84 @@ namespace Salubrity.Application.Services.Forms
             if (await _repo.ExistsByNameAsync(dto.Name, ct))
                 throw new ValidationException(["A form with the same name already exists."]);
 
-            Guid formId = Guid.NewGuid();
-            // Build empty form
+            var formId = Guid.NewGuid();
+            var versionId = Guid.NewGuid();
+
+            // Root form
             var form = new IntakeForm
             {
                 Id = formId,
                 Name = dto.Name,
                 Description = dto.Description ?? string.Empty,
-                Sections = [],
-                Fields = []
+                Sections = [],       // if your model keeps top-level unversioned sections, we still fill versioned ones below
+                Fields = [],         // keep empty; we attach fields under the version/sections
+                Versions =           // ensure this matches your domain model
+                [
+                    new IntakeFormVersion
+                    {
+                        Id = versionId,
+                        IntakeFormId = formId,
+                        VersionNumber = 1,
+                        Sections = [],
+                    }
+                ]
             };
 
-            // 1) Sections + fields
-            foreach (var secDto in dto.Sections ?? [])
+            var version = form.Versions.First();
+
+            // 1) Sections + fields (version-scoped)
+            foreach (var secDto in dto.Sections ?? Enumerable.Empty<CreateFormBlueprintSectionDto>())
             {
+                var sectionId = Guid.NewGuid();
                 var section = new IntakeFormSection
                 {
-                    Id = Guid.NewGuid(),
-                    IntakeFormId = form.Id,
+                    Id = sectionId,
+                    IntakeFormId = form.Id,            // keep if your schema has it
+                    IntakeFormVersionId = version.Id,  // REQUIRED to satisfy FK
                     Name = secDto.Name,
                     Description = secDto.Description ?? string.Empty,
                     Order = secDto.Order,
                     Fields = []
                 };
 
-                foreach (var fldDto in secDto.Fields ?? [])
+                foreach (var fldDto in secDto.Fields ?? Enumerable.Empty<CreateFormBlueprintFieldDto>())
                 {
-                    section.Fields.Add(BuildField(formId: form.Id, sectionId: section.Id, fldDto));
+                    section.Fields.Add(BuildField(formId: form.Id, formVersionId: version.Id, sectionId: section.Id, fldDto));
                 }
 
-                form.Sections.Add(section);
+                version.Sections.Add(section);
             }
 
-            // 2) Unsectioned fields
-            foreach (var fldDto in dto.Fields ?? [])
+            // 2) Unsectioned fields (still version-scoped)
+            foreach (var fldDto in dto.Fields ?? Enumerable.Empty<CreateFormBlueprintFieldDto>())
             {
-                form.Fields.Add(BuildField(formId: form.Id, sectionId: null, fldDto));
+                version.IntakeForm.Fields.Add(BuildField(formId: form.Id, formVersionId: version.Id, sectionId: null, fldDto));
             }
 
-            // Persist the graph so we have real IDs on fields/options
+            // Persist the entire graph once
             await _repo.AddFormGraphAsync(form, ct);
 
             // 3) Resolve triggers by label/value (second pass) if provided
-            if ((dto.Fields?.Any(f => f.HasConditionalLogic) == true) ||
-                (dto.Sections?.SelectMany(s => s.Fields).Any(f => f.HasConditionalLogic) == true))
+            var hasLogic =
+                (dto.Fields?.Any(f => f.HasConditionalLogic) == true) ||
+                (dto.Sections?.SelectMany(s => s.Fields ?? []).Any(f => f.HasConditionalLogic) == true);
+
+            if (hasLogic)
             {
-                await ResolveTriggersByLabelAsync(form.Id, dto, ct);
+                await ResolveTriggersByLabelAsync(form.Id, version.Id, dto, ct);
             }
 
             return new FormBlueprintResponseDto { Id = form.Id, Name = form.Name };
         }
 
-        private static IntakeFormField BuildField(Guid formId, Guid? sectionId, CreateFormBlueprintFieldDto dto)
+        private static IntakeFormField BuildField(Guid formId, Guid formVersionId, Guid? sectionId, CreateFormBlueprintFieldDto dto)
         {
             var field = new IntakeFormField
             {
                 Id = Guid.NewGuid(),
-                FormId = formId,
-                SectionId = sectionId,
+                FormId = formId,                 // keep if present in schema
+                // FormVersionId = formVersionId,   // REQUIRED to satisfy FK if fields are versioned
+                SectionId = sectionId,           // null for unsectioned
                 Label = dto.Label,
                 FieldType = dto.FieldType,
                 IsRequired = dto.IsRequired,
@@ -98,7 +118,7 @@ namespace Salubrity.Application.Services.Forms
                 Options = []
             };
 
-            foreach (var opt in dto.Options ?? [])
+            foreach (var opt in dto.Options ?? Enumerable.Empty<CreateFieldOptionDto>())
             {
                 field.Options.Add(new IntakeFormFieldOption
                 {
@@ -115,39 +135,51 @@ namespace Salubrity.Application.Services.Forms
         }
 
         // Second pass: map TriggerFieldLabel -> TriggerFieldId and TriggerValueOptionValue -> TriggerValueOptionId
-        private async Task ResolveTriggersByLabelAsync(Guid formId, CreateFormBlueprintDto dto, CancellationToken ct)
+        private async Task ResolveTriggersByLabelAsync(Guid formId, Guid formVersionId, CreateFormBlueprintDto dto, CancellationToken ct)
         {
+            // Prefer a version-scoped loader if you have it:
+            // var version = await _repo.LoadFormVersionWithFieldsAsync(formVersionId, ct)
+            //              ?? throw new NotFoundException("Form version not found after creation.");
+
+            // Otherwise: load form with full graph and pick the version we just created
             var form = await _repo.LoadFormWithFieldsAsync(formId, ct)
                        ?? throw new NotFoundException("Form not found after creation.");
 
-            // Build label -> field lookup (labels must be unique within a form)
-            var allFields = (form.Fields ?? Enumerable.Empty<IntakeFormField>())
-                .Concat(form.Sections?.SelectMany(s => s.Fields) ?? Enumerable.Empty<IntakeFormField>())
+            var version = form.Versions?.FirstOrDefault(v => v.Id == formVersionId)
+                          ?? form.Versions?.OrderByDescending(v => v.VersionNumber).FirstOrDefault()
+                          ?? throw new NotFoundException("Form version not found after creation.");
+
+            // All fields in this version
+            var allFields = (version.IntakeForm.Fields ?? Enumerable.Empty<IntakeFormField>())
+                .Concat(version.Sections?.SelectMany(s => s.Fields) ?? Enumerable.Empty<IntakeFormField>())
                 .ToList();
 
+            // Label -> field lookup (labels should be unique per form/version)
             var byLabel = allFields
-                .GroupBy(f => f.Label)
+                .GroupBy(f => f.Label, StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-            // Flatten blueprint fields in same order to parallel the created list
-            IEnumerable<CreateFormBlueprintFieldDto> FlattenBlueprint()
+            // Flatten blueprint fields in the same logical order
+            static IEnumerable<CreateFormBlueprintFieldDto> FlattenBlueprint(CreateFormBlueprintDto bp)
             {
-                foreach (var s in dto.Sections ?? [])
-                    foreach (var f in s.Fields ?? [])
+                foreach (var s in bp.Sections ?? Enumerable.Empty<CreateFormBlueprintSectionDto>())
+                {
+                    foreach (var f in s.Fields ?? Enumerable.Empty<CreateFormBlueprintFieldDto>())
                         yield return f;
-
-                foreach (var f in dto.Fields ?? [])
+                }
+                foreach (var f in bp.Fields ?? Enumerable.Empty<CreateFormBlueprintFieldDto>())
                     yield return f;
             }
 
-            // For each created field, if the blueprint had trigger refs, set them
             foreach (var created in allFields)
             {
-                // Find the matching blueprint by label (assumes unique labels)
-                var bp = FlattenBlueprint().FirstOrDefault(x => string.Equals(x.Label, created.Label, StringComparison.OrdinalIgnoreCase));
+                var bp = FlattenBlueprint(dto).FirstOrDefault(x =>
+                    string.Equals(x.Label, created.Label, StringComparison.OrdinalIgnoreCase));
+
                 if (bp is null || !bp.HasConditionalLogic) continue;
 
-                if (!string.IsNullOrWhiteSpace(bp.TriggerFieldLabel) && byLabel.TryGetValue(bp.TriggerFieldLabel, out var triggerField))
+                if (!string.IsNullOrWhiteSpace(bp.TriggerFieldLabel) &&
+                    byLabel.TryGetValue(bp.TriggerFieldLabel, out var triggerField))
                 {
                     created.TriggerFieldId = triggerField.Id;
 
@@ -163,8 +195,8 @@ namespace Salubrity.Application.Services.Forms
                 }
             }
 
-            // Save updates
-            await _repo.AddFormGraphAsync(form, ct); // reuses SaveChanges; tracked entities will update
+            // Save the updates on the already-tracked graph
+            await _repo.SaveChangesAsync(ct);
         }
     }
 }

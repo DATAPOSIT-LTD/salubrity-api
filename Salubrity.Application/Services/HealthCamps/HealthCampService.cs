@@ -21,16 +21,21 @@ public class HealthCampService : IHealthCampService
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
     private readonly ICampTokenFactory _tokenFactory;
+
     private readonly IQrCodeService _qr;
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService)
     {
         _repo = repo;
         _mapper = mapper;
         _referenceResolver = _pResolver;
         _lookupRepository = lookupRepository;
+        _tokenFactory = tokenFactory ?? throw new ArgumentNullException(nameof(tokenFactory));
+        _email = emailService;
+        _qr = qrCodeService;
+        _tempPassword = tempPasswordService;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -149,6 +154,9 @@ public class HealthCampService : IHealthCampService
                 SignInJti = jti,
                 TokenExpiresAt = closeUtc
             });
+
+
+
 
             var token = _tokenFactory.CreateUserToken(camp.Id, p.UserId, "participant", jti, closeUtc);
             var url = _tokenFactory.BuildSignInUrl(token);

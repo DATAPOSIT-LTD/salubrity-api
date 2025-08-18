@@ -5,6 +5,7 @@ using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Shared.Exceptions;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 
 namespace Salubrity.Application.Services.HealthcareServices;
 
@@ -15,12 +16,14 @@ public class ServiceService : IServiceService
     private readonly IServiceSubcategoryRepository _subcategoryRepo;
     private readonly IMapper _mapper;
     private readonly ILogger<ServiceService> _logger;
+    private readonly IIntakeFormRepository _formRepo;
 
     public ServiceService(
         IServiceRepository serviceRepo,
         IServiceCategoryRepository categoryRepo,
         IServiceSubcategoryRepository subcategoryRepo,
         IMapper mapper,
+        IIntakeFormRepository intakeForm,
         ILogger<ServiceService> logger)
     {
         _serviceRepo = serviceRepo;
@@ -28,6 +31,7 @@ public class ServiceService : IServiceService
         _subcategoryRepo = subcategoryRepo;
         _mapper = mapper;
         _logger = logger;
+        _formRepo = intakeForm;
     }
 
     // ========== BASIC CRUD OPERATIONS ==========
@@ -428,4 +432,18 @@ public class ServiceService : IServiceService
             }
         }
     }
+    public async Task AssignFormAsync(AssignFormToServiceDto dto)
+    {
+        var service = await _serviceRepo.GetByIdAsync(dto.ServiceId)
+            ?? throw new NotFoundException("Service not found");
+
+        var form = await _formRepo.GetByIdAsync(dto.FormId)
+            ?? throw new NotFoundException("Form not found");
+
+        service.IntakeFormId = form.Id;
+
+        await _serviceRepo.UpdateAsync(service);
+        // await _serviceRepo.SaveChangesAsync();
+    }
+
 }

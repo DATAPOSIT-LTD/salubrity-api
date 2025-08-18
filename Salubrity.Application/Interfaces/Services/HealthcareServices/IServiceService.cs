@@ -172,4 +172,7 @@ public interface IServiceService
     /// <param name="serviceId">Service identifier</param>
     /// <returns>True if service has active bookings</returns>
     Task<bool> HasActiveBookingsAsync(Guid serviceId);
+
+    Task AssignFormAsync(AssignFormToServiceDto dto);
+
 }

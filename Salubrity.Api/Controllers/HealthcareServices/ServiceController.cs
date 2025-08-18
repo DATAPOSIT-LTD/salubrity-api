@@ -52,6 +52,14 @@ public class ServiceController : BaseController
         return Success(result);
     }
 
+    [HttpPost("assign-form")]
+    [ProducesResponseType(typeof(ApiResponse<ServiceResponseDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AssignFormToService([FromBody] AssignFormToServiceDto dto)
+    {
+        await _service.AssignFormAsync(dto);
+        return Success("Form assigned successfully");
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid id)

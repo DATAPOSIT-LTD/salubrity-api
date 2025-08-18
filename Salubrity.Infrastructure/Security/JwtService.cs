@@ -21,7 +21,6 @@ namespace Salubrity.Infrastructure.Security
             _settings = options.Value;
         }
 
-        // ✅ Existing method — no changes
         public string GenerateAccessToken(Guid userId, string email, string[] roles)
         {
             var claims = new List<Claim>
@@ -40,9 +39,10 @@ namespace Salubrity.Infrastructure.Security
                 SecurityAlgorithms.RsaSha256
             );
 
+
             var token = new JwtSecurityToken(
-                issuer: _settings.Issuer,
-                audience: _settings.Audience,
+                issuer: "Salubrity",//_settings.Issuer,
+                audience: "SalubrityClient",//_settings.Audience,
                 claims: claims,
                 notBefore: DateTime.UtcNow,
                 expires: DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),
@@ -52,7 +52,7 @@ namespace Salubrity.Infrastructure.Security
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // ✅ New overload #1 — claims + roles, uses default issuer/audience
+        // New overload #1 — claims + roles, uses default issuer/audience
         public string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string[] roles)
         {
             var allClaims = new List<Claim>(claims);
@@ -77,9 +77,11 @@ namespace Salubrity.Infrastructure.Security
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // ✅ New overload #2 — claims + custom issuer/audience (e.g. for ad hoc camp creds)
-        public string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string issuer, string audience)
+        // New overload #2 — claims + custom issuer/audience (e.g. for ad hoc camp creds)
+        public string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string issuer, string? audience)
         {
+            audience ??= _settings.Audience;
+
             var credentials = new SigningCredentials(
                 _keyProvider.GetPrivateKey(),
                 SecurityAlgorithms.RsaSha256
@@ -114,8 +116,8 @@ namespace Salubrity.Infrastructure.Security
                 ValidateAudience = true,
                 ValidateLifetime = false,
                 ValidateIssuerSigningKey = true,
-                ValidIssuer = _settings.Issuer,
-                ValidAudience = _settings.Audience,
+                ValidIssuer = "Salubrity",//_settings.Issuer,
+                ValidAudience = "SalubrityClient",//_settings.Audience,
                 IssuerSigningKey = _keyProvider.GetPublicKey()
             };
 

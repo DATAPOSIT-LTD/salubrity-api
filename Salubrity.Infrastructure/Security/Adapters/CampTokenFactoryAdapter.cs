@@ -7,7 +7,7 @@ using Salubrity.Application.Interfaces.Security;
 
 public sealed class CampTokenOptions
 {
-    public string AppBaseUrl { get; set; } = null!;
+    public string AppBaseUrl { get; set; } = ""; //update with actual base url
     public string Audience { get; set; } = "camp-signin";
     public string Issuer { get; set; } = "salubrity-api";
 }

@@ -217,6 +217,11 @@ public class HealthCampService : IHealthCampService
             await _email.SendAsync(emailRequestDto);
         }
 
+        if (camp.HealthCampStatus != null)
+        {
+            camp.HealthCampStatus.Name = "Ongoing";
+        }
+
         // Persist all changes
         await _repo.UpdateAsync(camp);
         await _repo.SaveChangesAsync();

@@ -139,16 +139,51 @@ public class HealthCampRepository : IHealthCampRepository
             await _context.SaveChangesAsync();
         }
     }
-
-    public Task<HealthCamp?> GetForLaunchAsync(Guid id)
+    public async Task<HealthCamp?> GetForLaunchAsync(Guid id)
     {
-        throw new NotImplementedException();
+        return await _context.HealthCamps
+            .Include(c => c.Participants)
+                .ThenInclude(p => p.User)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
     }
 
-    public Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert)
+    public async Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert)
     {
-        throw new NotImplementedException();
+        var existing = await _context.HealthCampTempCredentials
+            .FirstOrDefaultAsync(x =>
+                x.HealthCampId == upsert.HealthCampId &&
+                x.UserId == upsert.UserId &&
+                x.Role == upsert.Role &&
+                !x.IsDeleted);
+
+        if (existing is null)
+        {
+            var entity = new HealthCampTempCredential
+            {
+                Id = Guid.NewGuid(),
+                HealthCampId = upsert.HealthCampId,
+                UserId = upsert.UserId,
+                Role = upsert.Role,
+                TempPasswordHash = upsert.TempPasswordHash,
+                TempPasswordExpiresAt = upsert.TempPasswordExpiresAt,
+                SignInJti = upsert.SignInJti,
+                TokenExpiresAt = upsert.TokenExpiresAt
+            };
+
+            _context.HealthCampTempCredentials.Add(entity);
+        }
+        else
+        {
+            existing.TempPasswordHash = upsert.TempPasswordHash;
+            existing.TempPasswordExpiresAt = upsert.TempPasswordExpiresAt;
+            existing.SignInJti = upsert.SignInJti;
+            existing.TokenExpiresAt = upsert.TokenExpiresAt;
+            _context.HealthCampTempCredentials.Update(existing);
+        }
+
+        await _context.SaveChangesAsync();
     }
+
 
     public Task SaveChangesAsync()
     {

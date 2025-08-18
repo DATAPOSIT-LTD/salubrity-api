@@ -82,6 +82,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<HealthAssessment> HealthAssessments => Set<HealthAssessment>();
         public DbSet<HealthAssessmentMetric> HealthAssessmentMetrics => Set<HealthAssessmentMetric>();
         public DbSet<HealthAssessmentRecommendation> HealthAssessmentRecommendations => Set<HealthAssessmentRecommendation>();
+        public DbSet<HealthCampTempCredential> HealthCampTempCredentials => Set<HealthCampTempCredential>();
 
 
 

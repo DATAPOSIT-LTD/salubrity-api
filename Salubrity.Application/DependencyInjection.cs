@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.Extensions.DependencyInjection;
+using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Security;
@@ -22,11 +23,13 @@ using Salubrity.Application.Services.HealthcareServices;
 using Salubrity.Application.Services.IntakeForms;
 using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
+using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
 using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Subcontractor;
+using Salubrity.Infrastructure.Services;
 
 
 
@@ -77,10 +80,9 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<SubcontractorRole>>();
             services.AddScoped<GenericLookupService<SubcontractorStatus>>();
             services.AddScoped<GenericLookupService<SubcontractorHealthCampAssignmentStatus>>();
+            services.AddScoped<IEmailService, EmailService>();
 
-
-
-
+            services.AddScoped<ITemplateRenderer, ScribanTemplateRenderer>();
 
 
 

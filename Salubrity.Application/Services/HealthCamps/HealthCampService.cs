@@ -1,5 +1,7 @@
 using AutoMapper;
+using Salubrity.Application.DTOs.Email;
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
@@ -18,6 +20,10 @@ public class HealthCampService : IHealthCampService
     private readonly ILookupRepository<HealthCampStatus> _lookupRepository;
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
+    private readonly ICampTokenFactory _tokenFactory;
+    private readonly IQrCodeService _qr;
+    private readonly ITempPasswordService _tempPassword;
+    private readonly IEmailService _email;
 
     public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper)
     {
@@ -111,6 +117,118 @@ public class HealthCampService : IHealthCampService
         await _repo.UpdateAsync(camp);
         return _mapper.Map<HealthCampDto>(camp);
     }
+
+    public async Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto)
+    {
+        var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
+                   ?? throw new NotFoundException("Camp not found");
+
+        var closeUtc = dto.CloseDate.ToUniversalTime();
+
+        // Poster JTIs (for venue)
+        camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");
+        camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");
+        camp.PosterTokensExpireAt = closeUtc;
+
+        // PARTICIPANTS (adjust property names to your model)
+        foreach (var p in camp.Participants)
+        {
+            if (p.UserId == Guid.Empty || string.IsNullOrWhiteSpace(p.User.Email)) continue;
+
+            var plain = _tempPassword.Generate(12);
+            var hash = _tempPassword.Hash(plain);
+            var jti = Guid.NewGuid().ToString("N");
+
+            await _repo.UpsertTempCredentialAsync(new HealthCampTempCredentialUpsert
+            {
+                HealthCampId = camp.Id,
+                UserId = p.UserId,
+                Role = "participant",
+                TempPasswordHash = hash,
+                TempPasswordExpiresAt = closeUtc,
+                SignInJti = jti,
+                TokenExpiresAt = closeUtc
+            });
+
+            var token = _tokenFactory.CreateUserToken(camp.Id, p.UserId, "participant", jti, closeUtc);
+            var url = _tokenFactory.BuildSignInUrl(token);
+
+            var emailRequestDto = new EmailRequestDto
+            {
+                ToEmail = p.User.Email,
+                Subject = "Health Camp Invitation",
+                TemplateKey = "HealthCampInvitation",
+                Model = new
+                {
+                    FullName = p.User.FullName ?? "Participant",
+                    SignInUrl = url,
+                    TempPassword = plain,
+                    ExpiryDate = closeUtc
+                }
+            };
+
+            await _email.SendAsync(emailRequestDto);
+        }
+
+        // SUBCONTRACTORS (adjust property names to your model)
+        foreach (var a in camp.ServiceAssignments)
+        {
+            if (a.SubcontractorId == Guid.Empty || string.IsNullOrWhiteSpace(a.Subcontractor.User.Email)) continue;
+
+            var plain = _tempPassword.Generate(12);
+            var hash = _tempPassword.Hash(plain);
+            var jti = Guid.NewGuid().ToString("N");
+
+            await _repo.UpsertTempCredentialAsync(new HealthCampTempCredentialUpsert
+            {
+                HealthCampId = camp.Id,
+                UserId = a.SubcontractorId,
+                Role = "subcontractor",
+                TempPasswordHash = hash,
+                TempPasswordExpiresAt = closeUtc,
+                SignInJti = jti,
+                TokenExpiresAt = closeUtc
+            });
+
+            var token = _tokenFactory.CreateUserToken(camp.Id, a.SubcontractorId, "subcontractor", jti, closeUtc);
+            var url = _tokenFactory.BuildSignInUrl(token);
+
+            var emailRequestDto = new EmailRequestDto
+            {
+                ToEmail = a.Subcontractor.User.Email,
+                Subject = "Health Camp Invitation",
+                TemplateKey = "HealthCampInvitation",
+                Model = new
+                {
+                    FullName = a.Subcontractor.User.FullName ?? "Participant",
+                    SignInUrl = url,
+                    TempPassword = plain,
+                    ExpiryDate = closeUtc
+                }
+            };
+            await _email.SendAsync(emailRequestDto);
+        }
+
+        // Persist all changes
+        await _repo.UpdateAsync(camp);
+        await _repo.SaveChangesAsync();
+
+        // Poster QR codes for admin printing
+        var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", camp.ParticipantPosterJti!, closeUtc);
+        var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", camp.SubcontractorPosterJti!, closeUtc);
+
+        var patientQrBase64 = _qr.GenerateBase64Png(_tokenFactory.BuildSignInUrl(participantPosterToken));
+        var subcoQrBase64 = _qr.GenerateBase64Png(_tokenFactory.BuildSignInUrl(subcontractorPosterToken));
+
+        return new LaunchHealthCampResponseDto
+        {
+            HealthCampId = camp.Id,
+            CloseDate = closeUtc,
+            ParticipantPosterQrBase64 = patientQrBase64,
+            SubcontractorPosterQrBase64 = subcoQrBase64
+        };
+    }
+
 
     public async Task DeleteAsync(Guid id)
     {

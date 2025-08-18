@@ -62,6 +62,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Include(c => c.ServicePackage)   // <-- chosen package
             .Include(c => c.PackageItems)     // <-- items (services/categories)
             .Include(c => c.ServiceAssignments)
+            .Include(c => c.HealthCampStatus)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
         if (camp is null) return null;
@@ -78,6 +79,7 @@ public class HealthCampRepository : IHealthCampRepository
             // chosen package only
             PackageName = camp.ServicePackage?.Name ?? "N/A",
             PackageCost = camp.ServicePackage?.Price,
+            Status = camp.HealthCampStatus?.Name ?? "Unknown",
             InsurerName = camp.Organization?.InsuranceProviders?.FirstOrDefault()?.InsuranceProvider?.Name ?? string.Empty,
             ServiceStations = new List<ServiceStationDto>()
         };
@@ -138,5 +140,18 @@ public class HealthCampRepository : IHealthCampRepository
         }
     }
 
+    public Task<HealthCamp?> GetForLaunchAsync(Guid id)
+    {
+        throw new NotImplementedException();
+    }
 
+    public Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task SaveChangesAsync()
+    {
+        throw new NotImplementedException();
+    }
 }

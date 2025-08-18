@@ -45,4 +45,7 @@ public class SubcontractorHealthCampAssignment : BaseAuditableEntity
 
     // Useful in future if you need to mark a fallback provider or secondary booth
     public bool IsPrimaryAssignment { get; set; } = true;
+
+    public string? TempPasswordHash { get; set; }
+    public DateTimeOffset? TempPasswordExpiresAt { get; set; }
 }

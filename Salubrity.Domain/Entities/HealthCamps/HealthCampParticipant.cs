@@ -3,6 +3,7 @@
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthAssesment;
 
 namespace Salubrity.Domain.Entities.Join;
 
@@ -22,4 +23,7 @@ public class HealthCampParticipant : BaseAuditableEntity
     public string? Notes { get; set; }
 
     public DateTime? ParticipatedAt { get; set; }
+    public string? TempPasswordHash { get; set; }
+    public DateTimeOffset? TempPasswordExpiresAt { get; set; }
+    public ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();
 }

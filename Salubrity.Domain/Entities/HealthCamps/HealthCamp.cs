@@ -1,4 +1,5 @@
 ﻿using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
@@ -35,6 +36,10 @@ public class HealthCamp : BaseAuditableEntity
     public virtual Organization Organization { get; set; } = default!;
     public int? ExpectedParticipants { get; set; }
 
+    public DateTime? CloseDate { get; set; }        // buffer date (reports etc.)
+    public DateTime? LaunchedAt { get; set; }       // when launch occurred
+    public bool IsLaunched { get; set; }            // quick flag
+
     // This defines the actual camp package dynamically
     public virtual ICollection<HealthCampPackageItem> PackageItems { get; set; } = [];
 
@@ -44,5 +49,13 @@ public class HealthCamp : BaseAuditableEntity
 
     public Guid? HealthCampStatusId { get; set; }
     public HealthCampStatus? HealthCampStatus { get; set; }
+
+    // Poster QR tokens for venue scanning
+    public string? ParticipantPosterJti { get; set; }
+    public string? SubcontractorPosterJti { get; set; }
+    public DateTimeOffset? PosterTokensExpireAt { get; set; }
+
+    public ICollection<HealthCampTempCredential> TempCredentials { get; set; } = [];
+    public ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();
 }
 

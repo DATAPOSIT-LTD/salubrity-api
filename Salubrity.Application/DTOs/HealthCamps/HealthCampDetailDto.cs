@@ -15,5 +15,6 @@ public class HealthCampDetailDto
     public string PackageName { get; set; } = default!;
     public decimal? PackageCost { get; set; }
     public string InsurerName { get; set; } = default!;
+    public string Status { get; set; } = default!;
     public List<ServiceStationDto> ServiceStations { get; set; } = [];
 }

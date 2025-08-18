@@ -30,6 +30,8 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories;
 using Salubrity.Infrastructure.Repositories.IntakeForms;
+using Salubrity.Infrastructure.Configuration;
+
 
 
 namespace Salubrity.Infrastructure;
@@ -70,8 +72,10 @@ public static class DependencyInjection
         services.AddScoped<IIntakeFormRepository, IntakeFormRepository>();
         services.AddScoped<IPasswordGenerator, PasswordGenerator>();
         services.AddScoped<ISubcontractorRepository, SubcontractorRepository>();
-
-
+        services.AddScoped<IQrCodeService, QrCodeService>();
+        services.AddScoped<ITempPasswordService, TempPasswordServiceAdapter>();
+        services.AddScoped<ICampTokenFactory, CampTokenFactoryAdapter>();
+        services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
 
 
 

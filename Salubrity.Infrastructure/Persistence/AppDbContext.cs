@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Audit;
-
+using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Identity;
@@ -79,6 +79,10 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>();
         public DbSet<FieldType> FieldTypes => Set<FieldType>();
         public DbSet<IntakeFormResponseStatus> IntakeFormResponseStatuses => Set<IntakeFormResponseStatus>();
+        public DbSet<HealthAssessment> HealthAssessments => Set<HealthAssessment>();
+        public DbSet<HealthAssessmentMetric> HealthAssessmentMetrics => Set<HealthAssessmentMetric>();
+        public DbSet<HealthAssessmentRecommendation> HealthAssessmentRecommendations => Set<HealthAssessmentRecommendation>();
+
 
 
 

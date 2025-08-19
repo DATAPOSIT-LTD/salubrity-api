@@ -10,7 +10,6 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Shared.Exceptions;
-using System.Text.Json.Serialization;
 
 namespace Salubrity.Application.Services.HealthCamps;
 

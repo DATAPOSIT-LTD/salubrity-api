@@ -31,6 +31,8 @@ using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories;
 using Salubrity.Infrastructure.Repositories.IntakeForms;
 using Salubrity.Infrastructure.Configuration;
+using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
+using Salubrity.Infrastructure.Repositories.HealthAssesment;
 
 
 
@@ -75,6 +77,7 @@ public static class DependencyInjection
         services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddScoped<ITempPasswordService, TempPasswordServiceAdapter>();
         services.AddScoped<ICampTokenFactory, CampTokenFactoryAdapter>();
+        services.AddScoped<IHealthMetricThresholdRepository, HealthMetricThresholdRepository>();
         services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
 
 

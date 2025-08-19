@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Salubrity.Domain.Entities.Subcontractor;
 
 namespace Salubrity.Application.Interfaces.Repositories

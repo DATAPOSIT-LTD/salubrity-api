@@ -1,13 +1,9 @@
 #nullable enable
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.Join;
-using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Application.DTOs.HealthAssessment;
 
 namespace Salubrity.Application.Services;

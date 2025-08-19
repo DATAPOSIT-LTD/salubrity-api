@@ -17,10 +17,9 @@ public class HealthAssessmentMetric : BaseAuditableEntity
 
     public decimal? Value { get; set; }
 
-    [MaxLength(100)]
-    public string? ReferenceRange { get; set; }
+    public Guid? MetricConfigId { get; set; }
+    public virtual HealthMetricConfig? Config { get; set; }
 
-    // Use your lookup table for status
     public Guid? HealthMetricStatusId { get; set; }
     public virtual HealthMetricStatus? Status { get; set; }
 }

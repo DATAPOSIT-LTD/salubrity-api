@@ -2,6 +2,7 @@
 
 #nullable enable
 using System.ComponentModel.DataAnnotations;
+using Salubrity.Application.DTOs.Forms;
 
 namespace Salubrity.Application.DTOs.HealthcareServices
 {
@@ -19,6 +20,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
         public bool IsActive { get; set; }
 
         public List<ServiceCategoryDto> Categories { get; set; } = [];
+        public FormResponseDto? IntakeForm { get; set; } // 👈 Add this
     }
 
     public class ServiceCategoryDto

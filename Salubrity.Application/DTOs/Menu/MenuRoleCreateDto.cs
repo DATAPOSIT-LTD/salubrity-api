@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Salubrity.Application.DTOs.Menus
 {
     public class MenuRoleCreateDto

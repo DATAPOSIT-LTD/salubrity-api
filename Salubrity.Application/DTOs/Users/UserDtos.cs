@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Salubrity.Application.DTOs.Users;
+﻿namespace Salubrity.Application.DTOs.Users;
 
 public class UserResponse
 {
@@ -25,7 +23,7 @@ public class UserResponse
 public class UserCreateRequest
 {
     public string Email { get; set; } = null!;
-    public string? Password { get; set; } = "Welcome123!"; 
+    public string? Password { get; set; } = "Welcome123!";
     public string FirstName { get; set; } = null!;
     public string? MiddleName { get; set; }
     public DateTime? DateOfBirth { get; set; }

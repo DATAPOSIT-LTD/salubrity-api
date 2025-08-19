@@ -1,7 +1,6 @@
 // File: Salubrity.Application/Interfaces/Notifications/ITemplateRenderer.cs
 #nullable enable
 #nullable enable
-using System.Threading.Tasks;
 using Salubrity.Application.DTOs.Email;
 
 namespace Salubrity.Application.Interfaces;

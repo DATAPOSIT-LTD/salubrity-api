@@ -4,10 +4,12 @@ using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
+using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Shared.Exceptions;
 
@@ -24,8 +26,10 @@ public class HealthCampService : IHealthCampService
     private readonly IQrCodeService _qr;
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
+    private readonly IEmployeeReadRepository _employeeReadRepo;
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService)
+
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo)
     {
         _repo = repo;
         _mapper = mapper;
@@ -35,6 +39,7 @@ public class HealthCampService : IHealthCampService
         _email = emailService;
         _qr = qrCodeService;
         _tempPassword = tempPasswordService;
+        _employeeReadRepo = employeeReadRepo;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -49,10 +54,66 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<HealthCampDetailDto>(camp);
     }
 
+    // public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
+    // {
+    //     var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
+
+    //     if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
+    //         throw new InvalidOperationException("Upcoming status not found");
+
+    //     var entity = new HealthCamp
+    //     {
+    //         Id = Guid.NewGuid(),
+    //         Name = dto.Name,
+    //         ServicePackageId = dto.ServicePackageId,
+    //         Description = dto.Description,
+    //         Location = dto.Location,
+    //         StartDate = dto.StartDate,
+    //         EndDate = dto.EndDate,
+    //         StartTime = dto.StartTime,
+    //         OrganizationId = dto.OrganizationId,
+    //         IsActive = true,
+    //         CreatedAt = DateTime.UtcNow,
+    //         PackageItems = [],
+    //         ExpectedParticipants = dto.ExpectedParticipants,
+    //         HealthCampStatusId = upcomingStatus.Id,
+    //         ServiceAssignments = []
+    //     };
+
+
+    //     foreach (var item in dto.PackageItems)
+    //     {
+    //         var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
+
+    //         entity.PackageItems.Add(new HealthCampPackageItem
+    //         {
+    //             Id = Guid.NewGuid(),
+    //             HealthCampId = entity.Id,
+    //             ReferenceId = item.ReferenceId,
+    //             ReferenceType = referenceType
+    //         });
+    //     }
+
+    //     foreach (var assignment in dto.ServiceAssignments)
+    //     {
+    //         entity.ServiceAssignments.Add(new HealthCampServiceAssignment
+    //         {
+    //             Id = Guid.NewGuid(),
+    //             HealthCampId = entity.Id,
+    //             ServiceId = assignment.ServiceId,
+    //             SubcontractorId = assignment.SubcontractorId,
+    //             ProfessionId = assignment.ProfessionId
+    //         });
+    //     }
+
+    //     var created = await _repo.CreateAsync(entity);
+    //     return _mapper.Map<HealthCampDto>(created);
+    // }
+
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
+        var ct = CancellationToken.None; // or pass through
         var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
-
         if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
             throw new InvalidOperationException("Upcoming status not found");
 
@@ -69,17 +130,17 @@ public class HealthCampService : IHealthCampService
             OrganizationId = dto.OrganizationId,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
-            PackageItems = [],
             ExpectedParticipants = dto.ExpectedParticipants,
             HealthCampStatusId = upcomingStatus.Id,
-            ServiceAssignments = []
+            PackageItems = [],
+            ServiceAssignments = [],
+            Participants = [] // ensure initialized
         };
 
-
+        // package items
         foreach (var item in dto.PackageItems)
         {
             var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
-
             entity.PackageItems.Add(new HealthCampPackageItem
             {
                 Id = Guid.NewGuid(),
@@ -89,6 +150,7 @@ public class HealthCampService : IHealthCampService
             });
         }
 
+        // service assignments
         foreach (var assignment in dto.ServiceAssignments)
         {
             entity.ServiceAssignments.Add(new HealthCampServiceAssignment
@@ -101,10 +163,30 @@ public class HealthCampService : IHealthCampService
             });
         }
 
+        // NEW: seed participants = all active employees of the organization
+        var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
+
+        if (employeeUserIds.Count > 0)
+        {
+            // Avoid duplicates if any user id appears twice
+            var uniqueUserIds = new HashSet<Guid>(employeeUserIds);
+
+            foreach (var userId in uniqueUserIds)
+            {
+                entity.Participants.Add(new HealthCampParticipant
+                {
+                    Id = Guid.NewGuid(),
+                    HealthCampId = entity.Id,
+                    UserId = userId,
+                    IsEmployee = true
+                    // PatientId left null; can be resolved later if you link users->patients
+                });
+            }
+        }
+
         var created = await _repo.CreateAsync(entity);
         return _mapper.Map<HealthCampDto>(created);
     }
-
 
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)

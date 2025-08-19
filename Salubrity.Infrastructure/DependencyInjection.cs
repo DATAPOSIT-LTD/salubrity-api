@@ -81,6 +81,9 @@ public static class DependencyInjection
         services.AddScoped<IUsersReadRepository, UsersReadRepository>();
         services.AddScoped<IUserRoleReadRepository, UserRoleReadRepository>();
         services.AddScoped<ISubcontractorReadRepository, SubcontractorReadRepository>();
+        // Salubrity.Infrastructure/DependencyInjection.cs
+        services.AddScoped<IEmployeeReadRepository, EmployeeReadRepository>();
+
         services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
 
 

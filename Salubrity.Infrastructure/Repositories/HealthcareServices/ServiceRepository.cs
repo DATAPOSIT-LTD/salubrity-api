@@ -74,13 +74,11 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
                 .Include(s => s.Categories.Where(c => includeInactive || c.IsActive))
                     .ThenInclude(c => c.Subcategories.Where(sc => includeInactive || sc.IsActive))
                 .Include(s => s.Industry)
-                .Include(s => s.IntakeForm)
-                    .ThenInclude(f => f.Sections!)
-                        .ThenInclude(sec => sec.Fields); // Load fields within sections
+                .Include(s => s.IntakeForm);
+
 
             return await query.OrderBy(s => s.Name).ToListAsync(ct);
         }
-
 
         public async Task<Service?> GetByIdWithHierarchyAsync(Guid id, CancellationToken ct = default)
         {
@@ -89,8 +87,13 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
                     .ThenInclude(c => c.Subcategories.Where(sc => sc.IsActive))
                 .Include(s => s.Industry)
                 .Include(s => s.IntakeForm)
+                    .ThenInclude(f => f.Sections!)      // Handle sections inside the form
+                        .ThenInclude(sec => sec.Fields) // Handle section fields
+                .Include(s => s.IntakeForm!.Fields)     // Handle standalone fields (no section)
                 .FirstOrDefaultAsync(s => s.Id == id && s.IsActive, ct);
         }
+
+
 
         // ========== VALIDATION & CONSTRAINTS ==========
 

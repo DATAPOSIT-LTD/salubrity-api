@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Application.Extensions
 {
@@ -9,7 +10,7 @@ namespace Salubrity.Application.Extensions
             var subcontractorIdClaim = user.FindFirst("subcontractor_id");
             if (subcontractorIdClaim == null || !Guid.TryParse(subcontractorIdClaim.Value, out var subcontractorId))
             {
-                throw new InvalidOperationException("Subcontractor ID claim is missing or invalid.");
+                throw new UnauthorizedException("Subcontractor ID claim is missing or invalid.");
             }
             return subcontractorId;
         }

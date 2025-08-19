@@ -10,7 +10,7 @@ namespace Salubrity.Application.Extensions
             var subcontractorIdClaim = user.FindFirst("subcontractor_id");
             if (subcontractorIdClaim == null || !Guid.TryParse(subcontractorIdClaim.Value, out var subcontractorId))
             {
-                throw new UnauthorizedException("Subcontractor ID claim is missing or invalid.");
+                throw new UnauthorizedException("Subcontractor ID is missing or invalid. Did you forget to login first?");
             }
             return subcontractorId;
         }

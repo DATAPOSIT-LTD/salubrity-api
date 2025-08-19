@@ -1,18 +1,15 @@
+// Salubrity.Application/Extensions/ClaimsPrincipalExtensions.cs
 using System.Security.Claims;
 using Salubrity.Shared.Exceptions;
 
-namespace Salubrity.Application.Extensions
+public static class ClaimsPrincipalExtensions
 {
-    public static class ClaimsPrincipalExtensions
+    public static Guid GetUserId(this ClaimsPrincipal user)
     {
-        public static Guid GetSubcontractorId(this ClaimsPrincipal user)
-        {
-            var subcontractorIdClaim = user.FindFirst("subcontractor_id");
-            if (subcontractorIdClaim == null || !Guid.TryParse(subcontractorIdClaim.Value, out var subcontractorId))
-            {
-                throw new UnauthorizedException("Subcontractor ID is missing or invalid. Did you forget to login first?");
-            }
-            return subcontractorId;
-        }
+        var v = user.FindFirst("user_id")?.Value
+                 ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (v is null || !Guid.TryParse(v, out var id))
+            throw new UnauthorizedException("You are not authorized to access this resource.");
+        return id;
     }
 }

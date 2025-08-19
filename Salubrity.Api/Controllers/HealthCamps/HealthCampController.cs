@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
-using Salubrity.Application.Extensions;
 using Salubrity.Shared.Responses;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Salubrity.Api.Controllers.HealthCamps;
 
@@ -64,33 +64,44 @@ public class CampController : BaseController
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
 
+    [Authorize(Roles = "Subcontractor")]
     [HttpGet("my/upcoming")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyUpcomingCamps()
+    public async Task<IActionResult> GetMyUpcomingCamps(
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
     {
-        var subcontractorId = User.GetSubcontractorId(); // assumes extension method exists
+        var userId = User.GetUserId();
+        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
         return Success(result);
     }
 
+    [Authorize(Roles = "Subcontractor")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCompleteCamps()
+    public async Task<IActionResult> GetMyCompleteCamps(
+        [FromServices] ICurrentSubcontractorService current,
+        CancellationToken ct)
     {
-        var subcontractorId = User.GetSubcontractorId();
+        var userId = User.GetUserId();
+        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
     }
 
+    [Authorize(Roles = "Subcontractor")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCanceledCamps()
+    public async Task<IActionResult> GetMyCanceledCamps(
+        [FromServices] ICurrentSubcontractorService current,
+        CancellationToken ct)
     {
-        var subcontractorId = User.GetSubcontractorId();
+        var userId = User.GetUserId();
+        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);
     }
-
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampParticipantsAll(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)

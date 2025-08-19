@@ -96,7 +96,8 @@ public class HealthCampService : IHealthCampService
                 Id = Guid.NewGuid(),
                 HealthCampId = entity.Id,
                 ServiceId = assignment.ServiceId,
-                SubcontractorId = assignment.SubcontractorId
+                SubcontractorId = assignment.SubcontractorId,
+                ProfessionId = assignment.ProfessionId
             });
         }
 

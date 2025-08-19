@@ -1,8 +1,10 @@
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
 using Salubrity.Shared.Exceptions;
 
@@ -12,11 +14,13 @@ public class HealthCampRepository : IHealthCampRepository
 {
     private readonly AppDbContext _context;
     private readonly IPackageReferenceResolver _referenceResolver;
+    private readonly IMapper _mapper;
 
-    public HealthCampRepository(AppDbContext context, IPackageReferenceResolver referenceResolver)
+    public HealthCampRepository(AppDbContext context, IPackageReferenceResolver referenceResolver, IMapper mapper)
     {
         _context = context;
         _referenceResolver = referenceResolver;
+        _mapper = mapper;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -188,6 +192,135 @@ public class HealthCampRepository : IHealthCampRepository
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();
+    }
+
+
+
+    public async Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid subcontractorId)
+    {
+        var items = await _context.HealthCampServiceAssignments
+            .Where(x => x.SubcontractorId == subcontractorId)
+            .Select(x => x.HealthCamp)
+            .Where(c => !c.IsLaunched || c.HealthCampStatus!.Name == "Canceled")
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return _mapper.Map<List<HealthCampListDto>>(items);
+    }
+
+
+    private IQueryable<HealthCamp> CampsForSubcontractor(Guid subcontractorId)
+    {
+        return _context.HealthCampServiceAssignments
+            .Where(a => a.SubcontractorId == subcontractorId)
+            .Select(a => a.HealthCamp)
+            .Distinct()
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .AsSplitQuery();
+    }
+
+    public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        // “Upcoming” tab includes ongoing + future
+        // Use (EndDate ?? StartDate) >= today to include ongoing (spanning) and single-day
+        return await CampsForSubcontractor(subcontractorId)
+            .Where(c => c.IsLaunched
+                        && ((c.EndDate ?? c.StartDate) >= today) && c.CloseDate <= today)
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        return await CampsForSubcontractor(subcontractorId)
+            .Where(c => c.IsLaunched
+                        && ((c.EndDate ?? c.StartDate) < today))
+            .OrderByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default)
+    {
+        // Robust canceled check: either not launched OR status labeled “Canceled”
+        return await CampsForSubcontractor(subcontractorId)
+            .Where(c => !c.IsLaunched
+                        || (c.HealthCampStatus != null &&
+                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "canceled")))
+            .OrderByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    private IQueryable<HealthCampParticipant> BaseParticipants(Guid campId, string? q, string? sort)
+    {
+        var query = _context.HealthCampParticipants
+            .Where(p => p.HealthCampId == campId);
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(p =>
+                (p.User.FullName != null && EF.Functions.ILike(p.User.FullName, $"%{term}%")) ||
+                (p.User.Email != null && EF.Functions.ILike(p.User.Email, $"%{term}%")) ||
+                (p.User.Phone != null && EF.Functions.ILike(p.User.Phone, $"%{term}%")));
+        }
+
+        query = sort?.ToLowerInvariant() switch
+        {
+            "name" => query.OrderBy(p => p.User.FullName),
+            "oldest" => query.OrderBy(p => p.CreatedAt),
+            _ => query.OrderByDescending(p => p.CreatedAt) // newest default
+        };
+
+        return query.AsNoTracking();
+    }
+
+    private static IQueryable<CampParticipantListDto> Project(IQueryable<Domain.Entities.Join.HealthCampParticipant> q)
+    {
+        return q.Select(p => new CampParticipantListDto
+        {
+            Id = p.Id,
+            UserId = p.UserId,
+            PatientId = p.PatientId,
+            FullName = p.User.FullName!,
+            Email = p.User.Email,
+            PhoneNumber = p.User.Phone,
+            CompanyName = p.HealthCamp.Organization.BusinessName,
+            ParticipatedAt = p.ParticipatedAt,
+            // Served = checked in UI: mark served if participated OR has any assessments
+            Served = p.ParticipatedAt != null || p.HealthAssessments.Any()
+        });
+    }
+
+    public async Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    {
+        return await Project((IQueryable<Domain.Entities.Join.HealthCampParticipant>)BaseParticipants(campId, q, sort))
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    {
+        return await Project(BaseParticipants(campId, q, sort)
+                .Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()))
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    {
+        return await Project(BaseParticipants(campId, q, sort)
+                .Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()))
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
     }
 
 }

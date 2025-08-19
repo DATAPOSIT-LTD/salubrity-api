@@ -247,4 +247,33 @@ public class HealthCampService : IHealthCampService
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
         await _repo.DeleteAsync(camp.Id);
     }
+
+    // inside HealthCampService
+    public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid subcontractorId)
+    {
+        var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId);
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
+    public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid subcontractorId)
+    {
+        var camps = await _repo.GetMyCompleteCampsAsync(subcontractorId);
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
+    public async Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid subcontractorId)
+    {
+        var camps = await _repo.GetMyCanceledCampsAsync(subcontractorId);
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize)
+       => _repo.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize)
+        => _repo.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize)
+        => _repo.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
 }

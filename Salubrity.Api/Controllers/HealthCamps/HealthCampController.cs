@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
+using Salubrity.Application.Extensions;
 using Salubrity.Shared.Responses;
+using System.Security.Claims;
 
 namespace Salubrity.Api.Controllers.HealthCamps;
 
@@ -59,4 +61,58 @@ public class CampController : BaseController
         await _service.DeleteAsync(id);
         return Success("Camp deleted.");
     }
+
+    // === SUBCONTRACTOR ASSIGNMENTS ===
+
+    [HttpGet("my/upcoming")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyUpcomingCamps()
+    {
+        var subcontractorId = User.GetSubcontractorId(); // assumes extension method exists
+        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        return Success(result);
+    }
+
+    [HttpGet("my/complete")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyCompleteCamps()
+    {
+        var subcontractorId = User.GetSubcontractorId();
+        var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
+        return Success(result);
+    }
+
+    [HttpGet("my/canceled")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyCanceledCamps()
+    {
+        var subcontractorId = User.GetSubcontractorId();
+        var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
+        return Success(result);
+    }
+
+    [HttpGet("{campId:guid}/participants")]
+    [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampParticipantsAll(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var result = await _service.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+        return Success(result);
+    }
+
+    [HttpGet("{campId:guid}/participants/served")]
+    [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampParticipantsServed(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var result = await _service.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
+        return Success(result);
+    }
+
+    [HttpGet("{campId:guid}/participants/not-seen")]
+    [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampParticipantsNotSeen(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        var result = await _service.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
+        return Success(result);
+    }
+
 }

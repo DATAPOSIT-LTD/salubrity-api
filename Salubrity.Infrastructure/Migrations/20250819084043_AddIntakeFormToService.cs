@@ -15,16 +15,22 @@ namespace Salubrity.Infrastructure.Migrations
                 name: "ReferenceRange",
                 table: "HealthAssessmentMetrics");
 
-            migrationBuilder.AlterColumn<int>(
-                name: "Priority",
-                table: "HealthAssessmentRecommendations",
-                type: "integer",
-                maxLength: 30,
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "character varying(30)",
-                oldMaxLength: 30,
-                oldNullable: true);
+            // migrationBuilder.AlterColumn<int>(
+            //     name: "Priority",
+            //     table: "HealthAssessmentRecommendations",
+            //     type: "integer",
+            //     maxLength: 30,
+            //     nullable: true,
+            //     oldClrType: typeof(string),
+            //     oldType: "character varying(30)",
+            //     oldMaxLength: 30,
+            //     oldNullable: true);
+            migrationBuilder.Sql("""
+                ALTER TABLE "HealthAssessmentRecommendations"
+                ALTER COLUMN "Priority" TYPE integer
+                USING "Priority"::integer;
+            """);
+
 
             migrationBuilder.AddColumn<Guid>(
                 name: "ConfigId",

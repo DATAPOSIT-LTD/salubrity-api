@@ -21,11 +21,22 @@ namespace Salubrity.Infrastructure.Repositories
         {
             await _db.Subcontractors.AddAsync(entity);
         }
-
         public async Task<Subcontractor?> GetByIdAsync(Guid id)
         {
-            return await _db.Subcontractors.FindAsync(id);
+            return await _db.Subcontractors
+                .Include(s => s.User)
+                .Include(s => s.Status)
+                .Include(s => s.Industry)
+                .Include(s => s.Specialties)
+                    .ThenInclude(ss => ss.Service)
+                .Include(s => s.RoleAssignments)
+                    .ThenInclude(ra => ra.SubcontractorRole)
+                .Include(s => s.CampAssignments)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .FirstOrDefaultAsync(s => s.Id == id);
         }
+
         public async Task<List<Subcontractor>> GetAllWithDetailsAsync()
         {
             return await _db.Subcontractors
@@ -37,21 +48,27 @@ namespace Salubrity.Infrastructure.Repositories
                 .Include(s => s.RoleAssignments)
                     .ThenInclude(ra => ra.SubcontractorRole)
                 .Include(s => s.CampAssignments)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .ToListAsync();
         }
-
 
         public async Task<Subcontractor?> GetByIdWithDetailsAsync(Guid id)
         {
             return await _db.Subcontractors
+                .Include(s => s.User)
                 .Include(s => s.Status)
                 .Include(s => s.Industry)
                 .Include(s => s.Specialties)
                     .ThenInclude(ss => ss.Service)
                 .Include(s => s.RoleAssignments)
-                    .ThenInclude(sr => sr.SubcontractorRole)
+                    .ThenInclude(ra => ra.SubcontractorRole)
+                .Include(s => s.CampAssignments)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
+
 
         public async Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary)
         {

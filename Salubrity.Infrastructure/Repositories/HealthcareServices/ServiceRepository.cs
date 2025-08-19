@@ -74,11 +74,13 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
                 .Include(s => s.Categories.Where(c => includeInactive || c.IsActive))
                     .ThenInclude(c => c.Subcategories.Where(sc => includeInactive || sc.IsActive))
                 .Include(s => s.Industry)
-                .Include(s => s.IntakeForm);
-
+                .Include(s => s.IntakeForm)
+                    .ThenInclude(f => f.Sections!)
+                        .ThenInclude(sec => sec.Fields); // Load fields within sections
 
             return await query.OrderBy(s => s.Name).ToListAsync(ct);
         }
+
 
         public async Task<Service?> GetByIdWithHierarchyAsync(Guid id, CancellationToken ct = default)
         {

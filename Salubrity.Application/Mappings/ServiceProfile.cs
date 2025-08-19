@@ -1,8 +1,10 @@
 // File: Salubrity.Application/Mapping/ServiceMappingProfile.cs
 #nullable enable
 using AutoMapper;
+using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.IntakeForms;
 
 namespace Salubrity.Application.Mapping
 {
@@ -23,6 +25,11 @@ namespace Salubrity.Application.Mapping
 
             // Subcategory entity -> Subcategory DTO
             CreateMap<ServiceSubcategory, ServiceSubcategoryDto>();
+
+            CreateMap<IntakeForm, FormResponseDto>();
+            CreateMap<IntakeFormSection, FormSectionResponseDto>();
+            CreateMap<IntakeFormField, FormFieldResponseDto>();
+
 
             // ========== WRITE DTO TO ENTITY MAPPINGS ==========
 

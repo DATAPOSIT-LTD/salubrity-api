@@ -69,20 +69,19 @@ namespace Salubrity.Infrastructure.Repositories
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
-
-        public async Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary)
+        public async Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary, CancellationToken ct = default)
         {
             var exists = await _db.SubcontractorRoleAssignments
-                .AnyAsync(r => r.SubcontractorId == subcontractorId && r.SubcontractorRoleId == roleId);
+                .AnyAsync(r => r.SubcontractorId == subcontractorId && r.SubcontractorRoleId == roleId, ct);
 
             if (!exists)
             {
                 if (isPrimary)
                 {
-                    // unset other primary roles
+                    // Unset other primary roles
                     var existingPrimaries = await _db.SubcontractorRoleAssignments
                         .Where(r => r.SubcontractorId == subcontractorId && r.IsPrimary)
-                        .ToListAsync();
+                        .ToListAsync(ct);
 
                     foreach (var r in existingPrimaries)
                         r.IsPrimary = false;
@@ -95,9 +94,12 @@ namespace Salubrity.Infrastructure.Repositories
                     IsPrimary = isPrimary
                 };
 
-                await _db.SubcontractorRoleAssignments.AddAsync(assignment);
+                await _db.SubcontractorRoleAssignments.AddAsync(assignment, ct);
             }
+
+            await _db.SaveChangesAsync(ct);
         }
+
 
         public async Task AssignSpecialtyAsync(Guid subcontractorId, Guid serviceId)
         {

@@ -78,6 +78,9 @@ public static class DependencyInjection
         services.AddScoped<ITempPasswordService, TempPasswordServiceAdapter>();
         services.AddScoped<ICampTokenFactory, CampTokenFactoryAdapter>();
         services.AddScoped<IHealthMetricThresholdRepository, HealthMetricThresholdRepository>();
+        services.AddScoped<IUsersReadRepository, UsersReadRepository>();
+        services.AddScoped<IUserRoleReadRepository, UserRoleReadRepository>();
+        services.AddScoped<ISubcontractorReadRepository, SubcontractorReadRepository>();
         services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
 
 

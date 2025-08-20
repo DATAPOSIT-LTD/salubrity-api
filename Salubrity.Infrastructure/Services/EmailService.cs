@@ -91,7 +91,6 @@ public class EmailService : IEmailService
     {
         throw new NotImplementedException();
     }
-
     private MimeMessage CreateMessage(
         IList<string> toEmails,
         string subject,
@@ -101,11 +100,30 @@ public class EmailService : IEmailService
     {
         var message = new MimeMessage();
 
-        message.From.Add(new MailboxAddress(_settings.FromName, _settings.FromEmail));
+        try
+        {
+            message.From.Add(new MailboxAddress(_settings.FromName, _settings.FromEmail));
+        }
+        catch
+        {
+            // Fallback to using just the email if name is malformed
+            // message.From.Add(new MailboxAddress(_settings.FromEmail));
+        }
 
         foreach (var email in toEmails)
         {
-            message.To.Add(MailboxAddress.Parse(email));
+            if (string.IsNullOrWhiteSpace(email))
+                continue;
+
+            try
+            {
+                message.To.Add(MailboxAddress.Parse(email));
+            }
+            catch
+            {
+                // Skip invalid email silently
+                continue;
+            }
         }
 
         message.Subject = subject;
@@ -120,15 +138,17 @@ public class EmailService : IEmailService
         }
 
         // Create multipart body with both HTML and text
-        var multipart = new Multipart("alternative");
-
-        multipart.Add(new TextPart("plain") { Text = textBody });
-        multipart.Add(new TextPart("html") { Text = htmlBody });
+        var multipart = new Multipart("alternative")
+    {
+        new TextPart("plain") { Text = textBody },
+        new TextPart("html") { Text = htmlBody }
+    };
 
         message.Body = multipart;
 
         return message;
     }
+
 
     private async Task SendMessageAsync(MimeMessage message)
     {

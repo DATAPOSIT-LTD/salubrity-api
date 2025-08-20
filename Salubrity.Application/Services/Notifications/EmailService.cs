@@ -99,7 +99,6 @@ public class EmailService : IEmailService
             }
         }
     }
-
     private MimeMessage CreateMessage(
         IList<string> toEmails,
         EmailRequestDto request,
@@ -111,11 +110,31 @@ public class EmailService : IEmailService
         // Set From
         var fromEmail = request.FromEmail ?? config.FromEmail;
         var fromName = request.FromName ?? config.FromName;
-        message.From.Add(new MailboxAddress(fromName, fromEmail));
+
+        try
+        {
+            message.From.Add(new MailboxAddress(fromName, fromEmail));
+        }
+        catch
+        {
+            // fallback to just address if name is junk
+            // message.From.Add(new MailboxAddress(config.FromEmail));
+        }
 
         foreach (var email in toEmails)
         {
-            message.To.Add(MailboxAddress.Parse(email));
+            if (string.IsNullOrWhiteSpace(email))
+                continue;
+
+            try
+            {
+                message.To.Add(MailboxAddress.Parse(email));
+            }
+            catch
+            {
+                // Skip invalid emails silently
+                continue;
+            }
         }
 
         message.Subject = request.Subject;
@@ -155,6 +174,7 @@ public class EmailService : IEmailService
         message.Body = bodyBuilder.ToMessageBody();
         return message;
     }
+
 
     private async Task SendMessageAsync(MimeMessage message, EmailConfiguration config)
     {

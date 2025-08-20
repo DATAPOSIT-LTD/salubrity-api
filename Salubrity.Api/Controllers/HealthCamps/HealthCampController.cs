@@ -126,4 +126,26 @@ public class CampController : BaseController
         return Success(result);
     }
 
+    [AllowAnonymous] // or [Authorize(Roles = "Admin")] if restricted
+    [HttpGet("{campId:guid}/posters/{kind}")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCampPosterQr(Guid campId, string kind)
+    {
+        var folder = $"qrcodes/healthcamps/{campId:N}";
+
+        var filePath = kind.Equals("participant", StringComparison.OrdinalIgnoreCase)
+            ? Directory.GetFiles(Path.Combine("wwwroot", folder), "participant_*.png").LastOrDefault()
+            : Directory.GetFiles(Path.Combine("wwwroot", folder), "subcontractor_*.png").LastOrDefault();
+
+        if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath))
+            return NotFound();
+
+        var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
+        var fileName = Path.GetFileName(filePath);
+
+        return File(bytes, "image/png", fileName);
+    }
+
+
 }

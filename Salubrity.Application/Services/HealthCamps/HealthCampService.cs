@@ -7,6 +7,7 @@ using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
@@ -22,6 +23,7 @@ public class HealthCampService : IHealthCampService
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
     private readonly ICampTokenFactory _tokenFactory;
+    private readonly IFileStorage _files;
 
     private readonly IQrCodeService _qr;
     private readonly ITempPasswordService _tempPassword;
@@ -29,7 +31,7 @@ public class HealthCampService : IHealthCampService
     private readonly IEmployeeReadRepository _employeeReadRepo;
 
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files)
     {
         _repo = repo;
         _mapper = mapper;
@@ -40,6 +42,7 @@ public class HealthCampService : IHealthCampService
         _qr = qrCodeService;
         _tempPassword = tempPasswordService;
         _employeeReadRepo = employeeReadRepo;
+        _files = files ?? throw new ArgumentNullException(nameof(files));
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -304,24 +307,51 @@ public class HealthCampService : IHealthCampService
             camp.HealthCampStatus.Name = "Ongoing";
         }
 
-        // Persist all changes
+        // Persist changes
         await _repo.UpdateAsync(camp);
         await _repo.SaveChangesAsync();
 
-        // Poster QR codes for admin printing
+        // Build poster QR codes (base64 strings as you already do)
         var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", camp.ParticipantPosterJti!, closeUtc);
         var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", camp.SubcontractorPosterJti!, closeUtc);
 
-        var patientQrBase64 = _qr.GenerateBase64Png(_tokenFactory.BuildSignInUrl(participantPosterToken));
-        var subcoQrBase64 = _qr.GenerateBase64Png(_tokenFactory.BuildSignInUrl(subcontractorPosterToken));
+        var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);
+        var subcontractorPosterUrl = _tokenFactory.BuildSignInUrl(subcontractorPosterToken);
 
+        var patientQrBase64 = _qr.GenerateBase64Png(participantPosterUrl);
+        var subcoQrBase64 = _qr.GenerateBase64Png(subcontractorPosterUrl);
+
+        //  write PNGs to disk under wwwroot/qrcodes/healthcamps/{campId}/
+        var folder = $"qrcodes/healthcamps/{camp.Id:N}";
+        var participantBytes = DecodeBase64Png(patientQrBase64);
+        var subcontractorBytes = DecodeBase64Png(subcoQrBase64);
+
+        // Filenames can carry JTI and expiry to avoid stale caching
+        var participantFile = $"participant_{camp.ParticipantPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+        var subcontractorFile = $"subcontractor_{camp.SubcontractorPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+
+        var participantPngUrl = await _files.SaveAsync(participantBytes, folder, participantFile, "image/png");
+        var subcontractorPngUrl = await _files.SaveAsync(subcontractorBytes, folder, subcontractorFile, "image/png");
+
+        // Return URLs 
         return new LaunchHealthCampResponseDto
         {
             HealthCampId = camp.Id,
             CloseDate = closeUtc,
-            ParticipantPosterQrBase64 = patientQrBase64,
-            SubcontractorPosterQrBase64 = subcoQrBase64
+            ParticipantPosterQrUrl = participantPngUrl,
+            SubcontractorPosterQrUrl = subcontractorPngUrl
         };
+    }
+
+
+    private static byte[] DecodeBase64Png(string base64)
+    {
+        // handle data URI prefix if present
+        const string prefix = "data:image/png;base64,";
+        if (base64.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            base64 = base64[prefix.Length..];
+
+        return Convert.FromBase64String(base64);
     }
 
 

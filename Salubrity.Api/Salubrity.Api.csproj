@@ -41,7 +41,12 @@
   </Content>
 </ItemGroup>
 
-
+<ItemGroup>
+  <Content Include="..\wwwroot\**\*.*">
+    <Link>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+  </Content>
+</ItemGroup>
 
 
 </Project>

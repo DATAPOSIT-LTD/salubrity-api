@@ -30,7 +30,6 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories;
 using Salubrity.Infrastructure.Repositories.IntakeForms;
-using Salubrity.Infrastructure.Configuration;
 using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
 using Salubrity.Infrastructure.Repositories.HealthAssesment;
 
@@ -84,7 +83,8 @@ public static class DependencyInjection
         // Salubrity.Infrastructure/DependencyInjection.cs
         services.AddScoped<IEmployeeReadRepository, EmployeeReadRepository>();
 
-        services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
+        services.AddScoped<IEmailConfigurationRepository, EmailConfigurationRepository>();
+
 
 
 

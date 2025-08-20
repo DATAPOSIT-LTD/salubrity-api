@@ -3,6 +3,7 @@ using AutoMapper;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Join;
 
 namespace Salubrity.Application.Mappings;
 
@@ -56,5 +57,29 @@ public class HealthCampProfile : Profile
             .ForMember(dest => dest.PackageCost, m => m.Ignore())
             .ForMember(dest => dest.InsurerName, m => m.Ignore())
             .ForMember(dest => dest.ServiceStations, m => m.Ignore());
+
+        CreateMap<HealthCampParticipant, HealthCampParticipantDto>()
+            .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
+            .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.User.FirstName))
+            .ForMember(dest => dest.MiddleName, opt => opt.MapFrom(src => src.User.MiddleName))
+            .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.User.LastName))
+            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.User.Email))
+            .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => src.User.Phone))
+            .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.User.Gender.Name))
+
+            .ForMember(dest => dest.CampId, opt => opt.MapFrom(src => src.HealthCampId))
+            .ForMember(dest => dest.CampName, opt => opt.MapFrom(src => src.HealthCamp.Name))
+            .ForMember(dest => dest.CampDate, opt => opt.MapFrom(src => src.HealthCamp.StartDate))
+
+            // .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.Name))
+            .ForMember(dest => dest.IsEmployee, opt => opt.MapFrom(src => src.IsEmployee))
+            .ForMember(dest => dest.Notes, opt => opt.MapFrom(src => src.Notes))
+
+            // You can override these from reporting logic later
+            .ForMember(dest => dest.IncompleteReports, opt => opt.Ignore())
+            .ForMember(dest => dest.ActionCount, opt => opt.Ignore())
+            .ForMember(dest => dest.ClaimCount, opt => opt.Ignore())
+            .ForMember(dest => dest.ClaimStatus, opt => opt.Ignore());
+
     }
 }

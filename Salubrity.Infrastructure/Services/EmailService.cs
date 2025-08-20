@@ -110,10 +110,10 @@ public class EmailService : IEmailService
             // message.From.Add(new MailboxAddress(_settings.FromEmail));
         }
 
+        //  Skip bad email addresses
         foreach (var email in toEmails)
         {
-            if (string.IsNullOrWhiteSpace(email))
-                continue;
+            if (string.IsNullOrWhiteSpace(email) || !email.Contains('@')) continue;
 
             try
             {
@@ -121,10 +121,13 @@ public class EmailService : IEmailService
             }
             catch
             {
-                // Skip invalid email silently
-                continue;
+                // Skip silently
             }
         }
+
+
+
+
 
         message.Subject = subject;
 

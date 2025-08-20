@@ -80,6 +80,7 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<SubcontractorRole>>();
             services.AddScoped<GenericLookupService<SubcontractorStatus>>();
             services.AddScoped<GenericLookupService<SubcontractorHealthCampAssignmentStatus>>();
+            services.AddScoped<GenericLookupService<BillingStatus>>();
             services.AddScoped<IEmailService, EmailService>();
 
             services.AddScoped<ITemplateRenderer, ScribanTemplateRenderer>();

@@ -23,6 +23,9 @@ namespace Salubrity.Application.DTOs.HealthCamps
         public bool IsEmployee { get; set; }
         public string? Notes { get; set; }
 
+        //Billing status
+        public bool IsBilled { get; set; } = false;
+
         // Optional Aggregates
         public int IncompleteReports { get; set; }
         public int ActionCount { get; set; }

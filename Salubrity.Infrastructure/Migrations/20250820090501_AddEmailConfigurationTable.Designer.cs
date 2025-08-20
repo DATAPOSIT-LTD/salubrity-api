@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250820090501_AddEmailConfigurationTable")]
+    partial class AddEmailConfigurationTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -129,81 +132,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AuditLogs");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Configurations.EmailConfiguration", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("EnableDebugging")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("FromEmail")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("FromName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("MaxRetryAttempts")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Password")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("RetryDelayMilliseconds")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("SmtpHost")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("SmtpPort")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("UseSsl")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("EmailConfigurations");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthAssessment", b =>

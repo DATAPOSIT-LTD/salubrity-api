@@ -132,18 +132,22 @@ public class CampController : BaseController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCampPosterQr(Guid campId, string kind)
     {
-        var folder = $"qrcodes/healthcamps/{campId:N}";
+        var folder = $"wwwroot/qrcodes/healthcamps/{campId:N}";
+        if (!Directory.Exists(folder))
+            return NotFound("QR code folder not found.");
 
-        var filePath = kind.Equals("participant", StringComparison.OrdinalIgnoreCase)
-            ? Directory.GetFiles(Path.Combine("wwwroot", folder), "participant_*.png").LastOrDefault()
-            : Directory.GetFiles(Path.Combine("wwwroot", folder), "subcontractor_*.png").LastOrDefault();
+        string? filePath = kind.ToLowerInvariant() switch
+        {
+            "participant" => Directory.GetFiles(folder, "participant_*.png").LastOrDefault(),
+            "subcontractor" => Directory.GetFiles(folder, "subcontractor_*.png").LastOrDefault(),
+            _ => null
+        };
 
         if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath))
-            return NotFound();
+            return NotFound("QR code file not found.");
 
         var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
         var fileName = Path.GetFileName(filePath);
-
         return File(bytes, "image/png", fileName);
     }
 

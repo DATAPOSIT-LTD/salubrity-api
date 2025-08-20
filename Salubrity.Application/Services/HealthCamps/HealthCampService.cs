@@ -311,7 +311,7 @@ public class HealthCampService : IHealthCampService
         await _repo.UpdateAsync(camp);
         await _repo.SaveChangesAsync();
 
-        // Build poster QR codes (base64 strings as you already do)
+        // Build poster QR codes 
         var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", camp.ParticipantPosterJti!, closeUtc);
         var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", camp.SubcontractorPosterJti!, closeUtc);
 

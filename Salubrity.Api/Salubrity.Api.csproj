@@ -34,11 +34,13 @@
   </ItemGroup>
 
 <ItemGroup>
-  <Content Include="..\EmailTemplates\**\*.html">
-    <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+  <Content Include="../EmailTemplates/**/*.html">
     <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <TargetPath>EmailTemplates\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
   </Content>
 </ItemGroup>
+
 
 
 

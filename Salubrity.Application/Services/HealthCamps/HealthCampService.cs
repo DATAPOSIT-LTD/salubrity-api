@@ -249,7 +249,7 @@ public class HealthCampService : IHealthCampService
             var emailRequestDto = new EmailRequestDto
             {
                 ToEmail = p.User.Email,
-                Subject = "Health Camp Invitation",
+                Subject = "Health Camp Invitation: " + camp.Name,
                 TemplateKey = "HealthCampInvitation",
                 Model = new
                 {
@@ -289,7 +289,7 @@ public class HealthCampService : IHealthCampService
             var emailRequestDto = new EmailRequestDto
             {
                 ToEmail = a.Subcontractor.User.Email,
-                Subject = "Health Camp Invitation",
+                Subject = "Health Camp Invitation: " + camp.Name,
                 TemplateKey = "HealthCampInvitation",
                 Model = new
                 {

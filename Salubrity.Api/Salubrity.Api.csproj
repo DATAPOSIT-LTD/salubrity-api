@@ -33,11 +33,13 @@
     <ProjectReference Include="..\Salubrity.Shared\Salubrity.Shared.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="EmailTemplates\**\*.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+<ItemGroup>
+  <Content Include="..\EmailTemplates\**\*.html">
+    <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
+
 
 
 </Project>

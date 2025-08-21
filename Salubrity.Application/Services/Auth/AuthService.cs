@@ -270,7 +270,6 @@ namespace Salubrity.Application.Services.Auth
                 .OrderBy(m => m.Order)
                 .ToList();
 
-            var menuMap = uniqueMenus.ToDictionary(m => m.Id);
             var menuDtos = new Dictionary<Guid, MenuResponseDto>();
             var roots = new List<MenuResponseDto>();
 
@@ -299,14 +298,14 @@ namespace Salubrity.Application.Services.Auth
             return new MeResponseDto
             {
                 Id = user.Id,
-
                 Email = user.Email,
                 FullName = $"{user.FirstName} {user.LastName}",
                 Roles = roles,
                 Permissions = [.. permissions],
-                Menus = roots
+                Menus = roots,
+                RelatedEntityType = user.RelatedEntityType,
+                RelatedEntityId = user.RelatedEntityId
             };
         }
-
     }
 }

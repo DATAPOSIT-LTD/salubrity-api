@@ -57,61 +57,6 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<HealthCampDetailDto>(camp);
     }
 
-    // public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
-    // {
-    //     var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
-
-    //     if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
-    //         throw new InvalidOperationException("Upcoming status not found");
-
-    //     var entity = new HealthCamp
-    //     {
-    //         Id = Guid.NewGuid(),
-    //         Name = dto.Name,
-    //         ServicePackageId = dto.ServicePackageId,
-    //         Description = dto.Description,
-    //         Location = dto.Location,
-    //         StartDate = dto.StartDate,
-    //         EndDate = dto.EndDate,
-    //         StartTime = dto.StartTime,
-    //         OrganizationId = dto.OrganizationId,
-    //         IsActive = true,
-    //         CreatedAt = DateTime.UtcNow,
-    //         PackageItems = [],
-    //         ExpectedParticipants = dto.ExpectedParticipants,
-    //         HealthCampStatusId = upcomingStatus.Id,
-    //         ServiceAssignments = []
-    //     };
-
-
-    //     foreach (var item in dto.PackageItems)
-    //     {
-    //         var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
-
-    //         entity.PackageItems.Add(new HealthCampPackageItem
-    //         {
-    //             Id = Guid.NewGuid(),
-    //             HealthCampId = entity.Id,
-    //             ReferenceId = item.ReferenceId,
-    //             ReferenceType = referenceType
-    //         });
-    //     }
-
-    //     foreach (var assignment in dto.ServiceAssignments)
-    //     {
-    //         entity.ServiceAssignments.Add(new HealthCampServiceAssignment
-    //         {
-    //             Id = Guid.NewGuid(),
-    //             HealthCampId = entity.Id,
-    //             ServiceId = assignment.ServiceId,
-    //             SubcontractorId = assignment.SubcontractorId,
-    //             ProfessionId = assignment.ProfessionId
-    //         });
-    //     }
-
-    //     var created = await _repo.CreateAsync(entity);
-    //     return _mapper.Map<HealthCampDto>(created);
-    // }
 
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {

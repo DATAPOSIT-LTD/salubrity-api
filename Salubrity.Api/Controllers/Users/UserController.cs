@@ -26,7 +26,7 @@ public class UsersController : BaseController
     /// Get all users in the system.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = "Admin,UserManager")]
+    // [Authorize(Roles = "Admin,UserManager")]
     [ProducesResponseType(typeof(ApiResponse<List<UserResponse>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll()
     {

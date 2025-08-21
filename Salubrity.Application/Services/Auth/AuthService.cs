@@ -41,8 +41,8 @@ namespace Salubrity.Application.Services.Auth
             IRolePermissionGroupService rolePermissionGroupService,
             IIndustryRepository industryRepository,
             ISubcontractorRepository subcontractorRepository,
-            ILookupRepository<SubcontractorStatus> subcontractorStatusRepository
-            // IPatientRepository patientRepository
+            ILookupRepository<SubcontractorStatus> subcontractorStatusRepository,
+            IPatientRepository patientRepository
             )
         {
             _userRepository = userRepository;
@@ -55,84 +55,9 @@ namespace Salubrity.Application.Services.Auth
             _industryRepository = industryRepository;
             _subcontractorRepository = subcontractorRepository;
             _subcontractorStatusRepository = subcontractorStatusRepository;
-            // _patientRepository = patientRepository;
+            _patientRepository = patientRepository;
         }
 
-        // public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
-        // {
-        //     Console.WriteLine("📝 [Register] Starting registration process... Password: " + input.Password);
-
-        //     if (!input.AcceptTerms)
-        //     {
-        //         Console.WriteLine("❌ [Register] Terms not accepted.");
-        //         throw new ValidationException(["You must accept the Terms & Conditions to register."]);
-        //     }
-
-        //     if (input.Password != input.ConfirmPassword)
-        //     {
-        //         Console.WriteLine("❌ [Register] Passwords do not match.");
-        //         throw new ValidationException(["Passwords do not match."]);
-        //     }
-
-        //     var normalizedEmail = input.Email.Trim().ToLowerInvariant();
-        //     Console.WriteLine($"📧 [Register] Normalized email: {normalizedEmail}");
-
-        //     var existingUser = await _userRepository.FindUserByEmailAsync(normalizedEmail);
-        //     if (existingUser is not null)
-        //     {
-        //         Console.WriteLine("❌ [Register] Email already exists.");
-        //         throw new ValidationException(["A user with this email already exists."]);
-        //     }
-
-        //     var role = await _roleRepository.GetByIdAsync(input.RoleId);
-        //     if (role is null)
-        //     {
-        //         Console.WriteLine($"❌ [Register] Role not found for ID: {input.RoleId}");
-        //         throw new NotFoundException("Role", input.RoleId.ToString());
-        //     }
-
-        //     Console.WriteLine("🔐 [Register] Hashing password...");
-        //     var hashed = _passwordHasher.HashPassword(input.Password);
-        //     Console.WriteLine("✅ [Register] Password hashed: " + hashed);
-
-        //     var userId = Guid.NewGuid();
-        //     Console.WriteLine($"🆔 [Register] Generated User ID: {userId}");
-
-        //     var user = new User
-        //     {
-        //         Id = userId,
-        //         FirstName = input.FirstName,
-        //         MiddleName = input.MiddleName,
-        //         LastName = input.LastName,
-        //         Email = normalizedEmail,
-        //         PasswordHash = hashed,
-        //         IsActive = true,
-        //         IsVerified = false,
-        //         CreatedAt = DateTime.UtcNow,
-        //         UserRoles =
-        // [
-        //     new UserRole
-        //     {
-        //         UserId = userId,
-        //         RoleId = input.RoleId
-        //     }
-        // ]
-        //     };
-
-        //     Console.WriteLine("💾 [Register] Saving user...");
-        //     await _userRepository.AddUserAsync(user);
-        //     Console.WriteLine("✅ [Register] User saved.");
-
-        //     var expiresAt = DateTime.UtcNow.AddMinutes(30);
-        //     var roles = new[] { role.Name };
-
-        //     Console.WriteLine($"🔑 [Register] Generating access token for user with role: {role.Name}");
-        //     var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
-        //     var refreshToken = _jwtService.GenerateRefreshToken();
-
-        //     Console.WriteLine("🎉 [Register] Registration successful.");
-        //     return new AuthResponseDto(token, refreshToken, expiresAt);
-        // }
 
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)

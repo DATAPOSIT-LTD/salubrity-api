@@ -80,6 +80,10 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>();
         public DbSet<FieldType> FieldTypes => Set<FieldType>();
         public DbSet<IntakeFormResponseStatus> IntakeFormResponseStatuses => Set<IntakeFormResponseStatus>();
+        public DbSet<IntakeFormResponse> IntakeFormResponses => Set<IntakeFormResponse>();
+        public DbSet<IntakeFormFieldResponse> IntakeFormFieldResponses => Set<IntakeFormFieldResponse>();
+        public DbSet<IntakeFormVersion> IntakeFormVersions => Set<IntakeFormVersion>();
+        public DbSet<IntakeFormField> IntakeFormFields => Set<IntakeFormField>();
         public DbSet<HealthAssessment> HealthAssessments => Set<HealthAssessment>();
         public DbSet<HealthAssessmentMetric> HealthAssessmentMetrics => Set<HealthAssessmentMetric>();
         public DbSet<HealthMetricThreshold> HealthMetricThresholds => Set<HealthMetricThreshold>();

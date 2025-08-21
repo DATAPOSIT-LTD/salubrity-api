@@ -35,8 +35,15 @@ public class UserCreateRequest
 
 public class UserUpdateRequest
 {
+    public string? FirstName { get; set; }
+    public string? MiddleName { get; set; }
+    public string? LastName { get; set; }
+    public string? Email { get; set; } // Only if you support email updates
     public string? Phone { get; set; }
-    public string? ProfileImage { get; set; }
-    public string? PrimaryLanguage { get; set; }
+    public string? NationalId { get; set; }
     public DateTime? DateOfBirth { get; set; }
+    public string? PrimaryLanguage { get; set; }
+    public string? ProfileImage { get; set; }
+    public Guid? GenderId { get; set; }
+    public Guid? OrganizationId { get; set; }
 }

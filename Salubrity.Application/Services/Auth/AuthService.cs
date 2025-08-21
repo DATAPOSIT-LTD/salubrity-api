@@ -299,6 +299,7 @@ namespace Salubrity.Application.Services.Auth
             return new MeResponseDto
             {
                 Id = user.Id,
+
                 Email = user.Email,
                 FullName = $"{user.FirstName} {user.LastName}",
                 Roles = roles,

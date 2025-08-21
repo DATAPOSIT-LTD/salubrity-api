@@ -165,9 +165,9 @@ namespace Salubrity.Infrastructure.Persistence
                 .HasIndex(u => u.Name)
                 .IsUnique();
 
-            modelBuilder.Entity<ServiceCategory>()
-                .HasIndex(u => u.Name)
-                .IsUnique();
+            // modelBuilder.Entity<ServiceCategory>()
+            //     .HasIndex(u => u.Name)
+            //     .IsUnique();
 
             modelBuilder.Entity<ServiceSubcategory>()
                 .HasIndex(u => u.Name)

@@ -27,4 +27,11 @@ public interface IHealthCampService
        int page,
        int pageSize,
        CancellationToken ct = default);
+
+
+    Task<CampPatientDetailWithFormsDto> GetCampPatientDetailWithFormsForCurrentAsync(
+     Guid campId,
+     Guid participantId,
+     Guid? subcontractorIdOrNullForAdmin,
+     CancellationToken ct = default);
 }

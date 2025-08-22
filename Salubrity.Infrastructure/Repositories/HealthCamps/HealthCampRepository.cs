@@ -1,12 +1,15 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
 using Salubrity.Shared.Exceptions;
+using Scriban.Syntax;
 
 namespace Salubrity.Infrastructure.Repositories.HealthCamps;
 
@@ -464,5 +467,171 @@ public class HealthCampRepository : IHealthCampRepository
                 Email = p.User.Email ?? ""
             })
             .ToListAsync(ct);
+    }
+
+
+
+
+    public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
+          Guid campId,
+          Guid participantId,
+          Guid? subcontractorId,
+          CancellationToken ct = default)
+    {
+        // 1) Participant + Camp + Org + User
+        var p = await _context.HealthCampParticipants
+            .Where(x => x.Id == participantId && x.HealthCampId == campId)
+            .Select(x => new
+            {
+                Participant = x,
+                Camp = x.HealthCamp,
+                OrgName = x.HealthCamp.Organization.BusinessName,
+                Venue = x.HealthCamp.Location,
+                Status = x.HealthCamp.HealthCampStatus.Name,
+                User = x.User
+            })
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct);
+
+        if (p == null) return null;
+
+        var served = p.Participant.ParticipatedAt != null
+                     || await _context.HealthAssessments
+                            .AnyAsync(a => a.ParticipantId == participantId, ct);
+
+        // 2) Assignments for THIS camp (+ optional subcontractor filter)
+        IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
+            .Where(a => a.HealthCampId == campId)
+            .Include(a => a.Service)
+                .ThenInclude(s => s.IntakeForm)
+                    .ThenInclude(f => f.Sections)
+                        .ThenInclude(sec => sec.Fields)
+                            .ThenInclude(ff => ff.Options)
+            .Include(a => a.Profession)
+                .ThenInclude(pr => pr.SubcontractorRole);
+
+        if (subcontractorId.HasValue)
+            assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
+
+        var assignments = await assignQ
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // 3) Shape DTO
+        var dto = new CampPatientDetailWithFormsDto
+        {
+            ParticipantId = p.Participant.Id,
+            UserId = p.User.Id,
+            PatientCode = p.Participant.PatientId.ToString().ToUpperInvariant()[..8],
+            FullName = p.User.FullName ?? "Patient",
+            Email = p.User.Email,
+            Phone = p.User.Phone,
+            CampId = p.Camp.Id,
+            ClientName = p.OrgName,
+            Venue = p.Venue ?? "",
+            StartDate = p.Camp.StartDate,
+            EndDate = p.Camp.EndDate,
+            Status = p.Status,
+            Served = served
+        };
+
+        // 4) Project each service (distinct by ServiceId to avoid duplicates if any)
+        dto.Assignments = assignments
+            .GroupBy(a => a.ServiceId)
+            .Select(g =>
+            {
+                var any = g.First();
+                return new AssignedServiceWithFormDto
+                {
+                    ServiceId = any.ServiceId,
+                    ServiceName = any.Service.Name,
+                    ProfessionId = any.ProfessionId,
+                    AssignedRole = any.Profession != null ? any.Profession.SubcontractorRole.Name : null,
+                    Form = MapForm(any.Service.IntakeForm) // may be null
+                };
+            })
+            .OrderBy(x => x.ServiceName)
+            .ToList();
+
+        return dto;
+    }
+
+    // --- helpers ---
+
+    private static FormResponseDto? MapForm(IntakeForm? f)
+    {
+        if (f == null) return null;
+
+        // If the form is sectioned
+        if (f.Sections != null && f.Sections.Count > 0)
+        {
+            return new FormResponseDto
+            {
+                Id = f.Id,
+                Name = f.Name,
+                Description = f.Description,
+                Sections = f.Sections
+                    .OrderBy(s => s.Order)
+                    .Select(s => new FormSectionResponseDto
+                    {
+                        Id = s.Id,
+                        Name = s.Name,
+                        Description = s.Description,
+                        Order = s.Order,
+                        Fields = s.Fields
+                            .OrderBy(ff => ff.Order)
+                            .Select(MapField)
+                            .ToList()
+                    })
+                    .ToList(),
+                Fields = new List<FormFieldResponseDto>() // empty when sectioned
+            };
+        }
+
+        // Unsectioned (flat) form
+        return new FormResponseDto
+        {
+            Id = f.Id,
+            Name = f.Name,
+            Description = f.Description,
+            Sections = new List<FormSectionResponseDto>(),
+            Fields = f.Fields != null
+                ? f.Fields.OrderBy(ff => ff.Order).Select(MapField).ToList()
+                : new List<FormFieldResponseDto>()
+        };
+    }
+
+    private static FormFieldResponseDto MapField(IntakeFormField ff)
+    {
+        return new FormFieldResponseDto
+        {
+            Id = ff.Id,
+            FormId = ff.FormId,
+            SectionId = ff.SectionId,
+            Label = ff.Label,
+            FieldType = ff.FieldType,
+            IsRequired = ff.IsRequired,
+            Order = ff.Order,
+            HasConditionalLogic = ff.HasConditionalLogic,
+            ConditionalLogicType = ff.ConditionalLogicType,
+            TriggerFieldId = ff.TriggerFieldId,
+            TriggerValueOptionId = ff.TriggerValueOptionId,
+            ValidationType = ff.ValidationType,
+            ValidationPattern = ff.ValidationPattern,
+            MinValue = ff.MinValue,
+            MaxValue = ff.MaxValue,
+            MinLength = ff.MinLength,
+            MaxLength = ff.MaxLength,
+            CustomErrorMessage = ff.CustomErrorMessage,
+            LayoutPosition = ff.LayoutPosition,
+            Options = (ff.Options ?? new List<IntakeFormFieldOption>())
+                .Select(o => new FieldOptionResponseDto
+                {
+                    Id = o.Id,
+                    Value = o.Value
+                    // DisplayText = o.DisplayText
+                })
+                .ToList()
+        };
     }
 }

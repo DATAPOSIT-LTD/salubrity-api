@@ -383,4 +383,20 @@ public class HealthCampService : IHealthCampService
         return _repo.GetCampPatientsByStatusAsync(campId, filter, q, sort, page, pageSize, ct);
     }
 
+    public async Task<CampPatientDetailWithFormsDto> GetCampPatientDetailWithFormsForCurrentAsync(
+        Guid campId,
+        Guid participantId,
+        Guid? subcontractorIdOrNullForAdmin,
+        CancellationToken ct = default)
+    {
+        var dto = await _repo.GetCampPatientDetailWithFormsAsync(
+            campId, participantId, subcontractorIdOrNullForAdmin, ct);
+
+        if (dto == null)
+            throw new NotFoundException("Participant not found in this camp.");
+
+        return dto;
+    }
+
+
 }

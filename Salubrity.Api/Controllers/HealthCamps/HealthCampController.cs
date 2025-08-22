@@ -191,5 +191,26 @@ public class CampController : BaseController
         return Success(patients);
     }
 
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("{campId:guid}/patients/{participantId:guid}/detail-with-forms")]
+    [ProducesResponseType(typeof(ApiResponse<CampPatientDetailWithFormsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampPatientDetailWithForms(
+    Guid campId,
+    Guid participantId,
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+
+        // Admin: your CurrentSubcontractorService returns Guid.Empty → pass null
+        Guid? subIdOrNull = subcontractorId == Guid.Empty ? (Guid?)null : subcontractorId;
+
+        var dto = await _service.GetCampPatientDetailWithFormsForCurrentAsync(
+            campId, participantId, subIdOrNull, ct);
+
+        return Success(dto);
+    }
+
 
 }

@@ -2,23 +2,27 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
+using Salubrity.Application.Interfaces.Repositories.HomepageOverview;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Menus;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
-using Salubrity.Application.Interfaces.Repositories.HealthCamps;
-using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
-using Salubrity.Infrastructure.Repositories.HealthcareServices;
-using Salubrity.Infrastructure.Repositories.HealthCamps;
-using Salubrity.Application.Interfaces.Repositories.IntakeForms;
-
-
-
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Domain.Seeders;
+using Salubrity.Infrastructure.Configuration;
 using Salubrity.Infrastructure.EventHandlers;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Infrastructure.Repositories;
+using Salubrity.Infrastructure.Repositories.Employees;
+using Salubrity.Infrastructure.Repositories.HealthCamps;
+using Salubrity.Infrastructure.Repositories.HealthcareServices;
+using Salubrity.Infrastructure.Repositories.HomepageOverview;
+using Salubrity.Infrastructure.Repositories.IntakeForms;
 using Salubrity.Infrastructure.Repositories.Lookups;
 using Salubrity.Infrastructure.Repositories.Menus;
 using Salubrity.Infrastructure.Repositories.Organizations;
@@ -26,6 +30,7 @@ using Salubrity.Infrastructure.Repositories.Rbac;
 using Salubrity.Infrastructure.Repositories.Users;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
+
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories;
@@ -78,6 +83,8 @@ public static class DependencyInjection
         services.AddScoped<IQrCodeService, QrCodeService>();
         services.AddScoped<ITempPasswordService, TempPasswordServiceAdapter>();
         services.AddScoped<ICampTokenFactory, CampTokenFactoryAdapter>();
+        services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
+        services.AddScoped<IHomepageOverviewRepository, HomepageOverviewRepository>();
         services.AddScoped<IHealthMetricThresholdRepository, HealthMetricThresholdRepository>();
         services.AddScoped<IUsersReadRepository, UsersReadRepository>();
         services.AddScoped<IUserRoleReadRepository, UserRoleReadRepository>();

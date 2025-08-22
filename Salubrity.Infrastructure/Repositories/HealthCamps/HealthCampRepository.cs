@@ -416,5 +416,53 @@ public class HealthCampRepository : IHealthCampRepository
         return raw;
     }
 
+    public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
+        Guid campId,
+        string filter,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
+    {
+        IQueryable<HealthCampParticipant> baseQuery = _context.HealthCampParticipants
+            .Where(p => p.HealthCampId == campId)
+            .Include(p => p.User)
+            .Include(p => p.HealthCamp.Organization);
 
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim().ToLower();
+            baseQuery = baseQuery.Where(p =>
+                EF.Functions.ILike(p.User.FullName, $"%{term}%") ||
+                EF.Functions.ILike(p.User.Email, $"%{term}%") ||
+                EF.Functions.ILike(p.User.Phone, $"%{term}%"));
+        }
+
+        baseQuery = filter.ToLowerInvariant() switch
+        {
+            "served" => baseQuery.Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()),
+            "not-seen" => baseQuery.Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()),
+            _ => baseQuery
+        };
+
+        baseQuery = sort.ToLowerInvariant() switch
+        {
+            "oldest" => baseQuery.OrderBy(p => p.CreatedAt),
+            _ => baseQuery.OrderByDescending(p => p.CreatedAt)
+        };
+
+        return await baseQuery
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new HealthCampPatientDto
+            {
+                PatientId = p.PatientId != null ? p.PatientId.ToString() : "—",
+                FullName = p.User.FullName!,
+                Company = p.HealthCamp.Organization.BusinessName,
+                PhoneNumber = p.User.Phone ?? "",
+                Email = p.User.Email ?? ""
+            })
+            .ToListAsync(ct);
+    }
 }

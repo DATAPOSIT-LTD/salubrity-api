@@ -31,7 +31,14 @@ public interface IHealthCampRepository
     Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
     Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
     Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default);
-
+    Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
+           Guid campId,
+           string filter,
+           string? q,
+           string? sort,
+           int page,
+           int pageSize,
+           CancellationToken ct = default);
 }
 
 

@@ -175,5 +175,21 @@ public class CampController : BaseController
     }
 
 
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("{campId:guid}/patients")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampPatientDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampPatientsByStatus(
+        Guid campId,
+        [FromQuery] string filter = "all",
+        [FromQuery] string? q = null,
+        [FromQuery] string? sort = "newest",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var patients = await _service.GetCampPatientsByStatusAsync(campId, filter, q, sort, page, pageSize, ct);
+        return Success(patients);
+    }
+
 
 }

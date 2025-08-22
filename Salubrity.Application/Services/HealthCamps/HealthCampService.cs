@@ -368,4 +368,19 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<List<HealthCampWithRolesDto>>(camps);
     }
 
+
+
+
+    public Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
+     Guid campId,
+     string filter,
+     string? q,
+     string? sort,
+     int page,
+     int pageSize,
+     CancellationToken ct = default)
+    {
+        return _repo.GetCampPatientsByStatusAsync(campId, filter, q, sort, page, pageSize, ct);
+    }
+
 }

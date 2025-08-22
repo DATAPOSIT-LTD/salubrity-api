@@ -158,6 +158,18 @@ public class HealthCampService : IHealthCampService
         var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
                    ?? throw new NotFoundException("Camp not found");
 
+        // only 'Upcoming' camps can be launched
+        if (camp.HealthCampStatus == null)
+            throw new InvalidOperationException("Camp status is missing.");
+
+        var upcomingStatus = await _lookupRepository
+            .FindByNameAsync(camp.HealthCampStatus.Name)
+            ?? throw new InvalidOperationException("'Upcoming' status not found");
+
+        if (camp.HealthCampStatusId != upcomingStatus.Id)
+            throw new ValidationException(["Only camps in 'Upcoming' status can be launched."]);
+
+
         var closeUtc = dto.CloseDate.ToUniversalTime();
 
         // Poster JTIs (for venue)

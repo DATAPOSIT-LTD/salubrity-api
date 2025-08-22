@@ -71,7 +71,7 @@ public class CampController : BaseController
     [FromServices] ICurrentSubcontractorService current,
     CancellationToken ct)
     {
-        var userId = User.GetUserId();
+        var userId = GetCurrentUserId();
         var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
         return Success(result);
@@ -84,7 +84,7 @@ public class CampController : BaseController
         [FromServices] ICurrentSubcontractorService current,
         CancellationToken ct)
     {
-        var userId = User.GetUserId();
+        var userId = GetCurrentUserId();
         var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
@@ -97,7 +97,7 @@ public class CampController : BaseController
         [FromServices] ICurrentSubcontractorService current,
         CancellationToken ct)
     {
-        var userId = User.GetUserId();
+        var userId = GetCurrentUserId();
         var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);

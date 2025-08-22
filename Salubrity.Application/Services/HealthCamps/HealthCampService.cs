@@ -29,7 +29,7 @@ public class HealthCampService : IHealthCampService
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
     private readonly IEmployeeReadRepository _employeeReadRepo;
-
+    private static readonly string[] sourceArray = ["upcoming", "complete", "canceled"];
 
     public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files)
     {
@@ -357,4 +357,15 @@ public class HealthCampService : IHealthCampService
 
     public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize)
         => _repo.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
+
+
+    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default)
+    {
+        if (!sourceArray.Contains(status))
+            throw new ValidationException(["Invalid camp status filter."]);
+
+        var camps = await _repo.GetMyCampsWithRolesByStatusAsync(subcontractorId, status, ct);
+        return _mapper.Map<List<HealthCampWithRolesDto>>(camps);
+    }
+
 }

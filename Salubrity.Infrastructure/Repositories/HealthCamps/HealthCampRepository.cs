@@ -363,4 +363,58 @@ public class HealthCampRepository : IHealthCampRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        var baseQuery = _context.HealthCampServiceAssignments
+            .Where(x => x.SubcontractorId == subcontractorId)
+            .Select(x => new
+            {
+                Camp = x.HealthCamp,
+                Booth = x.Service.Name,
+                Role = x.Profession.SubcontractorRole.Name
+            })
+            .Where(x => x.Camp.IsActive);
+
+        baseQuery = status switch
+        {
+            "upcoming" => baseQuery.Where(x =>
+                x.Camp.IsLaunched &&
+                ((x.Camp.EndDate ?? x.Camp.StartDate) >= today) &&
+                x.Camp.CloseDate <= today),
+
+            "complete" => baseQuery.Where(x =>
+                x.Camp.IsLaunched &&
+                ((x.Camp.EndDate ?? x.Camp.StartDate) < today)),
+
+            "canceled" => baseQuery.Where(x =>
+                !x.Camp.IsLaunched ||
+                x.Camp.HealthCampStatus.Name.ToLower() == "canceled"),
+
+            _ => baseQuery
+        };
+
+        var raw = await baseQuery
+            .GroupBy(x => x.Camp)
+            .Select(g => new HealthCampWithRolesDto
+            {
+                CampId = g.Key.Id,
+                ClientName = g.Key.Organization.BusinessName,
+                Venue = g.Key.Location,
+                StartDate = g.Key.StartDate,
+                EndDate = g.Key.EndDate,
+                Status = g.Key.HealthCampStatus.Name,
+                Roles = g.Select(r => new RoleAssignmentDto
+                {
+                    AssignedBooth = r.Booth,
+                    AssignedRole = r.Role
+                }).Distinct().ToList()
+            })
+            .ToListAsync(ct);
+
+        return raw;
+    }
+
+
 }

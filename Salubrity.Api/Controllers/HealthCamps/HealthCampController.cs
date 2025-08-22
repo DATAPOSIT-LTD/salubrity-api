@@ -159,4 +159,21 @@ public class CampController : BaseController
     }
 
 
+    // [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$)}")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampWithRolesDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyCampsByStatus(
+    string status,
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+
+        var result = await _service.GetMyCampsWithRolesByStatusAsync(subcontractorId, status.ToLowerInvariant(), ct);
+        return Success(result);
+    }
+
+
+
 }

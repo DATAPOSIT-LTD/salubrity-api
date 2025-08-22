@@ -1,5 +1,6 @@
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Subcontractor;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Salubrity.Domain.Entities.HealthCamps;
@@ -18,7 +19,12 @@ public class HealthCampServiceAssignment : BaseAuditableEntity
     [ForeignKey("Subcontractor")]
     public Guid SubcontractorId { get; set; }
 
+
+
     [ForeignKey("SubcontractorRoleAssignment")]
     public Guid? ProfessionId { get; set; }
+
+    public virtual SubcontractorRoleAssignment Profession { get; set; } = default!;
+
     public virtual Salubrity.Domain.Entities.Subcontractor.Subcontractor Subcontractor { get; set; } = default!;
 }

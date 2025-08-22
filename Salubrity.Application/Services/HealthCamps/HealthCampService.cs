@@ -322,21 +322,31 @@ public class HealthCampService : IHealthCampService
     // inside HealthCampService
     public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid subcontractorId)
     {
-        var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId);
+        var camps = subcontractorId == Guid.Empty
+            ? await _repo.GetAllUpcomingCampsAsync()
+            : await _repo.GetMyUpcomingCampsAsync(subcontractorId);
+
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
     public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid subcontractorId)
     {
-        var camps = await _repo.GetMyCompleteCampsAsync(subcontractorId);
+        var camps = subcontractorId == Guid.Empty
+            ? await _repo.GetAllCompleteCampsAsync()
+            : await _repo.GetMyCompleteCampsAsync(subcontractorId);
+
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
     public async Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid subcontractorId)
     {
-        var camps = await _repo.GetMyCanceledCampsAsync(subcontractorId);
+        var camps = subcontractorId == Guid.Empty
+            ? await _repo.GetAllCanceledCampsAsync()
+            : await _repo.GetMyCanceledCampsAsync(subcontractorId);
+
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
+
 
 
     public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize)

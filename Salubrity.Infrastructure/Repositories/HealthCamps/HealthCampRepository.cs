@@ -323,4 +323,44 @@ public class HealthCampRepository : IHealthCampRepository
             .ToListAsync(ct);
     }
 
+
+    public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        return await _context.HealthCamps
+            .Where(c => c.IsLaunched
+                        && ((c.EndDate ?? c.StartDate) >= today)
+                        && c.CloseDate <= today)
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        return await _context.HealthCamps
+            .Where(c => c.IsLaunched
+                        && ((c.EndDate ?? c.StartDate) < today))
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .OrderByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetAllCanceledCampsAsync(CancellationToken ct = default)
+    {
+        return await _context.HealthCamps
+            .Where(c => !c.IsLaunched
+                        || (c.HealthCampStatus != null &&
+                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "canceled")))
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .OrderByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
 }

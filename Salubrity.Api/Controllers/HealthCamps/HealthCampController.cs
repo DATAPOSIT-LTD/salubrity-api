@@ -64,33 +64,22 @@ public class CampController : BaseController
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
 
-    [Authorize(Roles = "Subcontractor")]
-    [HttpGet("my/upcoming")]
-    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyUpcomingCamps(
-    [FromServices] ICurrentSubcontractorService current,
-    CancellationToken ct)
-    {
-        var userId = GetCurrentUserId();
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
-        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
-        return Success(result);
-    }
-
-    [Authorize(Roles = "Subcontractor")]
+    [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCompleteCamps(
-        [FromServices] ICurrentSubcontractorService current,
-        CancellationToken ct)
+     [FromServices] ICurrentSubcontractorService current,
+     CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+
+        // If admin, allow override — or you may restrict this to subcontractor only logic
         var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
     }
 
-    [Authorize(Roles = "Subcontractor")]
+    [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCanceledCamps(
@@ -98,13 +87,20 @@ public class CampController : BaseController
         CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+
         var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);
     }
+
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampParticipantsAll(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetCampParticipantsAll(
+        Guid campId,
+        [FromQuery] string? q,
+        [FromQuery] string? sort,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
         var result = await _service.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
         return Success(result);
@@ -112,7 +108,12 @@ public class CampController : BaseController
 
     [HttpGet("{campId:guid}/participants/served")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampParticipantsServed(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetCampParticipantsServed(
+        Guid campId,
+        [FromQuery] string? q,
+        [FromQuery] string? sort,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
         var result = await _service.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
         return Success(result);
@@ -120,11 +121,17 @@ public class CampController : BaseController
 
     [HttpGet("{campId:guid}/participants/not-seen")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampParticipantsNotSeen(Guid campId, [FromQuery] string? q, [FromQuery] string? sort, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetCampParticipantsNotSeen(
+        Guid campId,
+        [FromQuery] string? q,
+        [FromQuery] string? sort,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
     {
         var result = await _service.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
         return Success(result);
     }
+
 
     [AllowAnonymous] // or [Authorize(Roles = "Admin")] if restricted
     [HttpGet("{campId:guid}/posters/{kind}")]

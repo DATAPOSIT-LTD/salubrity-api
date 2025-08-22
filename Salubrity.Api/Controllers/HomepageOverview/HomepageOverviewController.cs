@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Salubrity.Api.Controllers.Common;
+using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Application.DTOs.HomepageOverview;
 using Salubrity.Application.Interfaces.Services.HomepageOverview;
+using Salubrity.Shared.Responses;
 
 namespace Salubrity.Api.Controllers.HomepageOverview
 {
@@ -9,7 +12,7 @@ namespace Salubrity.Api.Controllers.HomepageOverview
     [Route("api/v{version:apiVersion}/overview")]
     [Produces("application/json")]
     [Tags("Homepage Overview")]
-    public class HomepageOverviewController : ControllerBase
+    public class HomepageOverviewController : BaseController
     {
         private readonly IHomepageOverviewService _overviewService;
 
@@ -19,11 +22,13 @@ namespace Salubrity.Api.Controllers.HomepageOverview
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(HomepageOverviewDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<HomepageOverviewDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+
         public async Task<IActionResult> GetHomepageOverview()
         {
             var result = await _overviewService.GetHomepageOverviewAsync();
-            return Ok(result);
+            return Success(result);
         }
     }
 }

@@ -1,5 +1,3 @@
-using System;
-
 namespace Salubrity.Application.DTOs.Subcontractor
 {
     public class CreateSubcontractorRoleDto

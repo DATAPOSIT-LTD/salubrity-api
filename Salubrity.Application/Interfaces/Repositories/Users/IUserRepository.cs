@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Salubrity.Domain.Entities.Identity;
 
 namespace Salubrity.Application.Interfaces.Repositories.Users

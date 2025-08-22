@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
-using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
@@ -15,6 +14,7 @@ using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Organizations;
+using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
 using Salubrity.Application.Services.EmployeeServices;
@@ -32,6 +32,7 @@ using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Infrastructure.Services;
+using Salubrity.Infrastructure.Storage;
 
 
 
@@ -86,6 +87,8 @@ namespace Salubrity.Application
             services.AddScoped<ITemplateRenderer, ScribanTemplateRenderer>();
             services.AddScoped<IHomepageOverviewService, HomepageOverviewService>();
 
+            services.AddScoped<ICurrentSubcontractorService, CurrentSubcontractorService>();
+            services.AddScoped<IFileStorage, LocalFileStorage>();
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();

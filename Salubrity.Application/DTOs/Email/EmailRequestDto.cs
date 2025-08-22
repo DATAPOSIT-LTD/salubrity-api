@@ -1,7 +1,5 @@
 // File: Salubrity.Application/DTOs/Email/EmailRequest.cs
 #nullable enable
-using System.Collections.Generic;
-
 namespace Salubrity.Application.DTOs.Email;
 
 public class EmailRequestDto

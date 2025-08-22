@@ -1,4 +1,3 @@
-using Salubrity.Application.DTOs.Organizations;
 using Salubrity.Domain.Entities.Organizations;
 
 namespace Salubrity.Application.Interfaces.Repositories.Organizations

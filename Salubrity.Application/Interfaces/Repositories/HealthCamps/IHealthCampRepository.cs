@@ -15,7 +15,23 @@ public interface IHealthCampRepository
     Task<HealthCamp?> GetForLaunchAsync(Guid id);
     Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert);
     Task SaveChangesAsync();
+
+    // Subcontractor-scoped
+    Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+
+    // Admin-wide
+    Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default);
+    Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default);
+    Task<List<HealthCamp>> GetAllCanceledCampsAsync(CancellationToken ct = default);
+
+    // Participants
+    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 }
+
 
 public sealed class HealthCampTempCredentialUpsert
 {

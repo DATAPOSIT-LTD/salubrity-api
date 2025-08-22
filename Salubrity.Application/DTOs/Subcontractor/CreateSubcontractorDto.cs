@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Salubrity.Application.DTOs.Users;
 
 namespace Salubrity.Application.DTOs.Subcontractor

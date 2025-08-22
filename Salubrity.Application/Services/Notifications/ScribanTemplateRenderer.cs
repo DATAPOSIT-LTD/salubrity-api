@@ -1,10 +1,6 @@
 // File: Salubrity.Infrastructure/Services/ScribanTemplateRenderer.cs
 #nullable enable
-using System;
 using System.Collections.Concurrent;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Scriban;

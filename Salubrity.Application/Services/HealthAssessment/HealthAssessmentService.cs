@@ -2,7 +2,6 @@ using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
 using Salubrity.Application.Interfaces.Services.HealthAssessment;
-using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Application.Services.Health;
@@ -25,7 +24,7 @@ public class HealthAssessmentService : IHealthAssessmentService
 
     public async Task<HealthAssessmentDto> CreateAsync(CreateHealthAssessmentDto dto)
     {
-        var entity = _mapper.Map<HealthAssessment>(dto);
+        var entity = _mapper.Map<Salubrity.Domain.Entities.HealthAssesment.HealthAssessment>(dto);
         var created = await _repo.CreateAsync(entity);
         _logger.LogInformation("Created HealthAssessment {Id}", created.Id);
         return _mapper.Map<HealthAssessmentDto>(await _repo.GetByIdAsync(created.Id));

@@ -2,7 +2,6 @@
 
 using Salubrity.Application.DTOs.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
-using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Domain.Common;
 
 public class GenericLookupService<T> : ILookupService where T : BaseLookupEntity

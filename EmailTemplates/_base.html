@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ company.name }}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #FCFCFC; font-family: Arial, sans-serif; color: #231f20;">
+
+  <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#FCFCFC">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);">
+
+          <!-- Header -->
+          <tr>
+            <td style="background-color: #014445; text-align: center; padding: 20px;">
+              <img src="https://salubritycentre.com/wp-content/uploads/2017/07/X-Large-Logo-Salubrity-2.png" alt="{{ company.name }} Logo" height="60" style="display: block; margin: auto;" />
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding: 30px; font-size: 15px; line-height: 1.6; color: #231f20;">
+              {{ content }}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #D3C34A; padding: 20px; font-size: 12px; text-align: center; color: #000000;">
+              <p style="margin: 4px 0;"><strong>{{ company.name }}</strong></p>
+              <p style="margin: 4px 0;">{{ company.address }}</p>
+              <p style="margin: 4px 0;">
+                <a href="mailto:{{ company.email }}" style="color: #000000; text-decoration: underline;">{{ company.email }}</a> &bull;
+                <span>{{ company.phone }}</span>
+              </p>
+              <p style="margin: 10px 0 0 0;">&copy; {{ year }} {{ company.name }}. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

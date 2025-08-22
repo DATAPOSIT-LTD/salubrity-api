@@ -4,13 +4,15 @@ using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
+using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Shared.Exceptions;
-using System.Text.Json.Serialization;
 
 namespace Salubrity.Application.Services.HealthCamps;
 
@@ -21,12 +23,15 @@ public class HealthCampService : IHealthCampService
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
     private readonly ICampTokenFactory _tokenFactory;
+    private readonly IFileStorage _files;
 
     private readonly IQrCodeService _qr;
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
+    private readonly IEmployeeReadRepository _employeeReadRepo;
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService)
+
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files)
     {
         _repo = repo;
         _mapper = mapper;
@@ -36,6 +41,8 @@ public class HealthCampService : IHealthCampService
         _email = emailService;
         _qr = qrCodeService;
         _tempPassword = tempPasswordService;
+        _employeeReadRepo = employeeReadRepo;
+        _files = files ?? throw new ArgumentNullException(nameof(files));
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -50,10 +57,11 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<HealthCampDetailDto>(camp);
     }
 
+
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
+        var ct = CancellationToken.None; // or pass through
         var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
-
         if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
             throw new InvalidOperationException("Upcoming status not found");
 
@@ -70,17 +78,17 @@ public class HealthCampService : IHealthCampService
             OrganizationId = dto.OrganizationId,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
-            PackageItems = [],
             ExpectedParticipants = dto.ExpectedParticipants,
             HealthCampStatusId = upcomingStatus.Id,
-            ServiceAssignments = []
+            PackageItems = [],
+            ServiceAssignments = [],
+            Participants = [] // ensure initialized
         };
 
-
+        // package items
         foreach (var item in dto.PackageItems)
         {
             var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
-
             entity.PackageItems.Add(new HealthCampPackageItem
             {
                 Id = Guid.NewGuid(),
@@ -90,6 +98,7 @@ public class HealthCampService : IHealthCampService
             });
         }
 
+        // service assignments
         foreach (var assignment in dto.ServiceAssignments)
         {
             entity.ServiceAssignments.Add(new HealthCampServiceAssignment
@@ -97,14 +106,35 @@ public class HealthCampService : IHealthCampService
                 Id = Guid.NewGuid(),
                 HealthCampId = entity.Id,
                 ServiceId = assignment.ServiceId,
-                SubcontractorId = assignment.SubcontractorId
+                SubcontractorId = assignment.SubcontractorId,
+                ProfessionId = assignment.ProfessionId
             });
+        }
+
+        // NEW: seed participants = all active employees of the organization
+        var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
+
+        if (employeeUserIds.Count > 0)
+        {
+            // Avoid duplicates if any user id appears twice
+            var uniqueUserIds = new HashSet<Guid>(employeeUserIds);
+
+            foreach (var userId in uniqueUserIds)
+            {
+                entity.Participants.Add(new HealthCampParticipant
+                {
+                    Id = Guid.NewGuid(),
+                    HealthCampId = entity.Id,
+                    UserId = userId,
+                    IsEmployee = true
+                    // PatientId left null; can be resolved later if you link users->patients
+                });
+            }
         }
 
         var created = await _repo.CreateAsync(entity);
         return _mapper.Map<HealthCampDto>(created);
     }
-
 
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)
@@ -127,6 +157,18 @@ public class HealthCampService : IHealthCampService
     {
         var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
                    ?? throw new NotFoundException("Camp not found");
+
+        // only 'Upcoming' camps can be launched
+        if (camp.HealthCampStatus == null)
+            throw new InvalidOperationException("Camp status is missing.");
+
+        var upcomingStatus = await _lookupRepository
+            .FindByNameAsync(camp.HealthCampStatus.Name)
+            ?? throw new InvalidOperationException("'Upcoming' status not found");
+
+        if (camp.HealthCampStatusId != upcomingStatus.Id)
+            throw new ValidationException(["Only camps in 'Upcoming' status can be launched."]);
+
 
         var closeUtc = dto.CloseDate.ToUniversalTime();
 
@@ -164,7 +206,7 @@ public class HealthCampService : IHealthCampService
             var emailRequestDto = new EmailRequestDto
             {
                 ToEmail = p.User.Email,
-                Subject = "Health Camp Invitation",
+                Subject = "Health Camp Invitation: " + camp.Name,
                 TemplateKey = "HealthCampInvitation",
                 Model = new
                 {
@@ -204,7 +246,7 @@ public class HealthCampService : IHealthCampService
             var emailRequestDto = new EmailRequestDto
             {
                 ToEmail = a.Subcontractor.User.Email,
-                Subject = "Health Camp Invitation",
+                Subject = "Health Camp Invitation: " + camp.Name,
                 TemplateKey = "HealthCampInvitation",
                 Model = new
                 {
@@ -217,29 +259,57 @@ public class HealthCampService : IHealthCampService
             await _email.SendAsync(emailRequestDto);
         }
 
-        if (camp.HealthCampStatus != null)
-        {
-            camp.HealthCampStatus.Name = "Ongoing";
-        }
 
-        // Persist all changes
+        var ongoingStatus = await _lookupRepository.FindByNameAsync("Ongoing") ?? throw new InvalidOperationException("Ongoing status not found");
+        camp.HealthCampStatusId = ongoingStatus.Id;
+
+
+
+        // Persist changes
         await _repo.UpdateAsync(camp);
         await _repo.SaveChangesAsync();
 
-        // Poster QR codes for admin printing
+        // Build poster QR codes 
         var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", camp.ParticipantPosterJti!, closeUtc);
         var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", camp.SubcontractorPosterJti!, closeUtc);
 
-        var patientQrBase64 = _qr.GenerateBase64Png(_tokenFactory.BuildSignInUrl(participantPosterToken));
-        var subcoQrBase64 = _qr.GenerateBase64Png(_tokenFactory.BuildSignInUrl(subcontractorPosterToken));
+        var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);
+        var subcontractorPosterUrl = _tokenFactory.BuildSignInUrl(subcontractorPosterToken);
 
+        var patientQrBase64 = _qr.GenerateBase64Png(participantPosterUrl);
+        var subcoQrBase64 = _qr.GenerateBase64Png(subcontractorPosterUrl);
+
+        //  write PNGs to disk under wwwroot/qrcodes/healthcamps/{campId}/
+        var folder = $"qrcodes/healthcamps/{camp.Id:N}";
+        var participantBytes = DecodeBase64Png(patientQrBase64);
+        var subcontractorBytes = DecodeBase64Png(subcoQrBase64);
+
+        // Filenames can carry JTI and expiry to avoid stale caching
+        var participantFile = $"participant_{camp.ParticipantPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+        var subcontractorFile = $"subcontractor_{camp.SubcontractorPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+
+        var participantPngUrl = await _files.SaveAsync(participantBytes, folder, participantFile, "image/png");
+        var subcontractorPngUrl = await _files.SaveAsync(subcontractorBytes, folder, subcontractorFile, "image/png");
+
+        // Return URLs 
         return new LaunchHealthCampResponseDto
         {
             HealthCampId = camp.Id,
             CloseDate = closeUtc,
-            ParticipantPosterQrBase64 = patientQrBase64,
-            SubcontractorPosterQrBase64 = subcoQrBase64
+            ParticipantPosterQrUrl = participantPngUrl,
+            SubcontractorPosterQrUrl = subcontractorPngUrl
         };
+    }
+
+
+    private static byte[] DecodeBase64Png(string base64)
+    {
+        // handle data URI prefix if present
+        const string prefix = "data:image/png;base64,";
+        if (base64.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            base64 = base64[prefix.Length..];
+
+        return Convert.FromBase64String(base64);
     }
 
 
@@ -248,4 +318,43 @@ public class HealthCampService : IHealthCampService
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
         await _repo.DeleteAsync(camp.Id);
     }
+
+    // inside HealthCampService
+    public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid subcontractorId)
+    {
+        var camps = subcontractorId == Guid.Empty
+            ? await _repo.GetAllUpcomingCampsAsync()
+            : await _repo.GetMyUpcomingCampsAsync(subcontractorId);
+
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
+    public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid subcontractorId)
+    {
+        var camps = subcontractorId == Guid.Empty
+            ? await _repo.GetAllCompleteCampsAsync()
+            : await _repo.GetMyCompleteCampsAsync(subcontractorId);
+
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
+    public async Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid subcontractorId)
+    {
+        var camps = subcontractorId == Guid.Empty
+            ? await _repo.GetAllCanceledCampsAsync()
+            : await _repo.GetMyCanceledCampsAsync(subcontractorId);
+
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
+
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize)
+       => _repo.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize)
+        => _repo.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize)
+        => _repo.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
 }

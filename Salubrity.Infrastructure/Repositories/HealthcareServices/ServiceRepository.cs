@@ -87,8 +87,13 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
                     .ThenInclude(c => c.Subcategories.Where(sc => sc.IsActive))
                 .Include(s => s.Industry)
                 .Include(s => s.IntakeForm)
+                    .ThenInclude(f => f.Sections!)      // Handle sections inside the form
+                        .ThenInclude(sec => sec.Fields) // Handle section fields
+                .Include(s => s.IntakeForm!.Fields)     // Handle standalone fields (no section)
                 .FirstOrDefaultAsync(s => s.Id == id && s.IsActive, ct);
         }
+
+
 
         // ========== VALIDATION & CONSTRAINTS ==========
 

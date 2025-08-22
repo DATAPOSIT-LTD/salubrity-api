@@ -1,7 +1,8 @@
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.Identity; // Assuming Patient is in Identity
+using Salubrity.Domain.Entities.Lookup;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Salubrity.Domain.Entities.Lookup;
 
 namespace Salubrity.Domain.Entities.IntakeForms;
 
@@ -16,6 +17,12 @@ public class IntakeFormResponse : BaseAuditableEntity
 
     [Required]
     public Guid SubmittedByUserId { get; set; }
+
+    [Required]
+    public Guid PatientId { get; set; }
+
+    [ForeignKey(nameof(PatientId))]
+    public Patient Patient { get; set; } = default!;
 
     public Guid? ServiceId { get; set; }
 

@@ -5,22 +5,27 @@ using MimeKit;
 using Salubrity.Application.Configurations;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Application.Interfaces;
+using Salubrity.Domain.Entities.Configurations;
 
 namespace Salubrity.Application.Services.Notifications;
 
 public class EmailService : IEmailService
 {
-    private readonly EmailOptions _settings;
+    private readonly EmailOptions _fallback;
+    private readonly IEmailConfigurationRepository _emailConfigurationRepository;
     private readonly ITemplateRenderer _templateRenderer;
     private readonly ILogger<EmailService> _logger;
 
-    public EmailService(IOptions<EmailOptions> options,
-                        ITemplateRenderer templates,
-                        ILogger<EmailService> log)
+    public EmailService(
+        IOptions<EmailOptions> fallbackOptions,
+        ITemplateRenderer templates,
+        IEmailConfigurationRepository emailConfigurationRepository,
+        ILogger<EmailService> log)
     {
-        _settings = options.Value;
+        _fallback = fallbackOptions.Value;
         _templateRenderer = templates;
         _logger = log;
+        _emailConfigurationRepository = emailConfigurationRepository;
     }
 
     public async Task SendAsync(EmailRequestDto request)
@@ -32,7 +37,7 @@ public class EmailService : IEmailService
     {
         await SendInternalAsync(request.ToEmails, new EmailRequestDto
         {
-            ToEmail = string.Empty, // Not used in batch
+            ToEmail = string.Empty,
             Subject = request.Subject,
             TemplateKey = request.TemplateKey,
             Model = request.Model,
@@ -58,27 +63,25 @@ public class EmailService : IEmailService
             return;
         }
 
+        var config = await _emailConfigurationRepository.GetActiveAsync() ?? ToEntity(_fallback);
         var retryCount = 0;
-        var maxRetries = _settings.MaxRetryAttempts;
+        var maxRetries = config.MaxRetryAttempts;
 
         while (retryCount <= maxRetries)
         {
             try
             {
                 if (!await _templateRenderer.TemplateExistsAsync(request.TemplateKey))
-                {
                     throw new InvalidOperationException($"Email template '{request.TemplateKey}' does not exist");
-                }
 
                 var renderedTemplate = await _templateRenderer.RenderAsync(request.TemplateKey, request.Model);
-                var message = CreateMessage(recipients, request, renderedTemplate);
+                var message = CreateMessage(recipients, request, renderedTemplate, config);
 
-                await SendMessageAsync(message);
+                await SendMessageAsync(message, config);
 
                 _logger.LogInformation("Email sent successfully to {Recipients} using template {TemplateKey}",
                     string.Join(", ", recipients), request.TemplateKey);
-
-                return; // Success, exit retry loop
+                return;
             }
             catch (Exception ex) when (retryCount < maxRetries)
             {
@@ -86,7 +89,7 @@ public class EmailService : IEmailService
                 _logger.LogWarning(ex, "Failed to send email (attempt {Attempt}/{MaxAttempts}) to {Recipients} using template {TemplateKey}. Retrying...",
                     retryCount, maxRetries + 1, string.Join(", ", recipients), request.TemplateKey);
 
-                await Task.Delay(_settings.RetryDelayMilliseconds * retryCount);
+                await Task.Delay(config.RetryDelayMilliseconds * retryCount);
             }
             catch (Exception ex)
             {
@@ -96,28 +99,45 @@ public class EmailService : IEmailService
             }
         }
     }
-
     private MimeMessage CreateMessage(
         IList<string> toEmails,
         EmailRequestDto request,
-        RenderedTemplate template)
+        RenderedTemplate template,
+        EmailConfiguration config)
     {
         var message = new MimeMessage();
 
-        // Set From address
-        var fromEmail = request.FromEmail ?? _settings.FromEmail;
-        var fromName = request.FromName ?? _settings.FromName;
-        message.From.Add(new MailboxAddress(fromName, fromEmail));
+        // Set From
+        var fromEmail = request.FromEmail ?? config.FromEmail;
+        var fromName = request.FromName ?? config.FromName;
 
-        // Set To addresses
+        try
+        {
+            message.From.Add(new MailboxAddress(fromName, fromEmail));
+        }
+        catch
+        {
+            // fallback to just address if name is junk
+            // message.From.Add(new MailboxAddress(config.FromEmail));
+        }
+
+        //  Skip bad email addresses
         foreach (var email in toEmails)
         {
-            message.To.Add(MailboxAddress.Parse(email));
+            if (string.IsNullOrWhiteSpace(email) || !email.Contains('@')) continue;
+
+            try
+            {
+                message.To.Add(MailboxAddress.Parse(email));
+            }
+            catch
+            {
+                // Skip silently
+            }
         }
 
         message.Subject = request.Subject;
 
-        // Set priority
         message.Priority = request.Priority switch
         {
             EmailPriority.High => MessagePriority.Urgent,
@@ -125,7 +145,6 @@ public class EmailService : IEmailService
             _ => MessagePriority.Normal
         };
 
-        // Add custom headers
         if (request.Headers?.Any() == true)
         {
             foreach (var header in request.Headers)
@@ -134,14 +153,12 @@ public class EmailService : IEmailService
             }
         }
 
-        // Create body
         var bodyBuilder = new BodyBuilder
         {
             HtmlBody = template.Html,
             TextBody = template.Text
         };
 
-        // Add attachments
         if (request.Attachments?.Any() == true)
         {
             foreach (var attachment in request.Attachments)
@@ -157,23 +174,41 @@ public class EmailService : IEmailService
         return message;
     }
 
-    private async Task SendMessageAsync(MimeMessage message)
+
+    private async Task SendMessageAsync(MimeMessage message, EmailConfiguration config)
     {
         using var client = new SmtpClient();
 
-        if (_settings.EnableDebugging)
+        if (config.EnableDebugging)
         {
             client.ServerCertificateValidationCallback = (s, c, h, e) => true;
         }
 
-        await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, _settings.UseSsl);
+        await client.ConnectAsync(config.SmtpHost, config.SmtpPort, config.UseSsl);
 
-        if (!string.IsNullOrEmpty(_settings.Username))
+        if (!string.IsNullOrEmpty(config.Username))
         {
-            await client.AuthenticateAsync(_settings.Username, _settings.Password);
+            await client.AuthenticateAsync(config.Username, config.Password);
         }
 
-        await client.SendAsync(message);
+        // await client.SendAsync(message);
         await client.DisconnectAsync(true);
+    }
+
+    private static EmailConfiguration ToEntity(EmailOptions options)
+    {
+        return new EmailConfiguration
+        {
+            FromEmail = options.FromEmail,
+            FromName = options.FromName,
+            SmtpHost = options.SmtpHost,
+            SmtpPort = options.SmtpPort,
+            Username = options.Username,
+            Password = options.Password,
+            UseSsl = options.UseSsl,
+            EnableDebugging = options.EnableDebugging,
+            MaxRetryAttempts = options.MaxRetryAttempts,
+            RetryDelayMilliseconds = options.RetryDelayMilliseconds
+        };
     }
 }

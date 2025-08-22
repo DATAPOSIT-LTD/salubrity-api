@@ -16,6 +16,7 @@ public class HealthAssessmentMetricConfiguration : IEntityTypeConfiguration<Heal
             .OnDelete(DeleteBehavior.Cascade);
 
         b.Property(x => x.Name).HasMaxLength(150).IsRequired();
-        b.Property(x => x.ReferenceRange).HasMaxLength(100);
+
+        // ReferenceRange removed — it's now obsolete
     }
 }

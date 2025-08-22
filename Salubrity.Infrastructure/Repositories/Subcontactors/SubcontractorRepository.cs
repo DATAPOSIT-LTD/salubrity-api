@@ -21,11 +21,22 @@ namespace Salubrity.Infrastructure.Repositories
         {
             await _db.Subcontractors.AddAsync(entity);
         }
-
         public async Task<Subcontractor?> GetByIdAsync(Guid id)
         {
-            return await _db.Subcontractors.FindAsync(id);
+            return await _db.Subcontractors
+                .Include(s => s.User)
+                .Include(s => s.Status)
+                .Include(s => s.Industry)
+                .Include(s => s.Specialties)
+                    .ThenInclude(ss => ss.Service)
+                .Include(s => s.RoleAssignments)
+                    .ThenInclude(ra => ra.SubcontractorRole)
+                .Include(s => s.CampAssignments)
+                .AsNoTracking()
+                .AsSplitQuery()
+                .FirstOrDefaultAsync(s => s.Id == id);
         }
+
         public async Task<List<Subcontractor>> GetAllWithDetailsAsync()
         {
             return await _db.Subcontractors
@@ -37,35 +48,40 @@ namespace Salubrity.Infrastructure.Repositories
                 .Include(s => s.RoleAssignments)
                     .ThenInclude(ra => ra.SubcontractorRole)
                 .Include(s => s.CampAssignments)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .ToListAsync();
         }
-
 
         public async Task<Subcontractor?> GetByIdWithDetailsAsync(Guid id)
         {
             return await _db.Subcontractors
+                .Include(s => s.User)
                 .Include(s => s.Status)
                 .Include(s => s.Industry)
                 .Include(s => s.Specialties)
                     .ThenInclude(ss => ss.Service)
                 .Include(s => s.RoleAssignments)
-                    .ThenInclude(sr => sr.SubcontractorRole)
+                    .ThenInclude(ra => ra.SubcontractorRole)
+                .Include(s => s.CampAssignments)
+                .AsNoTracking()
+                .AsSplitQuery()
                 .FirstOrDefaultAsync(s => s.Id == id);
         }
 
-        public async Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary)
+        public async Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary, CancellationToken ct = default)
         {
             var exists = await _db.SubcontractorRoleAssignments
-                .AnyAsync(r => r.SubcontractorId == subcontractorId && r.SubcontractorRoleId == roleId);
+                .AnyAsync(r => r.SubcontractorId == subcontractorId && r.SubcontractorRoleId == roleId, ct);
 
             if (!exists)
             {
                 if (isPrimary)
                 {
-                    // unset other primary roles
+                    // Unset other primary roles
                     var existingPrimaries = await _db.SubcontractorRoleAssignments
                         .Where(r => r.SubcontractorId == subcontractorId && r.IsPrimary)
-                        .ToListAsync();
+                        .ToListAsync(ct);
 
                     foreach (var r in existingPrimaries)
                         r.IsPrimary = false;
@@ -78,9 +94,12 @@ namespace Salubrity.Infrastructure.Repositories
                     IsPrimary = isPrimary
                 };
 
-                await _db.SubcontractorRoleAssignments.AddAsync(assignment);
+                await _db.SubcontractorRoleAssignments.AddAsync(assignment, ct);
             }
+
+            await _db.SaveChangesAsync(ct);
         }
+
 
         public async Task AssignSpecialtyAsync(Guid subcontractorId, Guid serviceId)
         {

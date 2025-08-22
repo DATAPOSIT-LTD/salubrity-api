@@ -1,4 +1,3 @@
-using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Application.DTOs.HealthCamps;

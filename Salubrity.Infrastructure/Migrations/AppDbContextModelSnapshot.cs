@@ -131,6 +131,81 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("Salubrity.Domain.Entities.Configurations.EmailConfiguration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("EnableDebugging")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FromEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FromName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("MaxRetryAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Password")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("RetryDelayMilliseconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SmtpHost")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SmtpPort")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("UseSsl")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EmailConfigurations");
+                });
+
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthAssessment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -189,6 +264,9 @@ namespace Salubrity.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ConfigId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -210,14 +288,13 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid?>("MetricConfigId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
-
-                    b.Property<string>("ReferenceRange")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -230,6 +307,8 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ConfigId");
+
                     b.HasIndex("HealthAssessmentId");
 
                     b.HasIndex("HealthMetricStatusId");
@@ -241,6 +320,9 @@ namespace Salubrity.Infrastructure.Migrations
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ConfigId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -262,12 +344,23 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid>("HealthAssessmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("HealthMetricStatusId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("Priority")
+                    b.Property<Guid?>("MetricConfigId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int?>("Priority")
                         .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .HasColumnType("integer");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -280,11 +373,135 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<decimal?>("Value")
+                        .HasColumnType("numeric");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ConfigId");
 
                     b.HasIndex("HealthAssessmentId");
 
+                    b.HasIndex("HealthMetricStatusId");
+
                     b.ToTable("HealthAssessmentRecommendations");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthMetricConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("InterpretationFormula")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal?>("MaxAcceptable")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("MinAcceptable")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid?>("ScoreMethodId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ValueTypeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScoreMethodId");
+
+                    b.HasIndex("ValueTypeId");
+
+                    b.ToTable("HealthMetricConfigs");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthMetricThreshold", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("MaxValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("MetricConfigId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("MinValue")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("StatusId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("StatusLabel")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MetricConfigId");
+
+                    b.HasIndex("StatusId");
+
+                    b.ToTable("HealthMetricThresholds");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCamp", b =>
@@ -442,6 +659,9 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ProfessionId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("ServiceId")
                         .HasColumnType("uuid");
@@ -1170,7 +1390,7 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.HasIndex("FormId", "SectionId", "Order");
 
-                    b.ToTable("FormFields");
+                    b.ToTable("IntakeFormField");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormFieldOption", b =>
@@ -1308,6 +1528,9 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ResponseStatusId")
                         .HasColumnType("uuid");
 
@@ -1326,6 +1549,8 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("IntakeFormVersionId");
+
+                    b.HasIndex("PatientId");
 
                     b.HasIndex("ResponseStatusId");
 
@@ -2009,6 +2234,88 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Languages");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.MetricScoreMethod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MetricScoreMethods");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.MetricValueType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MetricValueTypes");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.OrganizationStatus", b =>
@@ -2899,6 +3206,10 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthAssessmentMetric", b =>
                 {
+                    b.HasOne("Salubrity.Domain.Entities.HealthAssesment.HealthMetricConfig", "Config")
+                        .WithMany()
+                        .HasForeignKey("ConfigId");
+
                     b.HasOne("Salubrity.Domain.Entities.HealthAssesment.HealthAssessment", "HealthAssessment")
                         .WithMany("Metrics")
                         .HasForeignKey("HealthAssessmentId")
@@ -2909,6 +3220,8 @@ namespace Salubrity.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("HealthMetricStatusId");
 
+                    b.Navigation("Config");
+
                     b.Navigation("HealthAssessment");
 
                     b.Navigation("Status");
@@ -2916,13 +3229,57 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthAssessmentRecommendation", b =>
                 {
+                    b.HasOne("Salubrity.Domain.Entities.HealthAssesment.HealthMetricConfig", "Config")
+                        .WithMany()
+                        .HasForeignKey("ConfigId");
+
                     b.HasOne("Salubrity.Domain.Entities.HealthAssesment.HealthAssessment", "HealthAssessment")
                         .WithMany("Recommendations")
                         .HasForeignKey("HealthAssessmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Salubrity.Domain.Entities.Lookup.HealthMetricStatus", "Status")
+                        .WithMany()
+                        .HasForeignKey("HealthMetricStatusId");
+
+                    b.Navigation("Config");
+
                     b.Navigation("HealthAssessment");
+
+                    b.Navigation("Status");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthMetricConfig", b =>
+                {
+                    b.HasOne("Salubrity.Domain.Entities.Lookup.MetricScoreMethod", "ScoreMethod")
+                        .WithMany()
+                        .HasForeignKey("ScoreMethodId");
+
+                    b.HasOne("Salubrity.Domain.Entities.Lookup.MetricValueType", "ValueType")
+                        .WithMany()
+                        .HasForeignKey("ValueTypeId");
+
+                    b.Navigation("ScoreMethod");
+
+                    b.Navigation("ValueType");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthMetricThreshold", b =>
+                {
+                    b.HasOne("Salubrity.Domain.Entities.HealthAssesment.HealthMetricConfig", "MetricConfig")
+                        .WithMany("Thresholds")
+                        .HasForeignKey("MetricConfigId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Salubrity.Domain.Entities.Lookup.HealthMetricStatus", "Status")
+                        .WithMany()
+                        .HasForeignKey("StatusId");
+
+                    b.Navigation("MetricConfig");
+
+                    b.Navigation("Status");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCamp", b =>
@@ -3203,11 +3560,19 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Salubrity.Domain.Entities.Identity.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Salubrity.Domain.Entities.Lookup.IntakeFormResponseStatus", "Status")
                         .WithMany("Responses")
                         .HasForeignKey("ResponseStatusId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Patient");
 
                     b.Navigation("Status");
 
@@ -3537,6 +3902,11 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Metrics");
 
                     b.Navigation("Recommendations");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthMetricConfig", b =>
+                {
+                    b.Navigation("Thresholds");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCamp", b =>

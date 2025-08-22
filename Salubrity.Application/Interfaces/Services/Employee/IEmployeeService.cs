@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Salubrity.Application.DTOs.Employees;
-using Salubrity.Application.DTOs.Users;
 
 namespace Salubrity.Application.Interfaces.Services.Employee;
 

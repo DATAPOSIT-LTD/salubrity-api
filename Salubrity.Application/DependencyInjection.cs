@@ -10,6 +10,7 @@ using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Application.Interfaces.Services.HomepageOverview;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
@@ -20,6 +21,7 @@ using Salubrity.Application.Services.EmployeeServices;
 using Salubrity.Application.Services.Forms;
 using Salubrity.Application.Services.HealthCamps;
 using Salubrity.Application.Services.HealthcareServices;
+using Salubrity.Application.Services.HomepageOverview;
 using Salubrity.Application.Services.IntakeForms;
 using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
@@ -81,9 +83,8 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<SubcontractorStatus>>();
             services.AddScoped<GenericLookupService<SubcontractorHealthCampAssignmentStatus>>();
             services.AddScoped<IEmailService, EmailService>();
-
             services.AddScoped<ITemplateRenderer, ScribanTemplateRenderer>();
-
+            services.AddScoped<IHomepageOverviewService, HomepageOverviewService>();
 
 
             // Auth services

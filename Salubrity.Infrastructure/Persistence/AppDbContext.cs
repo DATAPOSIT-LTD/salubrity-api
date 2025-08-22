@@ -91,15 +91,6 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<HealthCampTempCredential> HealthCampTempCredentials => Set<HealthCampTempCredential>();
         public DbSet<EmailConfiguration> EmailConfigurations => Set<EmailConfiguration>();
 
-
-
-
-
-
-
-
-
-
         // ─────────────────────────────────────
         //  Model Configuration
         // ─────────────────────────────────────

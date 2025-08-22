@@ -26,5 +26,5 @@ public class HealthMetricConfig : BaseAuditableEntity
     [MaxLength(2000)]
     public string? InterpretationFormula { get; set; }
 
-    public virtual ICollection<HealthMetricThreshold> Thresholds { get; set; } = new List<HealthMetricThreshold>();
+    public virtual ICollection<HealthMetricThreshold> Thresholds { get; set; } = [];
 }

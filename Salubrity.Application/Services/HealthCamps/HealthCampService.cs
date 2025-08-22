@@ -247,10 +247,11 @@ public class HealthCampService : IHealthCampService
             await _email.SendAsync(emailRequestDto);
         }
 
-        if (camp.HealthCampStatus != null)
-        {
-            camp.HealthCampStatus.Name = "Ongoing";
-        }
+
+        var ongoingStatus = await _lookupRepository.FindByNameAsync("Ongoing") ?? throw new InvalidOperationException("Ongoing status not found");
+        camp.HealthCampStatusId = ongoingStatus.Id;
+
+
 
         // Persist changes
         await _repo.UpdateAsync(camp);

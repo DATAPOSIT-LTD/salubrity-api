@@ -1,4 +1,3 @@
-using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Application.Interfaces.Repositories.HealthcareServices;

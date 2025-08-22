@@ -1,6 +1,4 @@
 // File: Salubrity.Application/Interfaces/Security/IJwtService.cs
-using System;
-using System.Collections.Generic;
 using System.Security.Claims;
 
 namespace Salubrity.Application.Interfaces.Security

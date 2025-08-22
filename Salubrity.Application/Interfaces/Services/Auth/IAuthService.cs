@@ -1,4 +1,3 @@
-using System.Threading.Tasks;
 using Salubrity.Application.DTOs.Auth;
 
 namespace Salubrity.Application.Interfaces.Services.Auth

@@ -1,9 +1,6 @@
 ﻿// Mappings/UserProfile.cs
 using AutoMapper;
-using Salubrity.Application.DTOs.Auth;
-using Salubrity.Domain.Entities;
 using Salubrity.Domain.Entities.Identity;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 public class UserProfile : Profile
 {

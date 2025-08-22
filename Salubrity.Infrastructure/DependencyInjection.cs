@@ -31,6 +31,15 @@ using Salubrity.Infrastructure.Repositories.Users;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
 
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Infrastructure.Repositories.Employees;
+using Salubrity.Infrastructure.Repositories;
+using Salubrity.Infrastructure.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
+using Salubrity.Infrastructure.Repositories.HealthAssesment;
+using Salubrity.Application.Interfaces.Repositories.Patients;
+using Salubrity.Infrastructure.Repositories.Patients;
+
 
 
 namespace Salubrity.Infrastructure;
@@ -76,6 +85,15 @@ public static class DependencyInjection
         services.AddScoped<ICampTokenFactory, CampTokenFactoryAdapter>();
         services.Configure<EmailSettings>(config.GetSection(EmailSettings.SectionName));
         services.AddScoped<IHomepageOverviewRepository, HomepageOverviewRepository>();
+        services.AddScoped<IHealthMetricThresholdRepository, HealthMetricThresholdRepository>();
+        services.AddScoped<IUsersReadRepository, UsersReadRepository>();
+        services.AddScoped<IUserRoleReadRepository, UserRoleReadRepository>();
+        services.AddScoped<ISubcontractorReadRepository, SubcontractorReadRepository>();
+        // Salubrity.Infrastructure/DependencyInjection.cs
+        services.AddScoped<IEmployeeReadRepository, EmployeeReadRepository>();
+
+        services.AddScoped<IEmailConfigurationRepository, EmailConfigurationRepository>();
+        services.AddScoped<IPatientRepository, PatientRepository>();
 
 
 

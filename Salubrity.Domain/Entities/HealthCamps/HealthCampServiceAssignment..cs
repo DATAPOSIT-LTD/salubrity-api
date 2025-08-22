@@ -17,5 +17,8 @@ public class HealthCampServiceAssignment : BaseAuditableEntity
 
     [ForeignKey("Subcontractor")]
     public Guid SubcontractorId { get; set; }
+
+    [ForeignKey("SubcontractorRoleAssignment")]
+    public Guid? ProfessionId { get; set; }
     public virtual Salubrity.Domain.Entities.Subcontractor.Subcontractor Subcontractor { get; set; } = default!;
 }

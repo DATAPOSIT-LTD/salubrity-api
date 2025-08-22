@@ -6,6 +6,7 @@ using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
+using Salubrity.Application.DTOs.Forms;
 
 namespace Salubrity.Application.Services.HealthcareServices;
 
@@ -53,11 +54,22 @@ public class ServiceService : IServiceService
     public async Task<ServiceResponseDto> GetByIdAsync(Guid id)
     {
         _logger.LogInformation("Retrieving service {ServiceId} with hierarchy", id);
+
         var service = await _serviceRepo.GetByIdWithHierarchyAsync(id)
             ?? throw new NotFoundException($"Service with ID {id} not found");
 
-        return _mapper.Map<ServiceResponseDto>(service);
+        // Map base service
+        var dto = _mapper.Map<ServiceResponseDto>(service);
+
+        // Manually map the attached IntakeForm if present
+        if (service.IntakeForm is not null)
+        {
+            dto.IntakeForm = _mapper.Map<FormResponseDto>(service.IntakeForm);
+        }
+
+        return dto;
     }
+
 
     public async Task<ServiceResponseDto> CreateAsync(CreateServiceDto input)
     {

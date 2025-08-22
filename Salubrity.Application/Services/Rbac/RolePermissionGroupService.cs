@@ -1,12 +1,7 @@
 using Salubrity.Application.DTOs.Rbac;
 using Salubrity.Application.Interfaces.Rbac;
-using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Shared.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Salubrity.Application.Services.Rbac
 {

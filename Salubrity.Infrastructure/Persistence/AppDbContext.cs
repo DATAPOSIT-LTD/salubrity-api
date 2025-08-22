@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Audit;
+using Salubrity.Domain.Entities.Configurations;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
@@ -79,19 +80,16 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<UserLanguage> UserLanguages => Set<UserLanguage>();
         public DbSet<FieldType> FieldTypes => Set<FieldType>();
         public DbSet<IntakeFormResponseStatus> IntakeFormResponseStatuses => Set<IntakeFormResponseStatus>();
+        public DbSet<IntakeFormResponse> IntakeFormResponses => Set<IntakeFormResponse>();
+        public DbSet<IntakeFormFieldResponse> IntakeFormFieldResponses => Set<IntakeFormFieldResponse>();
+        public DbSet<IntakeFormVersion> IntakeFormVersions => Set<IntakeFormVersion>();
+        public DbSet<IntakeFormField> IntakeFormFields => Set<IntakeFormField>();
         public DbSet<HealthAssessment> HealthAssessments => Set<HealthAssessment>();
         public DbSet<HealthAssessmentMetric> HealthAssessmentMetrics => Set<HealthAssessmentMetric>();
+        public DbSet<HealthMetricThreshold> HealthMetricThresholds => Set<HealthMetricThreshold>();
         public DbSet<HealthAssessmentRecommendation> HealthAssessmentRecommendations => Set<HealthAssessmentRecommendation>();
         public DbSet<HealthCampTempCredential> HealthCampTempCredentials => Set<HealthCampTempCredential>();
-
-
-
-
-
-
-
-
-
+        public DbSet<EmailConfiguration> EmailConfigurations => Set<EmailConfiguration>();
 
         // ─────────────────────────────────────
         //  Model Configuration

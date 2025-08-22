@@ -1,7 +1,4 @@
 ﻿using Salubrity.Domain.Entities.Rbac;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Salubrity.Application.Interfaces.Repositories.Rbac
 

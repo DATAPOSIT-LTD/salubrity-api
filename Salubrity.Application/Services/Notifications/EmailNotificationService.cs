@@ -1,13 +1,9 @@
 #nullable enable
-using System;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.Join;
-using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Application.DTOs.HealthAssessment;
 
 namespace Salubrity.Application.Services;
@@ -41,8 +37,8 @@ public class EmailNotificationService
             var request = new EmailRequestDto
             {
                 ToEmail = toEmail,
-                Subject = "Appointment Confirmation - Salubrity Centre",
-                TemplateKey = "appointment-confirmation",
+                Subject = "Health Camp Confirmation - Salubrity Centre",
+                TemplateKey = "healthcamp-confirmation",
                 Model = new
                 {
                     patient = new
@@ -51,7 +47,7 @@ public class EmailNotificationService
                         last_name = healthCampParticipant.User.LastName ?? string.Empty,
                         email = healthCampParticipant.User.Email ?? string.Empty
                     },
-                    appointment = new
+                    healthCamp = new
                     {
                         date = healthCamp.StartDate,
                         time = healthCamp.StartTime,
@@ -61,8 +57,8 @@ public class EmailNotificationService
                             address = healthCamp.Location ?? string.Empty
                         },
                     },
-                    cta_url = $"https://portal.salubritycentre.com/appointments/{healthCamp.Id}",
-                    cta_text = "View Appointment Details"
+                    cta_url = $"https://portal.salubritycentre.com/patient/camps/{healthCamp.Id}",
+                    cta_text = "View Health Camp Details"
                 }
             };
 

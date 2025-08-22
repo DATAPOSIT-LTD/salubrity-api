@@ -8,4 +8,8 @@ public class MeResponseDto
     public List<string> Roles { get; set; } = [];
     public List<string> Permissions { get; set; } = [];
     public List<MenuResponseDto> Menus { get; set; } = [];
+
+    // Add these:
+    public string? RelatedEntityType { get; set; }
+    public Guid? RelatedEntityId { get; set; }
 }

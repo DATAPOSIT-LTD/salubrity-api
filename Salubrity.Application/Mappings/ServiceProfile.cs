@@ -1,8 +1,10 @@
 // File: Salubrity.Application/Mapping/ServiceMappingProfile.cs
 #nullable enable
 using AutoMapper;
+using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.IntakeForms;
 
 namespace Salubrity.Application.Mapping
 {
@@ -24,6 +26,11 @@ namespace Salubrity.Application.Mapping
             // Subcategory entity -> Subcategory DTO
             CreateMap<ServiceSubcategory, ServiceSubcategoryDto>();
 
+            CreateMap<IntakeForm, FormResponseDto>();
+            CreateMap<IntakeFormSection, FormSectionResponseDto>();
+            CreateMap<IntakeFormField, FormFieldResponseDto>();
+
+
             // ========== WRITE DTO TO ENTITY MAPPINGS ==========
 
             // Create DTOs -> Entities
@@ -36,14 +43,21 @@ namespace Salubrity.Application.Mapping
                 .ForMember(dest => dest.Industry, opt => opt.Ignore()) // Navigation property
                 .ForMember(dest => dest.IntakeForm, opt => opt.Ignore()); // Navigation property
 
+            CreateMap<Service, ServiceResponseDto>()
+                .ForMember(dest => dest.IntakeForm, opt => opt.MapFrom(src => src.IntakeForm));
+
+
+
             CreateMap<CreateServiceCategoryDto, ServiceCategory>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.ServiceId, opt => opt.Ignore()) // Will be set by service
                 .ForMember(dest => dest.Service, opt => opt.Ignore()) // Navigation property
+                .ForMember(dest => dest.Subcategories, opt => opt.Ignore()) //  Prevent AutoMapper from mapping these
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedBy, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedBy, opt => opt.Ignore());
+
 
             CreateMap<CreateServiceSubcategoryDto, ServiceSubcategory>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore())

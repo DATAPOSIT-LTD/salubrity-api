@@ -1,10 +1,7 @@
 // File: Application/Services/Lookups/LookupServiceFactory.cs
 
-using System;
 using Microsoft.Extensions.DependencyInjection;
-using Salubrity.Application.Interfaces.Services.Lookups;
-using Salubrity.Application.Lookups; // 👈 include your registry
-using Salubrity.Domain.Common;
+using Salubrity.Application.Lookups; //  include your registry
 
 public class LookupServiceFactory : ILookupServiceFactory
 {

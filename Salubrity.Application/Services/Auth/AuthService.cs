@@ -1,7 +1,10 @@
 ﻿using Salubrity.Application.DTOs.Auth;
 using Salubrity.Application.DTOs.Menus;
 using Salubrity.Application.Interfaces.Rbac;
-using Salubrity.Application.Interfaces.Repositories.Menus;
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
+using Salubrity.Application.Interfaces.Repositories.Lookups;
+using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
@@ -9,11 +12,8 @@ using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Rbac;
+using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Shared.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Salubrity.Application.Services.Auth
 {
@@ -26,6 +26,10 @@ namespace Salubrity.Application.Services.Auth
         private readonly IRoleRepository _roleRepository;
         private readonly IRolePermissionGroupService _rolePermissionGroupService;
         private readonly IMenuRoleService _menuRoleService;
+        private readonly IIndustryRepository _industryRepository;
+        private readonly ISubcontractorRepository _subcontractorRepository;
+        private readonly ILookupRepository<SubcontractorStatus> _subcontractorStatusRepository;
+        private readonly IPatientRepository _patientRepository;
 
         public AuthService(
             IUserRepository userRepository,
@@ -34,8 +38,11 @@ namespace Salubrity.Application.Services.Auth
             ITotpService totpService,
             IRoleRepository roleRepository,
             IMenuRoleService menuRoleService,
-            IRolePermissionGroupService rolePermissionGroupService
-
+            IRolePermissionGroupService rolePermissionGroupService,
+            IIndustryRepository industryRepository,
+            ISubcontractorRepository subcontractorRepository,
+            ILookupRepository<SubcontractorStatus> subcontractorStatusRepository,
+            IPatientRepository patientRepository
             )
         {
             _userRepository = userRepository;
@@ -45,48 +52,32 @@ namespace Salubrity.Application.Services.Auth
             _roleRepository = roleRepository;
             _menuRoleService = menuRoleService;
             _rolePermissionGroupService = rolePermissionGroupService;
-
+            _industryRepository = industryRepository;
+            _subcontractorRepository = subcontractorRepository;
+            _subcontractorStatusRepository = subcontractorStatusRepository;
+            _patientRepository = patientRepository;
         }
+
+
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
         {
-            Console.WriteLine("📝 [Register] Starting registration process... Password: " + input.Password);
-
             if (!input.AcceptTerms)
-            {
-                Console.WriteLine("❌ [Register] Terms not accepted.");
                 throw new ValidationException(["You must accept the Terms & Conditions to register."]);
-            }
 
             if (input.Password != input.ConfirmPassword)
-            {
-                Console.WriteLine("❌ [Register] Passwords do not match.");
                 throw new ValidationException(["Passwords do not match."]);
-            }
 
             var normalizedEmail = input.Email.Trim().ToLowerInvariant();
-            Console.WriteLine($"📧 [Register] Normalized email: {normalizedEmail}");
-
             var existingUser = await _userRepository.FindUserByEmailAsync(normalizedEmail);
             if (existingUser is not null)
-            {
-                Console.WriteLine("❌ [Register] Email already exists.");
                 throw new ValidationException(["A user with this email already exists."]);
-            }
 
-            var role = await _roleRepository.GetByIdAsync(input.RoleId);
-            if (role is null)
-            {
-                Console.WriteLine($"❌ [Register] Role not found for ID: {input.RoleId}");
-                throw new NotFoundException("Role", input.RoleId.ToString());
-            }
+            var role = await _roleRepository.GetByIdAsync(input.RoleId)
+                ?? throw new NotFoundException("Role", input.RoleId.ToString());
 
-            Console.WriteLine("🔐 [Register] Hashing password...");
             var hashed = _passwordHasher.HashPassword(input.Password);
-            Console.WriteLine("✅ [Register] Password hashed: " + hashed);
-
             var userId = Guid.NewGuid();
-            Console.WriteLine($"🆔 [Register] Generated User ID: {userId}");
 
             var user = new User
             {
@@ -99,31 +90,73 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles =
-        [
+                UserRoles = new List<UserRole>
+        {
             new UserRole
             {
                 UserId = userId,
                 RoleId = input.RoleId
             }
-        ]
+        }
             };
 
-            Console.WriteLine("💾 [Register] Saving user...");
             await _userRepository.AddUserAsync(user);
-            Console.WriteLine("✅ [Register] User saved.");
+
+            // Create & link related entity based on role
+            switch (role.Name)
+            {
+                case "Subcontractor":
+                    {
+                        var industry = await _industryRepository.GetByNameAsync("General")
+                            ?? throw new NotFoundException("Industry", "General");
+
+                        var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
+                            ?? throw new NotFoundException("SubcontractorStatus", "Active");
+
+                        var subcontractor = new Salubrity.Domain.Entities.Subcontractor.Subcontractor
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = user.Id,
+                            IndustryId = industry.Id,
+                            StatusId = status.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            IsDeleted = false
+                        };
+
+                        await _subcontractorRepository.AddAsync(subcontractor);
+
+                        user.RelatedEntityType = "Subcontractor";
+                        user.RelatedEntityId = subcontractor.Id;
+                        await _userRepository.UpdateUserAsync(user);
+                        break;
+                    }
+
+                case "Patient":
+                    {
+                        var patient = new Patient
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = user.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            IsDeleted = false
+                        };
+
+                        await _patientRepository.AddAsync(patient);
+
+                        user.RelatedEntityType = "Patient";
+                        user.RelatedEntityId = patient.Id;
+                        await _userRepository.UpdateUserAsync(user);
+                        break;
+                    }
+            }
 
             var expiresAt = DateTime.UtcNow.AddMinutes(30);
             var roles = new[] { role.Name };
-
-            Console.WriteLine($"🔑 [Register] Generating access token for user with role: {role.Name}");
             var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
             var refreshToken = _jwtService.GenerateRefreshToken();
 
-            Console.WriteLine("🎉 [Register] Registration successful.");
             return new AuthResponseDto(token, refreshToken, expiresAt);
         }
-
 
 
         public async Task<AuthResponseDto> LoginAsync(LoginRequestDto input)
@@ -275,7 +308,6 @@ namespace Salubrity.Application.Services.Auth
                 .OrderBy(m => m.Order)
                 .ToList();
 
-            var menuMap = uniqueMenus.ToDictionary(m => m.Id);
             var menuDtos = new Dictionary<Guid, MenuResponseDto>();
             var roots = new List<MenuResponseDto>();
 
@@ -308,9 +340,10 @@ namespace Salubrity.Application.Services.Auth
                 FullName = $"{user.FirstName} {user.LastName}",
                 Roles = roles,
                 Permissions = [.. permissions],
-                Menus = roots
+                Menus = roots,
+                RelatedEntityType = user.RelatedEntityType,
+                RelatedEntityId = user.RelatedEntityId
             };
         }
-
     }
 }

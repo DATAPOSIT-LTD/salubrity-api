@@ -3,8 +3,6 @@
 // File: Salubrity.Application/Interfaces/Services/Notifications/IEmailService.cs
 
 #nullable enable
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Salubrity.Application.DTOs.Email;
 
 namespace Salubrity.Application.Interfaces;

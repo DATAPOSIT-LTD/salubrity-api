@@ -224,17 +224,27 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .AsSplitQuery();
     }
-
     public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
-        var today = DateTime.UtcNow.Date;
+        // Use Nairobi timezone to define "today" properly
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
-        // “Upcoming” tab includes ongoing + future
-        // Use (EndDate ?? StartDate) >= today to include ongoing (spanning) and single-day
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c => c.IsLaunched
-                        && ((c.EndDate ?? c.StartDate) >= today)
-                        && (c.CloseDate == null || c.CloseDate >= today))
+            .Where(c =>
+                // Not closed
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (
+                    // FUTURE: starts after today (launched or not)
+                    c.StartDate > todayLocal
+                    ||
+                    // ONGOING: within date window AND launched
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                )
+            )
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }

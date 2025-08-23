@@ -205,7 +205,7 @@ public class HealthCampRepository : IHealthCampRepository
         var items = await _context.HealthCampServiceAssignments
             .Where(x => x.SubcontractorId == subcontractorId)
             .Select(x => x.HealthCamp)
-            .Where(c => !c.IsLaunched || c.HealthCampStatus!.Name == "Canceled")
+            .Where(c => !c.IsLaunched || c.HealthCampStatus!.Name == "Suspended")
             .Include(c => c.Organization)
             .AsNoTracking()
             .ToListAsync();
@@ -362,7 +362,7 @@ public class HealthCampRepository : IHealthCampRepository
         return await _context.HealthCamps
             .Where(c => !c.IsLaunched
                         || (c.HealthCampStatus != null &&
-                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "canceled")))
+                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "suspended")))
             .Include(c => c.Organization)
             .AsNoTracking()
             .OrderByDescending(c => c.StartDate)

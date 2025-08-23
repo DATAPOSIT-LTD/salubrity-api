@@ -29,7 +29,7 @@ public class HealthCampService : IHealthCampService
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
     private readonly IEmployeeReadRepository _employeeReadRepo;
-    private static readonly string[] sourceArray = ["upcoming", "complete", "canceled"];
+    private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
 
     public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files)
     {

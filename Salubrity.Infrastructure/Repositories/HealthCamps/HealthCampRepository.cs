@@ -233,7 +233,8 @@ public class HealthCampRepository : IHealthCampRepository
         // Use (EndDate ?? StartDate) >= today to include ongoing (spanning) and single-day
         return await CampsForSubcontractor(subcontractorId)
             .Where(c => c.IsLaunched
-                        && ((c.EndDate ?? c.StartDate) >= today) && c.CloseDate <= today)
+                        && ((c.EndDate ?? c.StartDate) >= today)
+                        && (c.CloseDate == null || c.CloseDate >= today))
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }

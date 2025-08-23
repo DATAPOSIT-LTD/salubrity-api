@@ -318,39 +318,37 @@ public class HealthCampService : IHealthCampService
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
         await _repo.DeleteAsync(camp.Id);
     }
-
-    // inside HealthCampService
-    public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid subcontractorId)
+    //  Use nullable Guid
+    public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId)
     {
-        var camps = subcontractorId == Guid.Empty
+        var camps = subcontractorId is null
             ? await _repo.GetAllUpcomingCampsAsync()
-            : await _repo.GetMyUpcomingCampsAsync(subcontractorId);
+            : await _repo.GetMyUpcomingCampsAsync(subcontractorId.Value);
 
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
-    public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid subcontractorId)
+    public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId)
     {
-        var camps = subcontractorId == Guid.Empty
+        var camps = subcontractorId is null
             ? await _repo.GetAllCompleteCampsAsync()
-            : await _repo.GetMyCompleteCampsAsync(subcontractorId);
+            : await _repo.GetMyCompleteCampsAsync(subcontractorId.Value);
 
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
-    public async Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid subcontractorId)
+    public async Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid? subcontractorId)
     {
-        var camps = subcontractorId == Guid.Empty
+        var camps = subcontractorId is null
             ? await _repo.GetAllCanceledCampsAsync()
-            : await _repo.GetMyCanceledCampsAsync(subcontractorId);
+            : await _repo.GetMyCanceledCampsAsync(subcontractorId.Value);
 
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
-
-
+    // These stay the same
     public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-       => _repo.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+        => _repo.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
 
     public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize)
         => _repo.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
@@ -358,31 +356,29 @@ public class HealthCampService : IHealthCampService
     public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize)
         => _repo.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
 
-
-    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default)
+    // Status-based camps with optional subcontractor
+    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default)
     {
         if (!sourceArray.Contains(status))
             throw new ValidationException(["Invalid camp status filter."]);
 
-        var camps = await _repo.GetMyCampsWithRolesByStatusAsync(subcontractorId, status, ct);
+        var camps = await _repo.GetMyCampsWithRolesByStatusAsync(subcontractorId ?? Guid.Empty, status, ct);
         return _mapper.Map<List<HealthCampWithRolesDto>>(camps);
     }
 
-
-
-
     public Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
-     Guid campId,
-     string filter,
-     string? q,
-     string? sort,
-     int page,
-     int pageSize,
-     CancellationToken ct = default)
+        Guid campId,
+        string filter,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
     {
         return _repo.GetCampPatientsByStatusAsync(campId, filter, q, sort, page, pageSize, ct);
     }
 
+    //  Already uses nullable subcontractorId
     public async Task<CampPatientDetailWithFormsDto> GetCampPatientDetailWithFormsForCurrentAsync(
         Guid campId,
         Guid participantId,
@@ -397,6 +393,5 @@ public class HealthCampService : IHealthCampService
 
         return dto;
     }
-
 
 }

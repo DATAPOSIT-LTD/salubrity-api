@@ -252,14 +252,18 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
-        // Robust canceled check: either not launched OR status labeled “Canceled”
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c => !c.IsLaunched
-                        || (c.HealthCampStatus != null &&
-                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "suspended")))
+            .Where(c => !c.IsDeleted)
+            .Where(c =>
+                !c.IsLaunched ||
+                (c.HealthCampStatus != null && c.HealthCampStatus.Name == "Suspended")
+            // or: new[] { "Suspended", "Incomplete" }.Contains(c.HealthCampStatus!.Name)
+            )
+            .Distinct()
             .OrderByDescending(c => c.StartDate)
             .ToListAsync(ct);
     }
+
 
     private IQueryable<HealthCampParticipant> BaseParticipants(Guid campId, string? q, string? sort)
     {

@@ -379,7 +379,7 @@ public class HealthCampRepository : IHealthCampRepository
             {
                 Camp = x.HealthCamp,
                 Booth = x.Service.Name,
-                Role = x.Profession.SubcontractorRole.Name
+                Role = x.Role != null ? x.Role.Name : string.Empty
             })
             .Where(x => x.Camp.IsActive);
 
@@ -475,7 +475,6 @@ public class HealthCampRepository : IHealthCampRepository
 
 
 
-
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
           Guid campId,
           Guid participantId,
@@ -511,8 +510,7 @@ public class HealthCampRepository : IHealthCampRepository
                     .ThenInclude(f => f.Sections)
                         .ThenInclude(sec => sec.Fields)
                             .ThenInclude(ff => ff.Options)
-            .Include(a => a.Profession)
-                .ThenInclude(pr => pr.SubcontractorRole);
+            .Include(a => a.Role); // 
 
         if (subcontractorId.HasValue)
             assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
@@ -550,7 +548,7 @@ public class HealthCampRepository : IHealthCampRepository
                     ServiceId = any.ServiceId,
                     ServiceName = any.Service.Name,
                     ProfessionId = any.ProfessionId,
-                    AssignedRole = any.Profession != null ? any.Profession.SubcontractorRole.Name : null,
+                    AssignedRole = any.Role?.Name, // ✅ Directly from SubcontractorRole
                     Form = MapForm(any.Service.IntakeForm) // may be null
                 };
             })

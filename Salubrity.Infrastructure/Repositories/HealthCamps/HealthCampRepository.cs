@@ -8,6 +8,7 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Shared.Constants;
 using Salubrity.Shared.Exceptions;
 using Scriban.Syntax;
 
@@ -334,12 +335,13 @@ public class HealthCampRepository : IHealthCampRepository
         return await _context.HealthCamps
             .Where(c => c.IsLaunched
                         && ((c.EndDate ?? c.StartDate) >= today)
-                        && c.CloseDate <= today)
+                        && (c.CloseDate == null || c.CloseDate >= today))
             .Include(c => c.Organization)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
+
 
     public async Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default)
     {
@@ -380,12 +382,12 @@ public class HealthCampRepository : IHealthCampRepository
             })
             .Where(x => x.Camp.IsActive);
 
-        baseQuery = status switch
+        baseQuery = status.ToLowerInvariant() switch
         {
             "upcoming" => baseQuery.Where(x =>
                 x.Camp.IsLaunched &&
                 ((x.Camp.EndDate ?? x.Camp.StartDate) >= today) &&
-                x.Camp.CloseDate <= today),
+                (x.Camp.CloseDate == null || x.Camp.CloseDate >= today)),
 
             "complete" => baseQuery.Where(x =>
                 x.Camp.IsLaunched &&
@@ -393,7 +395,7 @@ public class HealthCampRepository : IHealthCampRepository
 
             "canceled" => baseQuery.Where(x =>
                 !x.Camp.IsLaunched ||
-                x.Camp.HealthCampStatus.Name.ToLower() == "canceled"),
+                (x.Camp.HealthCampStatus != null && x.Camp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
 
             _ => baseQuery
         };
@@ -404,10 +406,10 @@ public class HealthCampRepository : IHealthCampRepository
             {
                 CampId = g.Key.Id,
                 ClientName = g.Key.Organization.BusinessName,
-                Venue = g.Key.Location,
+                Venue = g.Key.Location ?? "N/A",
                 StartDate = g.Key.StartDate,
                 EndDate = g.Key.EndDate,
-                Status = g.Key.HealthCampStatus.Name,
+                Status = g.Key.HealthCampStatus != null ? g.Key.HealthCampStatus.Name : "Unknown",
                 Roles = g.Select(r => new RoleAssignmentDto
                 {
                     AssignedBooth = r.Booth,
@@ -418,6 +420,7 @@ public class HealthCampRepository : IHealthCampRepository
 
         return raw;
     }
+
 
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
         Guid campId,
@@ -439,7 +442,7 @@ public class HealthCampRepository : IHealthCampRepository
             baseQuery = baseQuery.Where(p =>
                 EF.Functions.ILike(p.User.FullName, $"%{term}%") ||
                 EF.Functions.ILike(p.User.Email, $"%{term}%") ||
-                EF.Functions.ILike(p.User.Phone, $"%{term}%"));
+                (p.User.Phone != null && EF.Functions.ILike(p.User.Phone, $"%{term}%")));
         }
 
         baseQuery = filter.ToLowerInvariant() switch
@@ -449,7 +452,7 @@ public class HealthCampRepository : IHealthCampRepository
             _ => baseQuery
         };
 
-        baseQuery = sort.ToLowerInvariant() switch
+        baseQuery = (sort ?? string.Empty).ToLowerInvariant() switch
         {
             "oldest" => baseQuery.OrderBy(p => p.CreatedAt),
             _ => baseQuery.OrderByDescending(p => p.CreatedAt)
@@ -460,7 +463,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Take(pageSize)
             .Select(p => new HealthCampPatientDto
             {
-                PatientId = p.PatientId != null ? p.PatientId.ToString() : "—",
+                PatientId = p.PatientId != null ? p.PatientId!.ToString() : "—",
                 FullName = p.User.FullName!,
                 Company = p.HealthCamp.Organization.BusinessName,
                 PhoneNumber = p.User.Phone ?? "",
@@ -487,7 +490,7 @@ public class HealthCampRepository : IHealthCampRepository
                 Camp = x.HealthCamp,
                 OrgName = x.HealthCamp.Organization.BusinessName,
                 Venue = x.HealthCamp.Location,
-                Status = x.HealthCamp.HealthCampStatus.Name,
+                Status = x.HealthCamp.HealthCampStatus != null ? x.HealthCamp.HealthCampStatus.Name : "Unknown",
                 User = x.User
             })
             .AsNoTracking()

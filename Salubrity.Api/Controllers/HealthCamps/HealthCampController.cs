@@ -63,6 +63,19 @@ public class CampController : BaseController
     }
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("my/upcoming")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyUpcomingCampsAsync(
+              [FromServices] ICurrentSubcontractorService current,
+              CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+
+        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        return Success(result);
+    }
 
     [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/complete")]
@@ -92,6 +105,7 @@ public class CampController : BaseController
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);
     }
+
 
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]

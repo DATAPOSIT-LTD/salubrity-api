@@ -4,40 +4,39 @@ using Salubrity.Shared.Exceptions;
 
 public class CurrentSubcontractorService : ICurrentSubcontractorService
 {
-    private readonly AppDbContext _db;
+    private readonly IUsersReadRepository _users;
+    private readonly IUserRoleReadRepository _roles;
+    private readonly ISubcontractorReadRepository _subs;
 
-    public CurrentSubcontractorService(AppDbContext db) => _db = db;
-
-    public async Task<Guid> GetRequiredSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
+    public CurrentSubcontractorService(
+        IUsersReadRepository users,
+        IUserRoleReadRepository roles,
+        ISubcontractorReadRepository subs)
     {
-        var user = await _db.Users
-            .Where(u => u.Id == userId && u.IsActive)
-            .Select(u => new { u.Id })
-            .FirstOrDefaultAsync(ct)
-            ?? throw new UnauthorizedException("User not found or inactive.");
+        _users = users;
+        _roles = roles;
+        _subs = subs;
+    }
 
-        var roles = await _db.UserRoles
-            .Where(ur => ur.UserId == userId && ur.Role.IsActive)
-            .Select(ur => ur.Role.Name)
-            .ToListAsync(ct);
+    public async Task<Guid?> TryGetSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (!await _users.IsActiveAsync(userId, ct))
+            return null;
 
-        if (roles.Contains("Admin"))
-        {
-            // Allow Admins — no subcontractor profile required
+        if (await _roles.HasRoleAsync(userId, "Admin", ct))
             return Guid.Empty;
-        }
 
-        if (!roles.Contains("Subcontractor"))
-        {
-            throw new UnauthorizedException("Access denied: requires Subcontractor or Admin role.");
-        }
+        if (!await _roles.HasRoleAsync(userId, "Subcontractor", ct))
+            return null;
 
-        var subcontractorId = await _db.Subcontractors
-            .Where(s => s.UserId == userId && s.Status.IsActive)
-            .Select(s => (Guid?)s.Id)
-            .FirstOrDefaultAsync(ct)
-            ?? throw new UnauthorizedException("No active subcontractor profile bound to this user.");
+        return await _subs.GetActiveIdByUserIdAsync(userId, ct);
+    }
 
-        return subcontractorId;
+    public async Task<Guid> GetSubcontractorIdOrThrowAsync(Guid userId, CancellationToken ct = default)
+    {
+        var id = await TryGetSubcontractorIdAsync(userId, ct);
+        if (id == null)
+            throw new UnauthorizedException("Access denied: not a subcontractor or admin.");
+        return id.Value;
     }
 }

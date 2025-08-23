@@ -72,7 +72,7 @@ public class CampController : BaseController
     {
         var userId = GetCurrentUserId();
 
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
         var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
         return Success(result);
     }
@@ -87,7 +87,7 @@ public class CampController : BaseController
         var userId = GetCurrentUserId();
 
         // If admin, allow override — or you may restrict this to subcontractor only logic
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
     }
@@ -101,7 +101,7 @@ public class CampController : BaseController
     {
         var userId = GetCurrentUserId();
 
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);
     }
@@ -182,7 +182,7 @@ public class CampController : BaseController
     CancellationToken ct)
     {
         var userId = GetCurrentUserId();
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyCampsWithRolesByStatusAsync(subcontractorId, status.ToLowerInvariant(), ct);
         return Success(result);
@@ -215,7 +215,7 @@ public class CampController : BaseController
     CancellationToken ct)
     {
         var userId = GetCurrentUserId();
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         // Admin: your CurrentSubcontractorService returns Guid.Empty → pass null
         Guid? subIdOrNull = subcontractorId == Guid.Empty ? (Guid?)null : subcontractorId;

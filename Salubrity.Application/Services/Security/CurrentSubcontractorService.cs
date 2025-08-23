@@ -22,8 +22,11 @@ public class CurrentSubcontractorService : ICurrentSubcontractorService
         if (!await _users.IsActiveAsync(userId, ct))
             throw new UnauthorizedException("User not found or inactive.");
 
-        var hasRole = await _roles.HasRoleAsync(userId, "Subcontractor", ct);
-        if (!hasRole)
+        // Admin override
+        if (await _roles.HasRoleAsync(userId, "Admin", ct))
+            return Guid.Empty;
+
+        if (!await _roles.HasRoleAsync(userId, "Subcontractor", ct))
             throw new UnauthorizedException("Requires Subcontractor role.");
 
         var subId = await _subs.GetActiveIdByUserIdAsync(userId, ct);
@@ -31,5 +34,27 @@ public class CurrentSubcontractorService : ICurrentSubcontractorService
             throw new UnauthorizedException("No active subcontractor profile for this user.");
 
         return subId.Value;
+    }
+
+    public async Task<Guid> GetSubcontractorIdOrThrowAsync(Guid userId, CancellationToken ct = default)
+    {
+        var subId = await TryGetSubcontractorIdAsync(userId, ct);
+        if (subId == null)
+            throw new UnauthorizedException("Access denied: not a subcontractor or admin.");
+        return subId.Value;
+    }
+
+    public async Task<Guid?> TryGetSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (!await _users.IsActiveAsync(userId, ct))
+            return null;
+
+        if (await _roles.HasRoleAsync(userId, "Admin", ct))
+            return Guid.Empty;
+
+        if (!await _roles.HasRoleAsync(userId, "Subcontractor", ct))
+            return null;
+
+        return await _subs.GetActiveIdByUserIdAsync(userId, ct);
     }
 }

@@ -12,7 +12,8 @@ public class HealthCampDto
     public bool IsActive { get; set; }
 
     public Guid OrganizationId { get; set; }
-    public string OrganizationName { get; set; } = default!;
+    public string? ClientName { get; set; }
+
     public int? ExpectedParticipants { get; set; }
 
     public Guid? ServicePackageId { get; set; }

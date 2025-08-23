@@ -256,7 +256,7 @@ public class HealthCampRepository : IHealthCampRepository
         return await CampsForSubcontractor(subcontractorId)
             .Where(c => !c.IsLaunched
                         || (c.HealthCampStatus != null &&
-                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "canceled")))
+                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "suspended")))
             .OrderByDescending(c => c.StartDate)
             .ToListAsync(ct);
     }

@@ -492,7 +492,7 @@ public class HealthCampRepository : IHealthCampRepository
             {
                 PatientId = p.PatientId != null ? p.PatientId!.ToString() : "—",
                 FullName = p.User.FullName!,
-                Company = p.HealthCamp.Organization != null ? p.HealthCamp.Organization.BusinessName : "—", // ✅ Optional null check
+                Company = p.HealthCamp.Organization != null ? p.HealthCamp.Organization.BusinessName : "—",
                 PhoneNumber = p.User.Phone ?? "",
                 Email = p.User.Email ?? ""
             })

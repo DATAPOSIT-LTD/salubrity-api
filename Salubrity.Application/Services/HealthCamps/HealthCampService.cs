@@ -134,7 +134,7 @@ public class HealthCampService : IHealthCampService
         }
 
         // auto-create subcontractor booth assignments
-        var assignedStatus = await _lookupRepository.FindByNameAsync("Assigned");
+        var assignedStatus = await _lookupRepository.FindByNameAsync("Pending");
         if (assignedStatus == null)
             throw new InvalidOperationException("Assignment status 'Assigned' not found");
 

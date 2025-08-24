@@ -8,6 +8,7 @@ namespace Salubrity.Application.DTOs.Forms
         public string Name { get; set; } = null!;
 
         public string? Description { get; set; }
+        public Guid? IntakeFormVersionId { get; set; }
 
         // One of these two will be populated, never both
         public List<FormSectionResponseDto> Sections { get; set; } = [];

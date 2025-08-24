@@ -626,6 +626,7 @@ public class HealthCampRepository : IHealthCampRepository
                 Id = f.Id,
                 Name = f.Name,
                 Description = f.Description,
+                IntakeFormVersionId = f.Versions.OrderByDescending(v => v.CreatedAt).FirstOrDefault()?.Id,
                 Sections = f.Sections
                     .OrderBy(s => s.Order)
                     .Select(s => new FormSectionResponseDto

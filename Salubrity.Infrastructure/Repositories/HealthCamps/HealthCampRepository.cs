@@ -572,7 +572,7 @@ public class HealthCampRepository : IHealthCampRepository
         {
             ParticipantId = p.Participant.Id,
             UserId = p.User.Id,
-            PatientCode = p.Participant.PatientId.ToString().ToUpperInvariant()[..8],
+            PatientCode = p.Participant.PatientId.ToString() ?? "N/A",
             FullName = p.User.FullName ?? "Patient",
             Email = p.User.Email,
             Phone = p.User.Phone,

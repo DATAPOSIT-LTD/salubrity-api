@@ -22,6 +22,8 @@ public class HealthCampService : IHealthCampService
 {
     private readonly IHealthCampRepository _repo;
     private readonly ILookupRepository<HealthCampStatus> _lookupRepository;
+
+    private readonly ILookupRepository<SubcontractorHealthCampAssignmentStatus> _lookupSubcontractorHealthCampAssignmentRepository;
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
     private readonly ICampTokenFactory _tokenFactory;
@@ -34,7 +36,7 @@ public class HealthCampService : IHealthCampService
     private readonly ISubcontractorCampAssignmentRepository _subcontractorCampAssignmentRepository;
     private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository)
     {
         _repo = repo;
         _mapper = mapper;
@@ -47,6 +49,7 @@ public class HealthCampService : IHealthCampService
         _employeeReadRepo = employeeReadRepo;
         _files = files ?? throw new ArgumentNullException(nameof(files));
         _subcontractorCampAssignmentRepository = subcontractorCampAssignment ?? throw new ArgumentNullException(nameof(subcontractorCampAssignment));
+        _lookupSubcontractorHealthCampAssignmentRepository = lookupSubcontractorHealthCampAssignmentRepository ?? throw new ArgumentNullException(nameof(lookupSubcontractorHealthCampAssignmentRepository));
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -134,7 +137,7 @@ public class HealthCampService : IHealthCampService
         }
 
         // auto-create subcontractor booth assignments
-        var assignedStatus = await _lookupRepository.FindByNameAsync("Pending");
+        var assignedStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
         if (assignedStatus == null)
             throw new InvalidOperationException("Assignment status 'Assigned' not found");
 

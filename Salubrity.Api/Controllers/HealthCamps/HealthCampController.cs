@@ -5,6 +5,7 @@ using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Shared.Responses;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Salubrity.Application.Interfaces.Services.Users;
 
 namespace Salubrity.Api.Controllers.HealthCamps;
 
@@ -16,10 +17,12 @@ namespace Salubrity.Api.Controllers.HealthCamps;
 public class CampController : BaseController
 {
     private readonly IHealthCampService _service;
+    private readonly IUserService _userService;
 
-    public CampController(IHealthCampService service)
+    public CampController(IHealthCampService service, IUserService userService)
     {
         _service = service;
+        _userService = userService;
     }
 
     [HttpGet]
@@ -67,12 +70,15 @@ public class CampController : BaseController
     [HttpGet("my/upcoming")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyUpcomingCampsAsync(
-              [FromServices] ICurrentSubcontractorService current,
-              CancellationToken ct)
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
 
-        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        // Admins have no subcontractorId → pass null to service
+        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
         var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
         return Success(result);
     }
@@ -80,14 +86,14 @@ public class CampController : BaseController
     [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCompleteCamps(
-     [FromServices] ICurrentSubcontractorService current,
-     CancellationToken ct)
+    public async Task<IActionResult> GetMyCompleteCampsAsync(
+        [FromServices] ICurrentSubcontractorService current,
+        CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        // If admin, allow override — or you may restrict this to subcontractor only logic
-        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
     }
@@ -95,16 +101,18 @@ public class CampController : BaseController
     [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCanceledCamps(
+    public async Task<IActionResult> GetMyCanceledCampsAsync(
         [FromServices] ICurrentSubcontractorService current,
         CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);
     }
+
 
 
     [HttpGet("{campId:guid}/participants")]

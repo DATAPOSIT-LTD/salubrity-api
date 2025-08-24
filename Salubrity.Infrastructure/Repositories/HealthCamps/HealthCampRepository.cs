@@ -456,48 +456,57 @@ public class HealthCampRepository : IHealthCampRepository
     int pageSize,
     CancellationToken ct = default)
     {
-        // Ensure full navigation path is properly included
-        IQueryable<HealthCampParticipant> baseQuery = _context.HealthCampParticipants
+        // Start with safe includes
+        var query = _context.HealthCampParticipants
             .Where(p => p.HealthCampId == campId)
             .Include(p => p.User)
             .Include(p => p.HealthCamp)
-                .ThenInclude(h => h.Organization); // ✅ Fixed here
+                .ThenInclude(h => h.Organization)
+            .Include(p => p.HealthAssessments) // ✅ include to avoid Any() failure
+            .AsSplitQuery(); // optional: avoid Cartesian explosion
 
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim().ToLower();
-            baseQuery = baseQuery.Where(p =>
+            query = query.Where(p =>
                 EF.Functions.ILike(p.User.FullName, $"%{term}%") ||
                 EF.Functions.ILike(p.User.Email, $"%{term}%") ||
                 (p.User.Phone != null && EF.Functions.ILike(p.User.Phone, $"%{term}%")));
         }
 
-        baseQuery = filter.ToLowerInvariant() switch
+        // Materialize query first (EF cannot translate .Any() + .Select reliably)
+        var list = await query.ToListAsync(ct);
+
+        // In-memory filtering
+        list = filter.ToLowerInvariant() switch
         {
-            "served" => baseQuery.Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()),
-            "not-seen" => baseQuery.Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()),
-            _ => baseQuery
+            "served" => list.Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()).ToList(),
+            "not-seen" => list.Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()).ToList(),
+            _ => list
         };
 
-        baseQuery = (sort ?? string.Empty).ToLowerInvariant() switch
+        // Sorting
+        list = (sort ?? string.Empty).ToLowerInvariant() switch
         {
-            "oldest" => baseQuery.OrderBy(p => p.CreatedAt),
-            _ => baseQuery.OrderByDescending(p => p.CreatedAt)
+            "oldest" => list.OrderBy(p => p.CreatedAt).ToList(),
+            _ => list.OrderByDescending(p => p.CreatedAt).ToList()
         };
 
-        return await baseQuery
+        // Pagination + projection
+        return list
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(p => new HealthCampPatientDto
             {
-                PatientId = p.PatientId != null ? p.PatientId!.ToString() : "—",
+                PatientId = p.PatientId?.ToString() ?? "—",
                 FullName = p.User.FullName!,
-                Company = p.HealthCamp.Organization != null ? p.HealthCamp.Organization.BusinessName : "—",
+                Company = p.HealthCamp.Organization?.BusinessName ?? "—",
                 PhoneNumber = p.User.Phone ?? "",
                 Email = p.User.Email ?? ""
             })
-            .ToListAsync(ct);
+            .ToList();
     }
+
 
 
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(

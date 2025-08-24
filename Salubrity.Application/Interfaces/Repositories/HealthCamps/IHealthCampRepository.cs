@@ -14,7 +14,6 @@ public interface IHealthCampRepository
 
     Task<HealthCamp?> GetForLaunchAsync(Guid id);
     Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert);
-    Task SaveChangesAsync();
 
     // Subcontractor-scoped
     Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default);

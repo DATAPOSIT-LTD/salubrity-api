@@ -448,18 +448,20 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
-        Guid campId,
-        string filter,
-        string? q,
-        string? sort,
-        int page,
-        int pageSize,
-        CancellationToken ct = default)
+    Guid campId,
+    string filter,
+    string? q,
+    string? sort,
+    int page,
+    int pageSize,
+    CancellationToken ct = default)
     {
+        // Ensure full navigation path is properly included
         IQueryable<HealthCampParticipant> baseQuery = _context.HealthCampParticipants
             .Where(p => p.HealthCampId == campId)
             .Include(p => p.User)
-            .Include(p => p.HealthCamp.Organization);
+            .Include(p => p.HealthCamp)
+                .ThenInclude(h => h.Organization); // ✅ Fixed here
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -490,13 +492,12 @@ public class HealthCampRepository : IHealthCampRepository
             {
                 PatientId = p.PatientId != null ? p.PatientId!.ToString() : "—",
                 FullName = p.User.FullName!,
-                Company = p.HealthCamp.Organization.BusinessName,
+                Company = p.HealthCamp.Organization != null ? p.HealthCamp.Organization.BusinessName : "—", // ✅ Optional null check
                 PhoneNumber = p.User.Phone ?? "",
                 Email = p.User.Email ?? ""
             })
             .ToListAsync(ct);
     }
-
 
 
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(

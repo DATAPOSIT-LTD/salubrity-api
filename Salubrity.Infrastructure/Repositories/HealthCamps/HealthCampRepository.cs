@@ -237,7 +237,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Where(c =>
                 (c.CloseDate == null || c.CloseDate > nowUtc) &&
                 (
-                    c.StartDate > todayLocal ||
+                    c.StartDate >= todayLocal ||
                     (c.IsLaunched &&
                      c.StartDate <= todayLocal &&
                      (c.EndDate ?? c.StartDate) >= todayLocal)
@@ -356,7 +356,7 @@ public class HealthCampRepository : IHealthCampRepository
                 !c.IsDeleted &&
                 (c.CloseDate == null || c.CloseDate > nowUtc) &&
                 (
-                    c.StartDate > todayLocal ||
+                    c.StartDate >= todayLocal ||
                     (c.IsLaunched &&
                      c.StartDate <= todayLocal &&
                      (c.EndDate ?? c.StartDate) >= todayLocal)

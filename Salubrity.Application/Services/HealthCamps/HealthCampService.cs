@@ -92,8 +92,7 @@ public class HealthCampService : IHealthCampService
             Participants = []
         };
 
-
-        // package items
+        // Add package items
         foreach (var item in dto.PackageItems)
         {
             var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
@@ -106,7 +105,7 @@ public class HealthCampService : IHealthCampService
             });
         }
 
-        // service assignments
+        // Add service assignments
         foreach (var assignment in dto.ServiceAssignments)
         {
             entity.ServiceAssignments.Add(new HealthCampServiceAssignment
@@ -119,7 +118,7 @@ public class HealthCampService : IHealthCampService
             });
         }
 
-        // seed participants
+        // Add participants
         var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
         if (employeeUserIds.Count > 0)
         {
@@ -136,35 +135,33 @@ public class HealthCampService : IHealthCampService
             }
         }
 
-        // auto-create subcontractor booth assignments
+        // Save the HealthCamp before assigning booths
+        var created = await _repo.CreateAsync(entity);
+
+        // Create subcontractor booth assignments AFTER saving camp
         var assignedStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
         if (assignedStatus == null)
-            throw new InvalidOperationException("Assignment status 'Assigned' not found");
+            throw new InvalidOperationException("Assignment status 'Pending' not found");
 
         foreach (var assignment in dto.ServiceAssignments)
         {
-            var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}"; // short unique booth label
+            var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
 
             var boothAssignment = new SubcontractorHealthCampAssignment
             {
-
                 Id = Guid.NewGuid(),
-                HealthCampId = entity.Id,
+                HealthCampId = created.Id, //  Use saved camp ID
                 SubcontractorId = assignment.SubcontractorId,
                 AssignmentStatusId = assignedStatus.Id,
                 BoothLabel = boothLabel,
-                StartDate = entity.StartDate,
+                StartDate = created.StartDate,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false,
                 IsPrimaryAssignment = true
             };
 
-
-            // NOTE: Assuming you can access dbContext here directly; otherwise queue it for insert post-create
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
         }
-
-        var created = await _repo.CreateAsync(entity);
 
         return _mapper.Map<HealthCampDto>(created);
     }

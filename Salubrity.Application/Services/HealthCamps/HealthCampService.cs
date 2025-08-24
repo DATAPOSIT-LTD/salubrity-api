@@ -315,6 +315,9 @@ public class HealthCampService : IHealthCampService
                              ?? throw new InvalidOperationException("Ongoing status not found");
 
         camp.HealthCampStatusId = ongoingStatus.Id;
+        camp.IsLaunched = true;
+        camp.CloseDate = closeUtc;
+
 
         await _repo.UpdateAsync(camp);
 

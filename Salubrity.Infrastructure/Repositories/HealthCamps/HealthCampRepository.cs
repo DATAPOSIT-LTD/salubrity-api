@@ -476,7 +476,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Include(p => p.User)
             .Include(p => p.HealthCamp)
                 .ThenInclude(h => h.Organization)
-            .Include(p => p.HealthAssessments) // ✅ include to avoid Any() failure
+            .Include(p => p.HealthAssessments) // include to avoid Any() failure
             .AsSplitQuery(); // optional: avoid Cartesian explosion
 
         if (!string.IsNullOrWhiteSpace(q))

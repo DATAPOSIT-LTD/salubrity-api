@@ -152,8 +152,11 @@ public class HealthCampRepository : IHealthCampRepository
         return await _context.HealthCamps
             .Include(c => c.Participants)
                 .ThenInclude(p => p.User)
+            .Include(c => c.HealthCampStatus)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
     }
+
+
 
     public async Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert)
     {

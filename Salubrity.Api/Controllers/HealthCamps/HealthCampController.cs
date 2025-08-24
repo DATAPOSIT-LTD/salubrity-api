@@ -198,7 +198,7 @@ public class CampController : BaseController
 
 
     [Authorize(Roles = "Subcontractor,Admin")]
-    [HttpGet("{campId:guid}/patients")]
+    [HttpGet("{campId:guid}/patients/all")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampPatientDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampPatientsByStatus(
         Guid campId,

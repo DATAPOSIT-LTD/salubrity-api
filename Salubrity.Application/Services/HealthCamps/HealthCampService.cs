@@ -317,7 +317,7 @@ public class HealthCampService : IHealthCampService
         camp.HealthCampStatusId = ongoingStatus.Id;
 
         await _repo.UpdateAsync(camp);
-        await _repo.SaveChangesAsync();
+
 
         // Save QR PNGs for dashboard posters
         var folder = $"qrcodes/healthcamps/{camp.Id:N}";

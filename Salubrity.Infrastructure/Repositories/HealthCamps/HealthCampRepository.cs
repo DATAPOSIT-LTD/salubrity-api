@@ -345,24 +345,30 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)
     {
+        // Define "today" in Africa/Nairobi timezone
         var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
         var nowUtc = DateTime.UtcNow;
         var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
         return await _context.HealthCamps
-            .Where(c => !c.IsDeleted
-                        && (c.CloseDate == null || c.CloseDate > nowUtc)
-                        && (
-                            c.StartDate > todayLocal
-                            || (c.IsLaunched
-                                && c.StartDate <= todayLocal
-                                && (c.EndDate ?? c.StartDate) >= todayLocal)
-                        ))
+            .Where(c =>
+                !c.IsDeleted &&
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (
+                    // FUTURE (launched or not): start date is after today
+                    c.StartDate > todayLocal
+                    ||
+                    // ONGOING (must be launched): still in date window
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                ))
             .Include(c => c.Organization)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
+
 
 
 

@@ -393,58 +393,69 @@ public class HealthCampRepository : IHealthCampRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default)
+    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
+        Guid subcontractorId,
+        string status,
+        CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
 
         var baseQuery = _context.HealthCampServiceAssignments
             .Where(x => x.SubcontractorId == subcontractorId)
-            .Select(x => new
-            {
-                Camp = x.HealthCamp,
-                Booth = x.Service.Name,
-                Role = x.Role != null ? x.Role.Name : string.Empty
-            })
-            .Where(x => x.Camp.IsActive);
+            .Include(x => x.HealthCamp)
+                .ThenInclude(c => c.Organization)
+            .Include(x => x.HealthCamp)
+                .ThenInclude(c => c.HealthCampStatus)
+            .Include(x => x.Service)
+            .Include(x => x.Role)
+            .Where(x => x.HealthCamp.IsActive);
 
         baseQuery = status.ToLowerInvariant() switch
         {
             "upcoming" => baseQuery.Where(x =>
-                x.Camp.IsLaunched &&
-                ((x.Camp.EndDate ?? x.Camp.StartDate) >= today) &&
-                (x.Camp.CloseDate == null || x.Camp.CloseDate >= today)),
+                x.HealthCamp.IsLaunched &&
+                ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today) &&
+                (x.HealthCamp.CloseDate == null || x.HealthCamp.CloseDate >= today)),
 
             "complete" => baseQuery.Where(x =>
-                x.Camp.IsLaunched &&
-                ((x.Camp.EndDate ?? x.Camp.StartDate) < today)),
+                x.HealthCamp.IsLaunched &&
+                ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) < today)),
 
             "canceled" => baseQuery.Where(x =>
-                !x.Camp.IsLaunched ||
-                (x.Camp.HealthCampStatus != null && x.Camp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
+                !x.HealthCamp.IsLaunched ||
+                (x.HealthCamp.HealthCampStatus != null && x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
 
             _ => baseQuery
         };
 
-        var raw = await baseQuery
-            .GroupBy(x => x.Camp)
+        // Materialize everything first
+        var assignments = await baseQuery.ToListAsync(ct);
+
+        // Group and project in-memory
+        var result = assignments
+            .GroupBy(x => x.HealthCamp)
             .Select(g => new HealthCampWithRolesDto
             {
                 CampId = g.Key.Id,
-                ClientName = g.Key.Organization.BusinessName,
-                Venue = g.Key.Location ?? "N/A",
+                ClientName = g.Key.Organization?.BusinessName ?? "—",
+                Venue = g.Key.Location ?? "—",
                 StartDate = g.Key.StartDate,
                 EndDate = g.Key.EndDate,
-                Status = g.Key.HealthCampStatus != null ? g.Key.HealthCampStatus.Name : "Unknown",
-                Roles = g.Select(r => new RoleAssignmentDto
-                {
-                    AssignedBooth = r.Booth,
-                    AssignedRole = r.Role
-                }).Distinct().ToList()
+                Status = g.Key.HealthCampStatus?.Name ?? "Unknown",
+                Roles = g
+                    .Select(r => new RoleAssignmentDto
+                    {
+                        AssignedBooth = r.Service?.Name ?? "—",
+                        AssignedRole = r.Role?.Name ?? "—"
+                    })
+                    .Distinct()
+                    .ToList()
             })
-            .ToListAsync(ct);
+            .ToList();
 
-        return raw;
+        return result;
     }
+
 
 
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(

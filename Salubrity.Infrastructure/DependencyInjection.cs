@@ -39,6 +39,7 @@ using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
 using Salubrity.Infrastructure.Repositories.HealthAssesment;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Infrastructure.Repositories.Patients;
+using Salubrity.Infrastructure.Persistence.Repositories.HealthCamps;
 
 
 
@@ -94,6 +95,8 @@ public static class DependencyInjection
 
         services.AddScoped<IEmailConfigurationRepository, EmailConfigurationRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<ISubcontractorCampAssignmentRepository, SubcontractorCampAssignmentRepository>();
+
 
 
 

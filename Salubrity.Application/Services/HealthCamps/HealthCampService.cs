@@ -2,6 +2,7 @@ using AutoMapper;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces;
+using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
@@ -12,6 +13,7 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
+using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Application.Services.HealthCamps;
@@ -29,9 +31,10 @@ public class HealthCampService : IHealthCampService
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
     private readonly IEmployeeReadRepository _employeeReadRepo;
+    private readonly ISubcontractorCampAssignmentRepository _subcontractorCampAssignmentRepository;
     private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment)
     {
         _repo = repo;
         _mapper = mapper;
@@ -43,6 +46,7 @@ public class HealthCampService : IHealthCampService
         _tempPassword = tempPasswordService;
         _employeeReadRepo = employeeReadRepo;
         _files = files ?? throw new ArgumentNullException(nameof(files));
+        _subcontractorCampAssignmentRepository = subcontractorCampAssignment ?? throw new ArgumentNullException(nameof(subcontractorCampAssignment));
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -60,7 +64,7 @@ public class HealthCampService : IHealthCampService
 
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
-        var ct = CancellationToken.None; // or pass through
+        var ct = CancellationToken.None;
         var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
         if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
             throw new InvalidOperationException("Upcoming status not found");
@@ -72,8 +76,8 @@ public class HealthCampService : IHealthCampService
             ServicePackageId = dto.ServicePackageId,
             Description = dto.Description,
             Location = dto.Location,
-            StartDate = dto.StartDate,
-            EndDate = dto.EndDate,
+            StartDate = DateTime.SpecifyKind(dto.StartDate.Date, DateTimeKind.Unspecified),
+            EndDate = dto.EndDate.HasValue ? DateTime.SpecifyKind(dto.EndDate.Value.Date, DateTimeKind.Unspecified) : (DateTime?)null,
             StartTime = dto.StartTime,
             OrganizationId = dto.OrganizationId,
             IsActive = true,
@@ -82,8 +86,9 @@ public class HealthCampService : IHealthCampService
             HealthCampStatusId = upcomingStatus.Id,
             PackageItems = [],
             ServiceAssignments = [],
-            Participants = [] // ensure initialized
+            Participants = []
         };
+
 
         // package items
         foreach (var item in dto.PackageItems)
@@ -111,14 +116,11 @@ public class HealthCampService : IHealthCampService
             });
         }
 
-        // NEW: seed participants = all active employees of the organization
+        // seed participants
         var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
-
         if (employeeUserIds.Count > 0)
         {
-            // Avoid duplicates if any user id appears twice
             var uniqueUserIds = new HashSet<Guid>(employeeUserIds);
-
             foreach (var userId in uniqueUserIds)
             {
                 entity.Participants.Add(new HealthCampParticipant
@@ -127,12 +129,40 @@ public class HealthCampService : IHealthCampService
                     HealthCampId = entity.Id,
                     UserId = userId,
                     IsEmployee = true
-                    // PatientId left null; can be resolved later if you link users->patients
                 });
             }
         }
 
+        // auto-create subcontractor booth assignments
+        var assignedStatus = await _lookupRepository.FindByNameAsync("Assigned");
+        if (assignedStatus == null)
+            throw new InvalidOperationException("Assignment status 'Assigned' not found");
+
+        foreach (var assignment in dto.ServiceAssignments)
+        {
+            var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}"; // short unique booth label
+
+            var boothAssignment = new SubcontractorHealthCampAssignment
+            {
+
+                Id = Guid.NewGuid(),
+                HealthCampId = entity.Id,
+                SubcontractorId = assignment.SubcontractorId,
+                AssignmentStatusId = assignedStatus.Id,
+                BoothLabel = boothLabel,
+                StartDate = entity.StartDate,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false,
+                IsPrimaryAssignment = true
+            };
+
+
+            // NOTE: Assuming you can access dbContext here directly; otherwise queue it for insert post-create
+            await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
+        }
+
         var created = await _repo.CreateAsync(entity);
+
         return _mapper.Map<HealthCampDto>(created);
     }
 

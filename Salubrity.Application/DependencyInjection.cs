@@ -97,6 +97,7 @@ namespace Salubrity.Application
             // Auth services
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IIntakeFormResponseService, IntakeFormResponseService>();
 
 
             return services;

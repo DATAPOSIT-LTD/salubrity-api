@@ -524,14 +524,16 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
-          Guid campId,
-          Guid participantId,
-          Guid? subcontractorId,
-          CancellationToken ct = default)
+      Guid campId,
+      Guid participantId,
+      Guid? subcontractorId,
+      CancellationToken ct = default)
     {
-        // 1) Participant + Camp + Org + User
+        // STEP 1: Participant + Camp + Org + User + Patient check
         var p = await _context.HealthCampParticipants
-            .Where(x => x.Id == participantId && x.HealthCampId == campId)
+            .Where(x => x.Id == participantId
+                     && x.HealthCampId == campId
+                     && x.PatientId != null)
             .Select(x => new
             {
                 Participant = x,
@@ -539,18 +541,22 @@ public class HealthCampRepository : IHealthCampRepository
                 OrgName = x.HealthCamp.Organization.BusinessName,
                 Venue = x.HealthCamp.Location,
                 Status = x.HealthCamp.HealthCampStatus != null ? x.HealthCamp.HealthCampStatus.Name : "Unknown",
-                User = x.User
+                User = x.User,
+                PatientId = x.PatientId!.Value
             })
             .AsNoTracking()
             .FirstOrDefaultAsync(ct);
 
-        if (p == null) return null;
+        // STEP 2: Reject if no matching participant or soft-deleted patient
+        if (p == null || !await _context.Patients.AnyAsync(pa => pa.Id == p.PatientId && !pa.IsDeleted, ct))
+            return null;
 
+        // STEP 3: Has been served?
         var served = p.Participant.ParticipatedAt != null
                      || await _context.HealthAssessments
                             .AnyAsync(a => a.ParticipantId == participantId, ct);
 
-        // 2) Assignments for THIS camp (+ optional subcontractor filter)
+        // STEP 4: Camp assignments for this participant (with optional subcontractor filter)
         IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
             .Where(a => a.HealthCampId == campId)
             .Include(a => a.Service)
@@ -558,7 +564,7 @@ public class HealthCampRepository : IHealthCampRepository
                     .ThenInclude(f => f.Sections)
                         .ThenInclude(sec => sec.Fields)
                             .ThenInclude(ff => ff.Options)
-            .Include(a => a.Role); // 
+            .Include(a => a.Role);
 
         if (subcontractorId.HasValue)
             assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
@@ -567,12 +573,12 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .ToListAsync(ct);
 
-        // 3) Shape DTO
+        // STEP 5: Shape final DTO
         var dto = new CampPatientDetailWithFormsDto
         {
             ParticipantId = p.Participant.Id,
             UserId = p.User.Id,
-            PatientCode = p.Participant.PatientId.ToString() ?? "N/A",
+            PatientCode = p.PatientId.ToString(),
             FullName = p.User.FullName ?? "Patient",
             Email = p.User.Email,
             Phone = p.User.Phone,
@@ -585,7 +591,7 @@ public class HealthCampRepository : IHealthCampRepository
             Served = served
         };
 
-        // 4) Project each service (distinct by ServiceId to avoid duplicates if any)
+        // STEP 6: Group services by ServiceId and attach forms
         dto.Assignments = assignments
             .GroupBy(a => a.ServiceId)
             .Select(g =>
@@ -596,8 +602,8 @@ public class HealthCampRepository : IHealthCampRepository
                     ServiceId = any.ServiceId,
                     ServiceName = any.Service.Name,
                     ProfessionId = any.ProfessionId,
-                    AssignedRole = any.Role?.Name, // ✅ Directly from SubcontractorRole
-                    Form = MapForm(any.Service.IntakeForm) // may be null
+                    AssignedRole = any.Role?.Name,
+                    Form = MapForm(any.Service.IntakeForm)
                 };
             })
             .OrderBy(x => x.ServiceName)

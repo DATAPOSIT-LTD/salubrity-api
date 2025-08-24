@@ -226,25 +226,24 @@ public class HealthCampRepository : IHealthCampRepository
     }
     public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
-        // Use Nairobi timezone to define "today" properly
         var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
         var nowUtc = DateTime.UtcNow;
         var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
         return await CampsForSubcontractor(subcontractorId)
             .Where(c =>
-                // Not closed
                 (c.CloseDate == null || c.CloseDate > nowUtc) &&
                 (
-                    // FUTURE: starts after today (launched or not)
-                    c.StartDate > todayLocal
-                    ||
-                    // ONGOING: within date window AND launched
+                    c.StartDate > todayLocal ||
                     (c.IsLaunched &&
                      c.StartDate <= todayLocal &&
                      (c.EndDate ?? c.StartDate) >= todayLocal)
                 )
             )
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
@@ -345,7 +344,6 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)
     {
-        // Define "today" in Africa/Nairobi timezone
         var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
         var nowUtc = DateTime.UtcNow;
         var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
@@ -355,20 +353,18 @@ public class HealthCampRepository : IHealthCampRepository
                 !c.IsDeleted &&
                 (c.CloseDate == null || c.CloseDate > nowUtc) &&
                 (
-                    // FUTURE (launched or not): start date is after today
-                    c.StartDate > todayLocal
-                    ||
-                    // ONGOING (must be launched): still in date window
+                    c.StartDate > todayLocal ||
                     (c.IsLaunched &&
                      c.StartDate <= todayLocal &&
                      (c.EndDate ?? c.StartDate) >= todayLocal)
                 ))
+            .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
-
 
 
 

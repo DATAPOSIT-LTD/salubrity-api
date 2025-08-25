@@ -61,7 +61,8 @@ namespace Salubrity.Application.Services.Subcontractor
             if (existing is not null)
                 throw new ValidationException(["A user with this email already exists."]);
 
-            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor") ?? throw new NotFoundException("Subcontractor role not found");
+            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
+                ?? throw new NotFoundException("Subcontractor role not found");
 
             var userId = Guid.NewGuid();
             var rawPassword = _passwordGenerator.Generate();
@@ -74,10 +75,8 @@ namespace Salubrity.Application.Services.Subcontractor
                 LastName = dto.User.LastName?.Trim(),
                 Email = dto.User.Email.Trim().ToLowerInvariant(),
                 Phone = dto.User.Phone?.Trim(),
-                // NationalId = dto.User.NationalId?.Trim(),
                 GenderId = dto.User.GenderId,
                 DateOfBirth = dto.User.DateOfBirth.ToUtcSafe(),
-                // PrimaryLanguage = dto.User.PrimaryLanguage,
                 PasswordHash = _passwordHasher.HashPassword(rawPassword),
                 IsActive = true,
                 IsVerified = false,
@@ -85,10 +84,10 @@ namespace Salubrity.Application.Services.Subcontractor
                 UserRoles =
                 [
                     new UserRole
-                    {
-                        RoleId = subcontractorRole.Id,
-                        UserId = userId
-                    }
+            {
+                RoleId = subcontractorRole.Id,
+                UserId = userId
+            }
                 ]
             };
 
@@ -105,18 +104,20 @@ namespace Salubrity.Application.Services.Subcontractor
                     .ToList() ?? []
             };
 
+            // Save subcontractor and user before assigning roles
             await _repo.AddAsync(subcontractor);
+            await _repo.SaveChangesAsync();
 
-            foreach (var roleId in dto.SubcontractorRoleIds)
+            // Assign roles after subcontractor is persisted
+            foreach (var roleId in dto.SubcontractorRoleIds ?? Enumerable.Empty<Guid>())
             {
                 var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
                 await _repo.AssignRoleAsync(subcontractor.Id, roleId, isPrimary);
             }
 
-
-
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }
+
         public async Task<List<SubcontractorDto>> GetAllAsync()
         {
             var subs = await _repo.GetAllWithDetailsAsync();

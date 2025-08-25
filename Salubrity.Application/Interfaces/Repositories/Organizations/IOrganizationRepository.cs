@@ -10,6 +10,5 @@ namespace Salubrity.Application.Interfaces.Repositories.Organizations
         Task UpdateAsync(Organization entity);
         Task DeleteAsync(Guid id);
         Task<Organization?> FindByNameAsync(string name);
-
     }
 }

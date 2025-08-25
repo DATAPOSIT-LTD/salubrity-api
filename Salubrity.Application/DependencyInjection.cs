@@ -15,7 +15,11 @@ using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Organizations;
+
+using Salubrity.Application.Interfaces.Services.Subcontractors;
+
 using Salubrity.Application.Interfaces.Services.Users;
+
 using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
@@ -30,8 +34,10 @@ using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
-using Salubrity.Application.Services.Subcontractor;
+using Salubrity.Application.Services.Subcontractors;
+
 using Salubrity.Application.Services.Users;
+
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Infrastructure.Services;
@@ -90,7 +96,9 @@ namespace Salubrity.Application
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITemplateRenderer, ScribanTemplateRenderer>();
             services.AddScoped<IHomepageOverviewService, HomepageOverviewService>();
-
+            services.AddScoped<IOrganizationOverviewService, OrganizationOverviewService>();
+            services.AddScoped<IHealthCampOverviewService, HealthCampOverviewService>();
+            services.AddScoped<ISubcontractorOverviewService, SubcontractorOverviewService>();
             services.AddScoped<ICurrentSubcontractorService, CurrentSubcontractorService>();
             services.AddScoped<IFileStorage, LocalFileStorage>();
 

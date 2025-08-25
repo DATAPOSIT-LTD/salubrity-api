@@ -558,14 +558,17 @@ public class HealthCampRepository : IHealthCampRepository
 
         // STEP 4: Camp assignments for this participant (with optional subcontractor filter)
         IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
-            .Where(a => a.HealthCampId == campId)
-            .Include(a => a.Service)
-                .ThenInclude(s => s.IntakeForm)
-                    .ThenInclude(f => f.Versions)
-                    .ThenInclude(f => f.Sections)
-                        .ThenInclude(sec => sec.Fields)
-                            .ThenInclude(ff => ff.Options)
-            .Include(a => a.Role);
+         .Where(a => a.HealthCampId == campId)
+         .Include(a => a.Service)
+             .ThenInclude(s => s.IntakeForm)
+                 .ThenInclude(f => f.Versions)
+         .Include(a => a.Service)
+             .ThenInclude(s => s.IntakeForm)
+                 .ThenInclude(f => f.Sections)
+                     .ThenInclude(sec => sec.Fields)
+                         .ThenInclude(ff => ff.Options)
+         .Include(a => a.Role);
+
 
         if (subcontractorId.HasValue)
             assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);

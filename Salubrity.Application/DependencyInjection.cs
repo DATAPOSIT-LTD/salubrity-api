@@ -23,6 +23,7 @@ using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
+using Salubrity.Application.Services.Camps;
 using Salubrity.Application.Services.EmployeeServices;
 using Salubrity.Application.Services.Forms;
 using Salubrity.Application.Services.HealthCamps;
@@ -107,6 +108,7 @@ namespace Salubrity.Application
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IIntakeFormResponseService, IntakeFormResponseService>();
+            services.AddScoped<IMyCampQueryService, MyCampQueryService>();
 
 
 

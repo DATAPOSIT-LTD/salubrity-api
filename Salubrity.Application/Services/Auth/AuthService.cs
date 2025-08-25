@@ -103,9 +103,74 @@ namespace Salubrity.Application.Services.Auth
             await _userRepository.AddUserAsync(user);
 
             // Create & link related entity based on role
-            switch (role.Name)
+            // switch (role.Name)
+            // {
+            //     case "Subcontractor":
+            //         {
+            //             var industry = await _industryRepository.GetByNameAsync("General")
+            //                 ?? throw new NotFoundException("Industry", "General");
+
+            //             var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
+            //                 ?? throw new NotFoundException("SubcontractorStatus", "Active");
+
+            //             var subcontractor = new Salubrity.Domain.Entities.Subcontractor.Subcontractor
+            //             {
+            //                 Id = Guid.NewGuid(),
+            //                 UserId = user.Id,
+            //                 IndustryId = industry.Id,
+            //                 StatusId = status.Id,
+            //                 CreatedAt = DateTime.UtcNow,
+            //                 IsDeleted = false
+            //             };
+
+            //             await _subcontractorRepository.AddAsync(subcontractor);
+
+            //             user.RelatedEntityType = "Subcontractor";
+            //             user.RelatedEntityId = subcontractor.Id;
+            //             await _userRepository.UpdateUserAsync(user);
+            //             break;
+            //         }
+
+            //     case "Patient":
+            //         {
+            //             var patient = new Patient
+            //             {
+            //                 Id = Guid.NewGuid(),
+            //                 UserId = user.Id,
+            //                 CreatedAt = DateTime.UtcNow,
+            //                 IsDeleted = false
+            //             };
+
+            //             await _patientRepository.AddAsync(patient);
+
+            //             user.RelatedEntityType = "Patient";
+            //             user.RelatedEntityId = patient.Id;
+            //             await _userRepository.UpdateUserAsync(user);
+            //             break;
+            //         }
+            // }
+
+            switch (role.Name.Trim().ToLowerInvariant())
             {
-                case "Subcontractor":
+                case "patient":
+                    {
+                        var patient = new Patient
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = user.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            IsDeleted = false
+                        };
+
+                        await _patientRepository.AddAsync(patient);
+
+                        user.RelatedEntityType = "Patient";
+                        user.RelatedEntityId = patient.Id;
+                        await _userRepository.UpdateUserAsync(user);
+                        break;
+                    }
+
+                case "subcontractor":
                     {
                         var industry = await _industryRepository.GetByNameAsync("General")
                             ?? throw new NotFoundException("Industry", "General");
@@ -131,24 +196,11 @@ namespace Salubrity.Application.Services.Auth
                         break;
                     }
 
-                case "Patient":
-                    {
-                        var patient = new Patient
-                        {
-                            Id = Guid.NewGuid(),
-                            UserId = user.Id,
-                            CreatedAt = DateTime.UtcNow,
-                            IsDeleted = false
-                        };
-
-                        await _patientRepository.AddAsync(patient);
-
-                        user.RelatedEntityType = "Patient";
-                        user.RelatedEntityId = patient.Id;
-                        await _userRepository.UpdateUserAsync(user);
-                        break;
-                    }
+                default:
+                    // _logger.LogWarning("Unhandled role: {Role}", role.Name);
+                    break;
             }
+
 
             var expiresAt = DateTime.UtcNow.AddMinutes(30);
             var roles = new[] { role.Name };

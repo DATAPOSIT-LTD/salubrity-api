@@ -124,7 +124,7 @@ public class EmployeeService : IEmployeeService
             throw new NotFoundException("Patient role not found.");
 
         var userId = Guid.NewGuid();
-        var hashed = _passwordHasher.HashPassword(dto.User.Password ?? _passwordGenerator.Generate());
+        var hashed = _passwordHasher.HashPassword(_passwordGenerator.Generate());
 
         // 2) Build User
         var user = new User

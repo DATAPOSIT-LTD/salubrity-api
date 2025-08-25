@@ -60,10 +60,19 @@ namespace Salubrity.Infrastructure.Repositories.HomepageOverview
                 })
                 .ToListAsync();
 
+            var today = DateTime.Now.Date;
+            var upcomingCampDates = await _context.Set<HealthCamp>()
+                .Where(hc => hc.StartDate > today)
+                .Select(hc => hc.StartDate)
+                .Distinct()
+                .OrderBy(d => d)
+                .ToListAsync();
+
             return new HomepageOverviewDto
             {
                 OverviewStats = overviewStats,
-                ServiceUptake = serviceUptake
+                ServiceUptake = serviceUptake,
+                UpcomingCampDates = upcomingCampDates
             };
         }
     }

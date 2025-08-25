@@ -22,7 +22,7 @@ namespace Salubrity.Api.Controllers.HomepageOverview
         }
 
         [HttpGet]
-        [ProducesResponseType(typeof(ApiResponse<HomepageOverviewDto>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiResponse<HomepageOverviewDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
 
         public async Task<IActionResult> GetHomepageOverview()

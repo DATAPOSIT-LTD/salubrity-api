@@ -34,6 +34,7 @@ using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
+using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Application.Services.Subcontractors;
 
 using Salubrity.Application.Services.Users;

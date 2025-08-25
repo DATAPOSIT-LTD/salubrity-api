@@ -111,6 +111,7 @@ namespace Salubrity.Application.Services.Subcontractor
             {
                 var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
                 await _repo.AssignRoleAsync(subcontractor.Id, roleId, isPrimary);
+                await _repo.SaveChangesAsync();
             }
 
             await _repo.SaveChangesAsync();

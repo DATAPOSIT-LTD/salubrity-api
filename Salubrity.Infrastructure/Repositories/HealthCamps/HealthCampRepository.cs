@@ -533,7 +533,8 @@ public class HealthCampRepository : IHealthCampRepository
         var p = await _context.HealthCampParticipants
             .Where(x => x.Id == participantId
                      && x.HealthCampId == campId
-                     && x.PatientId != null)
+                     //&& x.PatientId != null
+                     )
             .Select(x => new
             {
                 Participant = x,

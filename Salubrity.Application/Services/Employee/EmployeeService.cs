@@ -10,6 +10,7 @@ using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
+using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Domain.Entities.Identity;
@@ -32,7 +33,7 @@ public class EmployeeService : IEmployeeService
     private readonly IPasswordGenerator _passwordGenerator;
     private readonly ILookupRepository<Gender> _genderRepo;
     private readonly IPatientRepository _patientRepo;
-
+    private readonly IUserRepository _userRepo;
 
     public EmployeeService(
      IEmployeeRepository repo,
@@ -43,7 +44,8 @@ public class EmployeeService : IEmployeeService
      ILookupRepository<Department> departmentRepo,
      ILookupRepository<Gender> genderRepo,
      IOrganizationRepository organizationRepo,
-     IPatientRepository patientRepo
+     IPatientRepository patientRepo,
+     IUserRepository userRepo
      )
     {
         _repo = repo;
@@ -55,6 +57,7 @@ public class EmployeeService : IEmployeeService
         _organizationRepo = organizationRepo;
         _genderRepo = genderRepo;
         _patientRepo = patientRepo;
+        _userRepo = userRepo;
     }
 
 
@@ -108,18 +111,22 @@ public class EmployeeService : IEmployeeService
         };
     }
 
-    public async Task<EmployeeResponseDto> CreateAsync(EmployeeRequestDto dto)
+    public async Task<EmployeeResponseDto> CreateAsync(EmployeeRequestDto dto, CancellationToken ct = default)
     {
-        var hashed = _passwordHasher.HashPassword(dto.User.Password);
         var normalizedEmail = dto.User.Email.Trim().ToLowerInvariant();
-        var userId = Guid.NewGuid();
 
-        // Get the Patient Role ID
+        // 1) Uniqueness checks
+        if (await _userRepo.FindUserByEmailAsync(normalizedEmail) is not null)
+            throw new ConflictException("A user with this email already exists.");
+
         var patientRole = await _roleRepo.FindByNameAsync("Patient");
-        if (patientRole == null)
-            throw new Exception("Patient role not found");
+        if (patientRole is null)
+            throw new NotFoundException("Patient role not found.");
 
-        // Create User
+        var userId = Guid.NewGuid();
+        var hashed = _passwordHasher.HashPassword(dto.User.Password ?? _passwordGenerator.Generate());
+
+        // 2) Build User
         var user = new User
         {
             Id = userId,
@@ -135,15 +142,11 @@ public class EmployeeService : IEmployeeService
             CreatedAt = DateTime.UtcNow,
             UserRoles =
             [
-                new UserRole
-            {
-                UserId = userId,
-                RoleId = patientRole.Id
-            }
+                new UserRole { UserId = userId, RoleId = patientRole.Id }
             ]
         };
 
-        // Create Employee
+        // 3) Build Employee (attach user)
         var employee = new Employee
         {
             Id = Guid.NewGuid(),
@@ -153,19 +156,20 @@ public class EmployeeService : IEmployeeService
             User = user
         };
 
-        await _repo.CreateAsync(employee);
-
-        //  Also create corresponding Patient
+        // 4) Create Patient
         var patient = new Patient
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             PrimaryOrganizationId = dto.OrganizationId,
-            Notes = "Auto-created for employee"
+            Notes = "Auto-created for employee",
+            CreatedAt = DateTime.UtcNow
         };
 
-        await _patientRepo.AddAsync(patient);
+        // 5) Delegate full transactional save to repository
+        await _repo.CreateEmployeeAndPatientAsync(employee, patient, ct);
 
+        // 6) Return DTO
         return new EmployeeResponseDto
         {
             Id = employee.Id,
@@ -184,6 +188,8 @@ public class EmployeeService : IEmployeeService
             }
         };
     }
+
+
 
 
 

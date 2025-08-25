@@ -39,13 +39,31 @@ public class EmployeeRepository : IEmployeeRepository
     public async Task<List<Employee>> WhereAsync(Expression<Func<Employee, bool>> predicate)
     {
         return await _context.Employees
-            .Include(e => e.User)               // include User navigation property
-            .Include(e => e.JobTitle)           // optional
-            .Include(e => e.Department)         // optional
+            .Include(e => e.User)
+            .Include(e => e.JobTitle)
+            .Include(e => e.Department)
             .Where(predicate)
             .ToListAsync();
     }
 
+    public async Task CreateEmployeeAndPatientAsync(Employee employee, Patient patient, CancellationToken ct = default)
+    {
+        await using var tx = await _context.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            _context.Employees.Add(employee);  // Includes navigation to User
+            _context.Patients.Add(patient);
+
+            await _context.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
+    }
 
     public async Task<Employee> CreateAsync(Employee entity)
     {

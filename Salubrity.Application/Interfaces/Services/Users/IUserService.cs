@@ -37,4 +37,12 @@ public interface IUserService
     /// </summary>
     /// <param name="id">User ID (GUID)</param>
     Task<ApiResponse<string>> DeleteAsync(Guid id);
+
+    /// <summary>
+    /// Check if a user is assigned to a specific role.
+    /// </summary>
+    /// <param name="userId">User ID</param>
+    /// <param name="roleName">Name of the role to check</param>
+    Task<bool> IsInRoleAsync(Guid userId, string roleName);
+
 }

@@ -10,12 +10,14 @@ namespace Salubrity.Application.Services.Users;
 public class UserService : IUserService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IUserRoleReadRepository _userRoleReadRepository;
     private readonly IMapper _mapper;
 
-    public UserService(IUserRepository userRepository, IMapper mapper)
+    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository)
     {
         _userRepository = userRepository;
         _mapper = mapper;
+        _userRoleReadRepository = userRoleRepository;
     }
 
     public async Task<ApiResponse<UserResponse>> GetByIdAsync(Guid id)
@@ -68,4 +70,9 @@ public class UserService : IUserService
 
         return ApiResponse<string>.CreateSuccessMessage("User deactivated successfully.");
     }
+    public async Task<bool> IsInRoleAsync(Guid userId, string roleName)
+    {
+        return await _userRoleReadRepository.HasRoleAsync(userId, roleName);
+    }
+
 }

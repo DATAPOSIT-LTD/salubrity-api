@@ -5,6 +5,7 @@ using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Shared.Responses;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
+using Salubrity.Application.Interfaces.Services.Users;
 
 namespace Salubrity.Api.Controllers.HealthCamps;
 
@@ -16,10 +17,12 @@ namespace Salubrity.Api.Controllers.HealthCamps;
 public class CampController : BaseController
 {
     private readonly IHealthCampService _service;
+    private readonly IUserService _userService;
 
-    public CampController(IHealthCampService service)
+    public CampController(IHealthCampService service, IUserService userService)
     {
         _service = service;
+        _userService = userService;
     }
 
     [HttpGet]
@@ -63,18 +66,34 @@ public class CampController : BaseController
     }
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("my/upcoming")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyUpcomingCampsAsync(
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+
+        // Admins have no subcontractorId → pass null to service
+        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
+        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        return Success(result);
+    }
 
     [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCompleteCamps(
-     [FromServices] ICurrentSubcontractorService current,
-     CancellationToken ct)
+    public async Task<IActionResult> GetMyCompleteCampsAsync(
+        [FromServices] ICurrentSubcontractorService current,
+        CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        // If admin, allow override — or you may restrict this to subcontractor only logic
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
     }
@@ -82,16 +101,19 @@ public class CampController : BaseController
     [Authorize(Roles = "Subcontractor,Admin")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyCanceledCamps(
+    public async Task<IActionResult> GetMyCanceledCampsAsync(
         [FromServices] ICurrentSubcontractorService current,
         CancellationToken ct)
     {
         var userId = GetCurrentUserId();
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        var subcontractorId = await current.GetRequiredSubcontractorIdAsync(userId, ct);
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
         return Success(result);
     }
+
+
 
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
@@ -156,6 +178,60 @@ public class CampController : BaseController
         var bytes = await System.IO.File.ReadAllBytesAsync(filePath);
         var fileName = Path.GetFileName(filePath);
         return File(bytes, "image/png", fileName);
+    }
+
+
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$)}")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampWithRolesDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyCampsByStatus(
+    string status,
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
+        var result = await _service.GetMyCampsWithRolesByStatusAsync(subcontractorId, status.ToLowerInvariant(), ct);
+        return Success(result);
+    }
+
+
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("{campId:guid}/patients/all")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampPatientDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampPatientsByStatus(
+        Guid campId,
+        [FromQuery] string filter = "all",
+        [FromQuery] string? q = null,
+        [FromQuery] string? sort = "newest",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var patients = await _service.GetCampPatientsByStatusAsync(campId, filter, q, sort, page, pageSize, ct);
+        return Success(patients);
+    }
+
+    [Authorize(Roles = "Subcontractor,Admin")]
+    [HttpGet("{campId:guid}/patients/{participantId:guid}/detail-with-forms")]
+    [ProducesResponseType(typeof(ApiResponse<CampPatientDetailWithFormsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampPatientDetailWithForms(
+    Guid campId,
+    Guid participantId,
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
+        // Admin: your CurrentSubcontractorService returns Guid.Empty → pass null
+        Guid? subIdOrNull = subcontractorId == Guid.Empty ? (Guid?)null : subcontractorId;
+
+        var dto = await _service.GetCampPatientDetailWithFormsForCurrentAsync(
+            campId, participantId, subIdOrNull, ct);
+
+        return Success(dto);
     }
 
 

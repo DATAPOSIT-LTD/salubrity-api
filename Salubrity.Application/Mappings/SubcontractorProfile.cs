@@ -30,9 +30,10 @@ public class SubcontractorProfile : Profile
 
         // Role assignments → Role DTO (profession)
         CreateMap<SubcontractorRoleAssignment, SubcontractorRoleDto>()
-            .ForMember(d => d.RoleId, o => o.MapFrom(s => s.Id)) // Assignment ID (not role ID)
+            .ForMember(d => d.RoleId, o => o.MapFrom(s => s.SubcontractorRole.Id))
             .ForMember(d => d.SubcontractorId, o => o.MapFrom(s => s.SubcontractorId))
             .ForMember(d => d.RoleName, o => o.MapFrom(s => s.SubcontractorRole.Name))
             .ForMember(d => d.Description, o => o.MapFrom(s => s.SubcontractorRole.Description));
+
     }
 }

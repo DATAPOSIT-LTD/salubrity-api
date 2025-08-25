@@ -8,6 +8,11 @@
   <strong>Expires on:</strong> {{ ExpiryDate }}
 </p>
 
+<p style="margin: 20px 0;">
+  <strong>Your QR Code:</strong><br />
+  <img src="{{ QrCodeBase64 }}" alt="QR Code" style="margin-top: 10px; width: 180px; height: 180px;" />
+</p>
+
 <p style="margin: 30px 0;">
   <a href="{{ SignInUrl }}"
      style="display: inline-block; padding: 12px 24px; background-color: #014445; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: bold;">

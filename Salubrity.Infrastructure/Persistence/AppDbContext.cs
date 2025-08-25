@@ -231,6 +231,13 @@ namespace Salubrity.Infrastructure.Persistence
                 e.HasIndex(x => new { x.FieldId, x.Order });
             });
 
+            // Case-insensitive unique index on Name for JobTitle (excluding soft-deleted)
+            modelBuilder.Entity<JobTitle>()
+                .HasIndex(e => e.Name)
+                .HasDatabaseName("ux_jobtitles_name_ci")
+                .IsUnique()
+                .HasFilter("\"IsDeleted\" = FALSE");
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);
         }

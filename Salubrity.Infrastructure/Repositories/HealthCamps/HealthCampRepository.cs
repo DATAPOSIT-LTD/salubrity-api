@@ -1,12 +1,16 @@
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Shared.Constants;
 using Salubrity.Shared.Exceptions;
+using Scriban.Syntax;
 
 namespace Salubrity.Infrastructure.Repositories.HealthCamps;
 
@@ -148,8 +152,11 @@ public class HealthCampRepository : IHealthCampRepository
         return await _context.HealthCamps
             .Include(c => c.Participants)
                 .ThenInclude(p => p.User)
+            .Include(c => c.HealthCampStatus)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
     }
+
+
 
     public async Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert)
     {
@@ -201,7 +208,7 @@ public class HealthCampRepository : IHealthCampRepository
         var items = await _context.HealthCampServiceAssignments
             .Where(x => x.SubcontractorId == subcontractorId)
             .Select(x => x.HealthCamp)
-            .Where(c => !c.IsLaunched || c.HealthCampStatus!.Name == "Canceled")
+            .Where(c => !c.IsLaunched || c.HealthCampStatus!.Name == "Suspended")
             .Include(c => c.Organization)
             .AsNoTracking()
             .ToListAsync();
@@ -220,16 +227,26 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .AsSplitQuery();
     }
-
     public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
-        var today = DateTime.UtcNow.Date;
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
-        // “Upcoming” tab includes ongoing + future
-        // Use (EndDate ?? StartDate) >= today to include ongoing (spanning) and single-day
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c => c.IsLaunched
-                        && ((c.EndDate ?? c.StartDate) >= today) && c.CloseDate <= today)
+            .Where(c =>
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                )
+            )
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
@@ -247,14 +264,18 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
-        // Robust canceled check: either not launched OR status labeled “Canceled”
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c => !c.IsLaunched
-                        || (c.HealthCampStatus != null &&
-                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "canceled")))
+            .Where(c => !c.IsDeleted)
+            .Where(c =>
+                !c.IsLaunched ||
+                (c.HealthCampStatus != null && c.HealthCampStatus.Name == "Suspended")
+            // or: new[] { "Suspended", "Incomplete" }.Contains(c.HealthCampStatus!.Name)
+            )
+            .Distinct()
             .OrderByDescending(c => c.StartDate)
             .ToListAsync(ct);
     }
+
 
     private IQueryable<HealthCampParticipant> BaseParticipants(Guid campId, string? q, string? sort)
     {
@@ -326,17 +347,29 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)
     {
-        var today = DateTime.UtcNow.Date;
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
         return await _context.HealthCamps
-            .Where(c => c.IsLaunched
-                        && ((c.EndDate ?? c.StartDate) >= today)
-                        && c.CloseDate <= today)
+            .Where(c =>
+                !c.IsDeleted &&
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                ))
+            .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
+
+
 
     public async Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default)
     {
@@ -356,11 +389,310 @@ public class HealthCampRepository : IHealthCampRepository
         return await _context.HealthCamps
             .Where(c => !c.IsLaunched
                         || (c.HealthCampStatus != null &&
-                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "canceled")))
+                            EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "suspended")))
             .Include(c => c.Organization)
             .AsNoTracking()
             .OrderByDescending(c => c.StartDate)
             .ToListAsync(ct);
     }
 
+    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
+        Guid subcontractorId,
+        string status,
+        CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        var baseQuery = _context.HealthCampServiceAssignments
+            .Where(x => x.SubcontractorId == subcontractorId)
+            .Include(x => x.HealthCamp)
+                .ThenInclude(c => c.Organization)
+            .Include(x => x.HealthCamp)
+                .ThenInclude(c => c.HealthCampStatus)
+            .Include(x => x.Service)
+            .Include(x => x.Role)
+            .Where(x => x.HealthCamp.IsActive);
+
+        baseQuery = status.ToLowerInvariant() switch
+        {
+            "upcoming" => baseQuery.Where(x =>
+                x.HealthCamp.IsLaunched &&
+                ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today) &&
+                (x.HealthCamp.CloseDate == null || x.HealthCamp.CloseDate >= today)),
+
+            "complete" => baseQuery.Where(x =>
+                x.HealthCamp.IsLaunched &&
+                ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) < today)),
+
+            "canceled" => baseQuery.Where(x =>
+                !x.HealthCamp.IsLaunched ||
+                (x.HealthCamp.HealthCampStatus != null && x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
+
+            _ => baseQuery
+        };
+
+        // Materialize everything first
+        var assignments = await baseQuery.ToListAsync(ct);
+
+        // Group and project in-memory
+        var result = assignments
+            .GroupBy(x => x.HealthCamp)
+            .Select(g => new HealthCampWithRolesDto
+            {
+                CampId = g.Key.Id,
+                ClientName = g.Key.Organization?.BusinessName ?? "—",
+                Venue = g.Key.Location ?? "—",
+                StartDate = g.Key.StartDate,
+                EndDate = g.Key.EndDate,
+                Status = g.Key.HealthCampStatus?.Name ?? "Unknown",
+                Roles = g
+                    .Select(r => new RoleAssignmentDto
+                    {
+                        AssignedBooth = r.Service?.Name ?? "—",
+                        AssignedRole = r.Role?.Name ?? "—"
+                    })
+                    .Distinct()
+                    .ToList()
+            })
+            .ToList();
+
+        return result;
+    }
+
+
+
+    public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
+    Guid campId,
+    string filter,
+    string? q,
+    string? sort,
+    int page,
+    int pageSize,
+    CancellationToken ct = default)
+    {
+        // Start with safe includes
+        var query = _context.HealthCampParticipants
+            .Where(p => p.HealthCampId == campId)
+            .Include(p => p.User)
+            .Include(p => p.HealthCamp)
+                .ThenInclude(h => h.Organization)
+            .Include(p => p.HealthAssessments) // include to avoid Any() failure
+            .AsSplitQuery(); // optional: avoid Cartesian explosion
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim().ToLower();
+            query = query.Where(p =>
+                EF.Functions.ILike(p.User.FullName, $"%{term}%") ||
+                EF.Functions.ILike(p.User.Email, $"%{term}%") ||
+                (p.User.Phone != null && EF.Functions.ILike(p.User.Phone, $"%{term}%")));
+        }
+
+        // Materialize query first (EF cannot translate .Any() + .Select reliably)
+        var list = await query.ToListAsync(ct);
+
+        // In-memory filtering
+        list = filter.ToLowerInvariant() switch
+        {
+            "served" => list.Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()).ToList(),
+            "not-seen" => list.Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()).ToList(),
+            _ => list
+        };
+
+        // Sorting
+        list = (sort ?? string.Empty).ToLowerInvariant() switch
+        {
+            "oldest" => list.OrderBy(p => p.CreatedAt).ToList(),
+            _ => list.OrderByDescending(p => p.CreatedAt).ToList()
+        };
+
+        // Pagination + projection
+        return list
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new HealthCampPatientDto
+            {
+                PatientId = p.PatientId?.ToString() ?? "—",
+                FullName = p.User.FullName!,
+                Company = p.HealthCamp.Organization?.BusinessName ?? "—",
+                PhoneNumber = p.User.Phone ?? "",
+                Email = p.User.Email ?? ""
+            })
+            .ToList();
+    }
+
+
+
+    public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
+      Guid campId,
+      Guid participantId,
+      Guid? subcontractorId,
+      CancellationToken ct = default)
+    {
+        // STEP 1: Participant + Camp + Org + User + Patient check
+        var p = await _context.HealthCampParticipants
+            .Where(x => x.Id == participantId
+                     && x.HealthCampId == campId
+                     && x.PatientId != null)
+            .Select(x => new
+            {
+                Participant = x,
+                Camp = x.HealthCamp,
+                OrgName = x.HealthCamp.Organization.BusinessName,
+                Venue = x.HealthCamp.Location,
+                Status = x.HealthCamp.HealthCampStatus != null ? x.HealthCamp.HealthCampStatus.Name : "Unknown",
+                User = x.User,
+                PatientId = x.PatientId!.Value
+            })
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct);
+
+        // STEP 2: Reject if no matching participant or soft-deleted patient
+        if (p == null || !await _context.Patients.AnyAsync(pa => pa.Id == p.PatientId && !pa.IsDeleted, ct))
+            return null;
+
+        // STEP 3: Has been served?
+        var served = p.Participant.ParticipatedAt != null
+                     || await _context.HealthAssessments
+                            .AnyAsync(a => a.ParticipantId == participantId, ct);
+
+        // STEP 4: Camp assignments for this participant (with optional subcontractor filter)
+        IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
+         .Where(a => a.HealthCampId == campId)
+         .Include(a => a.Service)
+             .ThenInclude(s => s.IntakeForm)
+                 .ThenInclude(f => f.Versions)
+         .Include(a => a.Service)
+             .ThenInclude(s => s.IntakeForm)
+                 .ThenInclude(f => f.Sections)
+                     .ThenInclude(sec => sec.Fields)
+                         .ThenInclude(ff => ff.Options)
+         .Include(a => a.Role);
+
+
+        if (subcontractorId.HasValue)
+            assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
+
+        var assignments = await assignQ
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        // STEP 5: Shape final DTO
+        var dto = new CampPatientDetailWithFormsDto
+        {
+            ParticipantId = p.Participant.Id,
+            UserId = p.User.Id,
+            PatientCode = p.PatientId.ToString(),
+            FullName = p.User.FullName ?? "Patient",
+            Email = p.User.Email,
+            Phone = p.User.Phone,
+            CampId = p.Camp.Id,
+            ClientName = p.OrgName,
+            Venue = p.Venue ?? "",
+            StartDate = p.Camp.StartDate,
+            EndDate = p.Camp.EndDate,
+            Status = p.Status,
+            Served = served
+        };
+
+        // STEP 6: Group services by ServiceId and attach forms
+        dto.Assignments = assignments
+            .GroupBy(a => a.ServiceId)
+            .Select(g =>
+            {
+                var any = g.First();
+                return new AssignedServiceWithFormDto
+                {
+                    ServiceId = any.ServiceId,
+                    ServiceName = any.Service.Name,
+                    ProfessionId = any.ProfessionId,
+                    AssignedRole = any.Role?.Name,
+                    Form = MapForm(any.Service.IntakeForm)
+                };
+            })
+            .OrderBy(x => x.ServiceName)
+            .ToList();
+
+        return dto;
+    }
+
+    // --- helpers ---
+
+    private static FormResponseDto? MapForm(IntakeForm? f)
+    {
+        if (f == null) return null;
+
+        // If the form is sectioned
+        if (f.Sections != null && f.Sections.Count > 0)
+        {
+            return new FormResponseDto
+            {
+                Id = f.Id,
+                Name = f.Name,
+                Description = f.Description,
+                IntakeFormVersionId = f.Versions.OrderByDescending(v => v.CreatedAt).FirstOrDefault()?.Id,
+                Sections = f.Sections
+                    .OrderBy(s => s.Order)
+                    .Select(s => new FormSectionResponseDto
+                    {
+                        Id = s.Id,
+                        Name = s.Name,
+                        Description = s.Description,
+                        Order = s.Order,
+                        Fields = s.Fields
+                            .OrderBy(ff => ff.Order)
+                            .Select(MapField)
+                            .ToList()
+                    })
+                    .ToList(),
+                Fields = new List<FormFieldResponseDto>() // empty when sectioned
+            };
+        }
+
+        // Unsectioned (flat) form
+        return new FormResponseDto
+        {
+            Id = f.Id,
+            Name = f.Name,
+            Description = f.Description,
+            Sections = new List<FormSectionResponseDto>(),
+            Fields = f.Fields != null
+                ? f.Fields.OrderBy(ff => ff.Order).Select(MapField).ToList()
+                : new List<FormFieldResponseDto>()
+        };
+    }
+
+    private static FormFieldResponseDto MapField(IntakeFormField ff)
+    {
+        return new FormFieldResponseDto
+        {
+            Id = ff.Id,
+            FormId = ff.FormId,
+            SectionId = ff.SectionId,
+            Label = ff.Label,
+            FieldType = ff.FieldType,
+            IsRequired = ff.IsRequired,
+            Order = ff.Order,
+            HasConditionalLogic = ff.HasConditionalLogic,
+            ConditionalLogicType = ff.ConditionalLogicType,
+            TriggerFieldId = ff.TriggerFieldId,
+            TriggerValueOptionId = ff.TriggerValueOptionId,
+            ValidationType = ff.ValidationType,
+            ValidationPattern = ff.ValidationPattern,
+            MinValue = ff.MinValue,
+            MaxValue = ff.MaxValue,
+            MinLength = ff.MinLength,
+            MaxLength = ff.MaxLength,
+            CustomErrorMessage = ff.CustomErrorMessage,
+            LayoutPosition = ff.LayoutPosition,
+            Options = (ff.Options ?? new List<IntakeFormFieldOption>())
+                .Select(o => new FieldOptionResponseDto
+                {
+                    Id = o.Id,
+                    Value = o.Value
+                    // DisplayText = o.DisplayText
+                })
+                .ToList()
+        };
+    }
 }

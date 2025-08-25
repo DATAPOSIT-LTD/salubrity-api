@@ -8,6 +8,7 @@ using Salubrity.Application.DTOs.Users;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Employee;
@@ -30,6 +31,7 @@ public class EmployeeService : IEmployeeService
     private readonly IOrganizationRepository _organizationRepo;
     private readonly IPasswordGenerator _passwordGenerator;
     private readonly ILookupRepository<Gender> _genderRepo;
+    private readonly IPatientRepository _patientRepo;
 
 
     public EmployeeService(
@@ -40,7 +42,9 @@ public class EmployeeService : IEmployeeService
      ILookupRepository<JobTitle> jobTitleRepo,
      ILookupRepository<Department> departmentRepo,
      ILookupRepository<Gender> genderRepo,
-     IOrganizationRepository organizationRepo)
+     IOrganizationRepository organizationRepo,
+     IPatientRepository patientRepo
+     )
     {
         _repo = repo;
         _passwordHasher = passwordHasher;
@@ -50,6 +54,7 @@ public class EmployeeService : IEmployeeService
         _departmentRepo = departmentRepo;
         _organizationRepo = organizationRepo;
         _genderRepo = genderRepo;
+        _patientRepo = patientRepo;
     }
 
 
@@ -109,18 +114,18 @@ public class EmployeeService : IEmployeeService
         var normalizedEmail = dto.User.Email.Trim().ToLowerInvariant();
         var userId = Guid.NewGuid();
 
-        //  Get the Patient Role ID
+        // Get the Patient Role ID
         var patientRole = await _roleRepo.FindByNameAsync("Patient");
         if (patientRole == null)
             throw new Exception("Patient role not found");
 
-        //  Create User
+        // Create User
         var user = new User
         {
+            Id = userId,
             FirstName = dto.User.FirstName.Trim(),
             MiddleName = dto.User.MiddleName?.Trim(),
             LastName = dto.User.LastName.Trim(),
-            Id = userId,
             Phone = dto.User.Phone?.Trim(),
             GenderId = dto.User.GenderId,
             Email = normalizedEmail,
@@ -129,17 +134,17 @@ public class EmployeeService : IEmployeeService
             IsVerified = false,
             CreatedAt = DateTime.UtcNow,
             UserRoles =
-        [
-            new UserRole
+            [
+                new UserRole
             {
                 UserId = userId,
-                RoleId = patientRole.Id //  Assign Patient Role
+                RoleId = patientRole.Id
             }
-        ]
+            ]
         };
 
         // Create Employee
-        var entity = new Employee
+        var employee = new Employee
         {
             Id = Guid.NewGuid(),
             OrganizationId = dto.OrganizationId,
@@ -148,14 +153,25 @@ public class EmployeeService : IEmployeeService
             User = user
         };
 
-        await _repo.CreateAsync(entity);
+        await _repo.CreateAsync(employee);
+
+        //  Also create corresponding Patient
+        var patient = new Patient
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            PrimaryOrganizationId = dto.OrganizationId,
+            Notes = "Auto-created for employee"
+        };
+
+        await _patientRepo.AddAsync(patient);
 
         return new EmployeeResponseDto
         {
-            Id = entity.Id,
-            OrganizationId = entity.OrganizationId,
-            JobTitleId = entity.JobTitleId,
-            DepartmentId = entity.DepartmentId,
+            Id = employee.Id,
+            OrganizationId = employee.OrganizationId,
+            JobTitleId = employee.JobTitleId,
+            DepartmentId = employee.DepartmentId,
             User = new UserResponse
             {
                 Id = user.Id,
@@ -168,6 +184,7 @@ public class EmployeeService : IEmployeeService
             }
         };
     }
+
 
 
     public async Task<BulkUploadResultDto> BulkCreateFromCsvAsync(IFormFile file)
@@ -248,6 +265,18 @@ public class EmployeeService : IEmployeeService
                 };
 
                 await _repo.CreateAsync(employee);
+
+                //  Baked-in: Create matching Patient record
+                var patient = new Patient
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    PrimaryOrganizationId = organization.Id,
+                    Notes = "Auto-created from employee bulk upload"
+                };
+
+                await _patientRepo.AddAsync(patient);
+
                 result.SuccessCount++;
             }
             catch (Exception ex)
@@ -263,6 +292,7 @@ public class EmployeeService : IEmployeeService
 
         return result;
     }
+
 
 
 

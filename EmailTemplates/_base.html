@@ -15,7 +15,7 @@
           <!-- Header -->
           <tr>
             <td style="background-color: #014445; text-align: center; padding: 20px;">
-              <img src="https://salubritycentre.com/wp-content/uploads/2017/07/X-Large-Logo-Salubrity-2.png" alt="{{ company.name }} Logo" height="60" style="display: block; margin: auto;" />
+              <img src="{{ company.logo_url }}" alt="{{ company.name }} Logo" height="60" style="display: block; margin: auto;" />
             </td>
           </tr>
 
@@ -31,9 +31,10 @@
             <td style="background-color: #D3C34A; padding: 20px; font-size: 12px; text-align: center; color: #000000;">
               <p style="margin: 4px 0;"><strong>{{ company.name }}</strong></p>
               <p style="margin: 4px 0;">{{ company.address }}</p>
+              <p style="margin: 4px 0;">Hotline: {{ company.hotline }}</p>
+              <p style="margin: 4px 0;">Hours: {{ company.hours }}</p>
               <p style="margin: 4px 0;">
-                <a href="mailto:{{ company.email }}" style="color: #000000; text-decoration: underline;">{{ company.email }}</a> &bull;
-                <span>{{ company.phone }}</span>
+                <a href="mailto:{{ company.email }}" style="color: #000000; text-decoration: underline;">{{ company.email }}</a>
               </p>
               <p style="margin: 10px 0 0 0;">&copy; {{ year }} {{ company.name }}. All rights reserved.</p>
             </td>

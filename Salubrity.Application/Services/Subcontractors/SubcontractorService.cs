@@ -113,7 +113,7 @@ namespace Salubrity.Application.Services.Subcontractor
                 await _repo.AssignRoleAsync(subcontractor.Id, roleId, isPrimary);
             }
 
-            await _repo.SaveChangesAsync();
+
 
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }

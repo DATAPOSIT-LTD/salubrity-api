@@ -561,6 +561,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Where(a => a.HealthCampId == campId)
             .Include(a => a.Service)
                 .ThenInclude(s => s.IntakeForm)
+                    .ThenInclude(f => f.Versions)
                     .ThenInclude(f => f.Sections)
                         .ThenInclude(sec => sec.Fields)
                             .ThenInclude(ff => ff.Options)

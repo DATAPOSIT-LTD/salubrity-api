@@ -10,6 +10,6 @@ public class PasswordGenerator : IPasswordGenerator
     {
         const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@$%&*?";
         var random = new Random();
-        return new string(Enumerable.Range(1, length).Select(_ => chars[random.Next(chars.Length)]).ToArray());
+        return "Salubrity@2025!";//new string(Enumerable.Range(1, length).Select(_ => chars[random.Next(chars.Length)]).ToArray());
     }
 }

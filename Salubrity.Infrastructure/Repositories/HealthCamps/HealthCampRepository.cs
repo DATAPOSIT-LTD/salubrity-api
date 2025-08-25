@@ -549,7 +549,7 @@ public class HealthCampRepository : IHealthCampRepository
             .FirstOrDefaultAsync(ct);
 
         // STEP 2: Reject if no matching participant or soft-deleted patient
-        if (p == null || !await _context.Patients.AnyAsync(pa => pa.Id == p.PatientId && !pa.IsDeleted, ct))
+        if (p == null || !await _context.Patients.AnyAsync(pa => pa.UserId == p.User.Id && !pa.IsDeleted, ct))
             return null;
 
         // STEP 3: Has been served?

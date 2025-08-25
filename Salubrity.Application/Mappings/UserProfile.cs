@@ -16,7 +16,7 @@ public class UserProfile : Profile
             .ForMember(dest => dest.FullName,
                        opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));
 
-        CreateMap<UserResponse, User>()
+        CreateMap<UserUpdateRequest, User>()
             .ForMember(dest => dest.Id, opt => opt.Ignore()) // Id should not be updated
             .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()); // PasswordHash should not be updated here
     }

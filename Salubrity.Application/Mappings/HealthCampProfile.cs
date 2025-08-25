@@ -34,7 +34,8 @@ public class HealthCampProfile : Profile
 
         // Entity -> Generic DTO
         CreateMap<HealthCamp, HealthCampDto>()
-            .ForMember(dest => dest.OrganizationName, m => m.MapFrom(src => src.Organization.BusinessName))
+            // .ForMember(dest => dest.OrganizationName, m => m.MapFrom(src => src.Organization.BusinessName))
+            .ForMember(dest => dest.ClientName, m => m.MapFrom(src => src.Organization.BusinessName))
             // Be explicit so AutoMapper uses the maps above for the child collections
             .ForMember(dest => dest.PackageItems, m => m.MapFrom(src => src.PackageItems))
             .ForMember(dest => dest.ServiceAssignments, m => m.MapFrom(src => src.ServiceAssignments));

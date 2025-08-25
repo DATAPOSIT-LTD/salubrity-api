@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Employee;
@@ -14,7 +15,11 @@ using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Organizations;
+
 using Salubrity.Application.Interfaces.Services.Subcontractors;
+
+using Salubrity.Application.Interfaces.Services.Users;
+
 using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
@@ -29,8 +34,10 @@ using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Rbac;
-using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Application.Services.Subcontractors;
+
+using Salubrity.Application.Services.Users;
+
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Infrastructure.Services;
@@ -75,6 +82,7 @@ namespace Salubrity.Application
             services.AddScoped<IFormService, FormService>();
             services.AddScoped<IFormBuilderService, FormBuilderService>();
             services.AddScoped<ILookupService, GenericLookupService<Gender>>();
+            services.AddScoped<GenericLookupService<IntakeFormResponseStatus>>();
             services.AddScoped<GenericLookupService<HealthCampStatus>>();
             services.AddScoped<GenericLookupService<Language>>();
             services.AddScoped<GenericLookupService<Department>>();
@@ -96,6 +104,8 @@ namespace Salubrity.Application
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IIntakeFormResponseService, IntakeFormResponseService>();
 
 
             return services;

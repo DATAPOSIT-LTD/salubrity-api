@@ -41,6 +41,17 @@ using Salubrity.Infrastructure.Repositories.Users;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
 
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Infrastructure.Repositories.Employees;
+using Salubrity.Infrastructure.Repositories;
+using Salubrity.Infrastructure.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
+using Salubrity.Infrastructure.Repositories.HealthAssesment;
+using Salubrity.Application.Interfaces.Repositories.Patients;
+using Salubrity.Infrastructure.Repositories.Patients;
+using Salubrity.Infrastructure.Persistence.Repositories.HealthCamps;
+using Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
+using Salubrity.Application.Common.Interfaces.Repositories;
 
 
 namespace Salubrity.Infrastructure;
@@ -98,6 +109,10 @@ public static class DependencyInjection
 
         services.AddScoped<IEmailConfigurationRepository, EmailConfigurationRepository>();
         services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<ISubcontractorCampAssignmentRepository, SubcontractorCampAssignmentRepository>();
+        services.AddScoped<IIntakeFormResponseRepository, IntakeFormResponseRepository>();
+        services.AddScoped<IHealthCampParticipantRepository, HealthCampParticipantRepository>();
+
 
 
 

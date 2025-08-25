@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Salubrity.Application.DTOs.Forms;
 using Salubrity.Domain.Entities.IntakeForms;
 

@@ -8,6 +8,7 @@ using HtmlAgilityPack;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Application.Configurations;
+using Scriban.Runtime;
 
 namespace Salubrity.Infrastructure.Services;
 
@@ -34,14 +35,24 @@ public class ScribanTemplateRenderer : ITemplateRenderer
         {
             var templates = await GetTemplatesAsync(templateKey);
 
-            // Render content template first
-            var contentHtml = await templates.Html.RenderAsync(model);
+            var context = new TemplateContext();
+            var scriptObj = new ScriptObject();
 
-            // Wrap in base template with header/footer
-            var fullHtml = await RenderWithBaseTemplateAsync(contentHtml, templateKey, model);
+            foreach (var prop in model.GetType().GetProperties())
+            {
+                scriptObj[prop.Name] = prop.GetValue(model) ?? string.Empty;
+            }
+
+            context.PushGlobal(scriptObj);
+
+            // Render content template first
+            var contentHtml = await templates.Html.RenderAsync(context);
+
+            // Wrap in base template with header/footer (you’ll fix this too)
+            var fullHtml = await RenderWithBaseTemplateAsync(contentHtml, templateKey, scriptObj);
 
             var text = templates.Text != null
-                ? await templates.Text.RenderAsync(model)
+                ? await templates.Text.RenderAsync(context)
                 : ConvertHtmlToText(fullHtml);
 
             return new RenderedTemplate
@@ -58,6 +69,7 @@ public class ScribanTemplateRenderer : ITemplateRenderer
         }
     }
 
+
     public async Task<bool> TemplateExistsAsync(string templateKey)
     {
         var htmlPath = GetTemplatePath(templateKey, "html");
@@ -66,6 +78,8 @@ public class ScribanTemplateRenderer : ITemplateRenderer
 
     private async Task<string> RenderWithBaseTemplateAsync(string contentHtml, string templateKey, object model)
     {
+
+
         var wrappedModel = new
         {
             content = contentHtml,
@@ -75,16 +89,26 @@ public class ScribanTemplateRenderer : ITemplateRenderer
             {
                 name = "Salubrity Centre",
                 website = "https://salubritycentre.com",
-                logo_url = "https://salubritycentre.com/wp-content/uploads/2017/07/X-Large-Logo-Salubrity-2.png",
-                address = "Nairobi, Kenya",
-                phone = "+254-XXX-XXXX",
+                logo_url = "https://api-salubrity.dataposit.co.ke/assets/logo.png",
+                address = "4th Floor. UHMC, Ralph Bunche Road",
+                hotline = "+254 114 454 190",
+                hours = "Mon-Fri (Except Thursdays): 8:00AM - 4:00PM",
+                phone = "+254-114-454-190",
                 email = "info@salubritycentre.com"
             },
             original_model = model
         };
 
-        return await _baseTemplate.Value.RenderAsync(wrappedModel);
+
+        var script = new ScriptObject();
+        script.Import(wrappedModel); // supports nested properties
+        var context = new TemplateContext();
+        context.PushGlobal(script);
+
+        return await _baseTemplate.Value.RenderAsync(context);
     }
+
+
 
     private async Task<(Template Html, Template? Text)> GetTemplatesAsync(string templateKey)
     {

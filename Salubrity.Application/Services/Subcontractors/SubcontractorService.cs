@@ -12,7 +12,7 @@ using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Shared.Extensions;
 
-namespace Salubrity.Application.Services.Subcontractor
+namespace Salubrity.Application.Services.Subcontractors
 {
     public class SubcontractorService : ISubcontractorService
     {

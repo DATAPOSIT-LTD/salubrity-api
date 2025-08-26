@@ -19,6 +19,9 @@ public static class LookupRegistry
         { "subcontractorstatuses", typeof(SubcontractorStatus) },
         { "subcontractorhealthcampassignmentstatuses", typeof(SubcontractorHealthCampAssignmentStatus) },
         { "healthcampstatuses", typeof(HealthCampStatus) },
-        {"intakeformresponsestatuses", typeof(IntakeFormResponseStatus) }
+        {"intakeformresponsestatuses", typeof(IntakeFormResponseStatus) },
+        {"healthassessmentformtypes", typeof(HealthAssessmentFormType) }
+
     };
+
 }

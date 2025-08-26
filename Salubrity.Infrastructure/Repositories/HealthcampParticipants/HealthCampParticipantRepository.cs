@@ -16,7 +16,9 @@ namespace Salubrity.Infrastructure.Repositories
         {
             _context = context;
         }
-        public async Task<Guid?> GetPatientIdByUserIdAsync(Guid userId, CancellationToken ct = default)
+
+
+        public async Task<Guid?> GetPatientIdByParticipantIdAsync(Guid userId, CancellationToken ct = default)
         {
             return await _context.Patients
                 .Where(p => p.UserId == userId && !p.IsDeleted)

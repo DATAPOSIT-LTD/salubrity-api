@@ -5,8 +5,8 @@ using Salubrity.Domain.Entities.Lookup;
 
 public class HealthAssessmentFormResponse : BaseAuditableEntity
 {
-    public Guid HealthAssessmentId { get; set; }
-    public HealthAssessment HealthAssessment { get; set; } = default!;
+    // public Guid HealthAssessmentId { get; set; }
+    // public HealthAssessment HealthAssessment { get; set; } = default!;
 
     public Guid FormTypeId { get; set; }
     public HealthAssessmentFormType FormType { get; set; } = default!;

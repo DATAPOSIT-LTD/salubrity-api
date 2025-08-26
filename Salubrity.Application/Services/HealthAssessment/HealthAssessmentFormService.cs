@@ -15,13 +15,13 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
 
     public async Task<Guid> SubmitFormSectionAsync(SubmitHealthAssessmentFormDto dto, Guid userId, CancellationToken ct = default)
     {
-        var assessment = await _repo.GetByIdWithParticipantAsync(dto.HealthAssessmentId, ct)
-            ?? throw new NotFoundException("Health assessment not found");
+        // var assessment = await _repo.GetByIdWithParticipantAsync(dto.HealthAssessmentId, ct)
+        //     ?? throw new NotFoundException("Health assessment not found");
 
         var formResponse = new HealthAssessmentFormResponse
         {
             Id = Guid.NewGuid(),
-            HealthAssessmentId = dto.HealthAssessmentId,
+            // HealthAssessmentId = dto.HealthAssessmentId,
             FormTypeId = dto.FormTypeId,
             IntakeFormVersionId = dto.IntakeFormVersionId,
             CreatedBy = userId,

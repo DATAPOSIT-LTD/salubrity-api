@@ -16,13 +16,13 @@ namespace Salubrity.Infrastructure.Repositories
         {
             _context = context;
         }
-
-        public async Task<Guid?> GetPatientIdByParticipantIdAsync(Guid participantId, CancellationToken ct = default)
+        public async Task<Guid?> GetPatientIdByUserIdAsync(Guid userId, CancellationToken ct = default)
         {
-            return await _context.Set<HealthCampParticipant>()
-                .Where(p => p.Id == participantId && !p.IsDeleted)
-                .Select(p => p.PatientId)
+            return await _context.Patients
+                .Where(p => p.UserId == userId && !p.IsDeleted)
+                .Select(p => p.Id)
                 .FirstOrDefaultAsync(ct);
         }
+
     }
 }

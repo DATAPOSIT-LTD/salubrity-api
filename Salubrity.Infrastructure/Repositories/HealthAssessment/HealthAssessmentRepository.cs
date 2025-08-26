@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
 using Salubrity.Domain.Entities.HealthAssesment;
+using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Infrastructure.Repositories.HealthAssessments;
 
@@ -48,6 +51,21 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
     }
 
     public Task<object?> LoadWithMetricsAsync(Guid assessmentId, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<IntakeFormVersion?> GetIntakeFormVersionGraphAsync(Guid intakeFormVersionId, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<HealthAssessmentFormResponse?> GetLatestFormResponseAsync(Guid healthAssessmentId, Guid intakeFormVersionId, CancellationToken ct)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<HealthAssessmentFormResponse?> GetLatestFormResponseByFormTypeAsync(Guid formTypeId, Guid intakeFormVersionId, Guid createdByUserId, CancellationToken ct)
     {
         throw new NotImplementedException();
     }

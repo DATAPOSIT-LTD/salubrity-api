@@ -18,6 +18,8 @@ namespace Salubrity.Infrastructure.Repositories
         }
 
 
+
+
         public async Task<Guid?> GetPatientIdByParticipantIdAsync(Guid userId, CancellationToken ct = default)
         {
             return await _context.Patients
@@ -25,6 +27,7 @@ namespace Salubrity.Infrastructure.Repositories
                 .Select(p => p.Id)
                 .FirstOrDefaultAsync(ct);
         }
+
 
     }
 }

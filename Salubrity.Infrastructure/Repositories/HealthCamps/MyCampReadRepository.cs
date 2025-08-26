@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Camps;
+using Salubrity.Domain.Entities.HealthAssesment;
+using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.Join;
 // adjust to your EF DbContext namespace:
 using Salubrity.Infrastructure.Persistence;
@@ -75,4 +77,38 @@ public class MyCampReadRepository : IMyCampReadRepository
             Items = items
         };
     }
+
+    public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
+         Guid userId, Guid campId, CancellationToken ct = default)
+    {
+        // Ensure user is a participant of this camp (guards data leakage)
+        var isParticipant = await _db.Set<HealthCampParticipant>()
+            .AsNoTracking()
+            .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
+
+        if (!isParticipant) return Array.Empty<MyCampServiceDto>();
+
+        // Stations = assignments for this camp
+        var items = await _db.Set<HealthCampServiceAssignment>()
+            .AsNoTracking()
+            .Where(a => a.HealthCampId == campId)
+            .Select(a => new MyCampServiceDto
+            {
+                ServiceId = a.ServiceId,
+                ServiceName = a.Service.Name,
+                Description = a.Service.Description,
+
+                SubcontractorId = a.SubcontractorId,
+                ServedBy = a.Subcontractor.User.FullName,       // change if your field differs
+
+                ProfessionId = a.ProfessionId,
+                Profession = a.Role != null ? a.Role.Name : null,
+
+                StationName = a.Service.Name                   // no alias column yet
+            })
+            .ToListAsync(ct);
+
+        return items;
+    }
+
 }

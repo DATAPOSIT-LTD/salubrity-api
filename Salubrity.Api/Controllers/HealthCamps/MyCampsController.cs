@@ -37,4 +37,14 @@ public class MyCampsController : BaseController
         var result = await _service.GetUpcomingForUserAsync(userId, page, pageSize, search, ct);
         return Success(result);
     }
+
+    [HttpGet("{campId:guid}/service-stations")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<MyCampServiceDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampServices(Guid campId, CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+
+        var items = await _service.GetServicesForUserCampAsync(userId, campId, ct);
+        return Success(items);
+    }
 }

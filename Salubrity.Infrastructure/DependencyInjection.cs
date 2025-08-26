@@ -115,6 +115,7 @@ public static class DependencyInjection
         services.AddScoped<IIntakeFormResponseRepository, IntakeFormResponseRepository>();
         services.AddScoped<IHealthCampParticipantRepository, HealthCampParticipantRepository>();
         services.AddScoped<IMyCampReadRepository, MyCampReadRepository>();
+        services.AddScoped<ICampQueueRepository, CampQueueRepository>();
 
 
 

@@ -7,6 +7,7 @@ using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
+using Salubrity.Application.Interfaces.Services.Camps;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
@@ -109,6 +110,7 @@ namespace Salubrity.Application
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IIntakeFormResponseService, IntakeFormResponseService>();
             services.AddScoped<IMyCampQueryService, MyCampQueryService>();
+            services.AddScoped<ICampQueueService, CampQueueService>();
 
 
 

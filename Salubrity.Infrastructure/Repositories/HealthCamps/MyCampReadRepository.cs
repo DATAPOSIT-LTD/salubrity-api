@@ -54,7 +54,7 @@ public class MyCampReadRepository : IMyCampReadRepository
                 CampId = c!.Id,
                 CampName = c.Name,
                 Organization = c.Organization != null ? c.Organization.BusinessName : null,
-                PackageServices = c.ServicePackage.Name,
+                PackageServices = c.ServicePackage != null ? c.ServicePackage.Name : null,
                 NumberOfServices = c.ServiceAssignments != null ? c.ServiceAssignments.Count : 0,
                 Venue = c.Location ?? (c.Location != null ? c.Location : null),
                 StartDate = c.StartDate,

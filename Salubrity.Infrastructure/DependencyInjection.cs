@@ -54,6 +54,8 @@ using Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Infrastructure.Repositories.Camps;
+using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
+using Salubrity.Infrastructure.Repositories.HealthAssessments;
 
 
 namespace Salubrity.Infrastructure;
@@ -116,6 +118,8 @@ public static class DependencyInjection
         services.AddScoped<IHealthCampParticipantRepository, HealthCampParticipantRepository>();
         services.AddScoped<IMyCampReadRepository, MyCampReadRepository>();
         services.AddScoped<ICampQueueRepository, CampQueueRepository>();
+        services.AddScoped<IHealthAssessmentRepository, HealthAssessmentRepository>();
+
 
 
 

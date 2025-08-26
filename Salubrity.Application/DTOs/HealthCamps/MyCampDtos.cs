@@ -16,6 +16,8 @@ public class MyCampListItemDto
 }
 public class MyCampServiceDto
 {
+    public Guid CampAssignmentId { get; set; }
+
     public Guid SubcontractorId { get; set; }
     public Guid? ProfessionId { get; set; }
 

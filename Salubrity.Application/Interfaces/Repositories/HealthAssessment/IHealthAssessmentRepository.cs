@@ -7,4 +7,7 @@ public interface IHealthAssessmentRepository
     Task<List<Salubrity.Domain.Entities.HealthAssesment.HealthAssessment>> GetByParticipantAsync(Guid participantId);
     Task<List<Salubrity.Domain.Entities.HealthAssesment.HealthAssessment>> GetByCampAsync(Guid healthCampId);
     Task<object?> LoadWithMetricsAsync(Guid assessmentId, CancellationToken ct);
+
+    Task<Salubrity.Domain.Entities.HealthAssesment.HealthAssessment?> GetByIdWithParticipantAsync(Guid assessmentId, CancellationToken ct = default);
+    Task AddFormResponseAsync(HealthAssessmentFormResponse response, CancellationToken ct = default);
 }

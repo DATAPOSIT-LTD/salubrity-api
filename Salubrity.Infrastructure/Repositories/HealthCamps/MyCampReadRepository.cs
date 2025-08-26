@@ -97,6 +97,8 @@ public class MyCampReadRepository : IMyCampReadRepository
                 ServiceId = a.ServiceId,
                 ServiceName = a.Service.Name,
                 Description = a.Service.Description,
+                CampAssignmentId = a.Id,
+
 
                 SubcontractorId = a.SubcontractorId,
                 ServedBy = a.Subcontractor.User.FullName,       // change if your field differs

@@ -9,6 +9,7 @@ using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Camps;
 using Salubrity.Application.Interfaces.Services.Employee;
+using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.HomepageOverview;
@@ -27,6 +28,7 @@ using Salubrity.Application.Services.Auth;
 using Salubrity.Application.Services.Camps;
 using Salubrity.Application.Services.EmployeeServices;
 using Salubrity.Application.Services.Forms;
+using Salubrity.Application.Services.HealthAssessments;
 using Salubrity.Application.Services.HealthCamps;
 using Salubrity.Application.Services.HealthcareServices;
 using Salubrity.Application.Services.HomepageOverview;
@@ -111,6 +113,7 @@ namespace Salubrity.Application
             services.AddScoped<IIntakeFormResponseService, IntakeFormResponseService>();
             services.AddScoped<IMyCampQueryService, MyCampQueryService>();
             services.AddScoped<ICampQueueService, CampQueueService>();
+            services.AddScoped<IHealthAssessmentFormService, HealthAssessmentFormService>();
 
 
 

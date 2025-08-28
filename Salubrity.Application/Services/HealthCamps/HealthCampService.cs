@@ -1,6 +1,7 @@
 using AutoMapper;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.DTOs.Rbac;
 using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
@@ -266,7 +267,12 @@ public class HealthCampService : IHealthCampService
                 }
             };
 
+
+
             await _email.SendAsync(emailRequestDto);
+
+
+
         }
 
         // Send subcontractor emails

@@ -172,17 +172,23 @@ public class HealthCampService : IHealthCampService
     {
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
 
-        camp.Name = dto.Name;
-        camp.Description = dto.Description;
-        camp.Location = dto.Location;
-        camp.StartDate = dto.StartDate;
-        camp.EndDate = dto.EndDate;
-        camp.IsActive = dto.IsActive;
+        if (dto.Name is not null) camp.Name = dto.Name;
+        if (dto.Description is not null) camp.Description = dto.Description;
+        if (dto.Location is not null) camp.Location = dto.Location;
+        if (dto.StartDate.HasValue) camp.StartDate = dto.StartDate.Value;
+        if (dto.EndDate.HasValue) camp.EndDate = dto.EndDate.Value;
+        if (dto.StartTime.HasValue) camp.StartTime = dto.StartTime.Value;
+        if (dto.IsActive.HasValue) camp.IsActive = dto.IsActive.Value;
+        if (dto.ExpectedParticipants.HasValue) camp.ExpectedParticipants = dto.ExpectedParticipants.Value;
+        if (dto.ServicePackageId.HasValue) camp.ServicePackageId = dto.ServicePackageId.Value;
+        if (dto.OrganizationId.HasValue) camp.OrganizationId = dto.OrganizationId.Value;
+
         camp.UpdatedAt = DateTime.UtcNow;
 
         await _repo.UpdateAsync(camp);
         return _mapper.Map<HealthCampDto>(camp);
     }
+
 
     public async Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto)
     {

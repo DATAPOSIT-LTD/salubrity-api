@@ -1,11 +1,12 @@
 #nullable enable
-using System.Data;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Infrastructure.Persistence;
+using System.Data;
 
 namespace Salubrity.Infrastructure.Repositories.HealthcareServices
 {
@@ -49,7 +50,7 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
         {
             return await _db.Services
                 .AsNoTracking()
-                .Where(s => s.IsActive)
+                .Where(s => !s.IsDeleted && s.IsActive)
                 .OrderBy(s => s.Name)
                 .ToListAsync(ct);
         }
@@ -62,7 +63,7 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
 
         public async Task<bool> ExistsByIdAsync(Guid id, CancellationToken ct = default)
         {
-            return await _db.Services.AnyAsync(s => s.Id == id && s.IsActive, ct);
+            return await _db.Services.AnyAsync(s => s.Id == id && !s.IsDeleted && s.IsActive, ct);
         }
 
         // ========== HIERARCHY-AWARE OPERATIONS ==========
@@ -70,14 +71,25 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
         public async Task<IReadOnlyList<Service>> GetAllWithHierarchyAsync(bool includeInactive = false, CancellationToken ct = default)
         {
             var query = _db.Services
-                .AsNoTracking()
-                .Include(s => s.Categories.Where(c => includeInactive || c.IsActive))
-                    .ThenInclude(c => c.Subcategories.Where(sc => includeInactive || sc.IsActive))
+                .Include(s => s.Categories.Where(c => c.IsActive && !c.IsDeleted))
+                    .ThenInclude(c => c.Subcategories.Where(sc => sc.IsActive && !sc.IsDeleted))
                 .Include(s => s.Industry)
-                .Include(s => s.IntakeForm);
+                .Include(s => s.IntakeForm)
+                    .ThenInclude(f => f.Sections!)
+                        .ThenInclude(sec => sec.Fields)
+                .Include(s => s.IntakeForm!.Fields)
+                .Where(s => !s.IsDeleted); // This is the key fix
 
+            // Add the IsActive filter unless includeInactive is true
+            if (!includeInactive)
+            {
+                query = query.Where(s => s.IsActive);
+            }
 
-            return await query.OrderBy(s => s.Name).ToListAsync(ct);
+            return await query
+                .OrderBy(s => s.Name)
+                .AsNoTracking()
+                .ToListAsync(ct);
         }
 
         public async Task<Service?> GetByIdWithHierarchyAsync(Guid id, CancellationToken ct = default)
@@ -193,20 +205,31 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
 
         public async Task<bool> HasActiveBookingsAsync(Guid serviceId, CancellationToken ct = default)
         {
-            // This would integrate with your booking system
-            // For now, checking if any appointments reference this service
-            // Adjust the table/entity names based on your actual booking schema
-            return await _db.Set<object>() // Replace with actual Booking/Appointment entity
-                .FromSqlRaw(@"
-                    SELECT 1 FROM Appointments a 
-                    INNER JOIN ServiceSubcategories sc ON a.ServiceSubcategoryId = sc.Id
-                    INNER JOIN ServiceCategories c ON sc.ServiceCategoryId = c.Id
-                    WHERE c.ServiceId = {0} AND a.Status = 'Active'
+            var sql = @"
+                SELECT CASE WHEN EXISTS (
+                    SELECT 1 FROM ""Appointments"" a 
+                    INNER JOIN ""ServiceSubcategories"" sc ON a.""ServiceSubcategoryId"" = sc.""Id""
+                    INNER JOIN ""ServiceCategories"" c ON sc.""ServiceCategoryId"" = c.""Id""
+                    WHERE c.""ServiceId"" = @serviceId AND a.""Status"" = 'Active'
                     UNION
-                    SELECT 1 FROM Appointments a
-                    INNER JOIN ServiceCategories c ON a.ServiceCategoryId = c.Id  
-                    WHERE c.ServiceId = {0} AND a.Status = 'Active'", serviceId)
-                .AnyAsync(ct);
+                    SELECT 1 FROM ""Appointments"" a
+                    INNER JOIN ""ServiceCategories"" c ON a.""ServiceCategoryId"" = c.""Id""  
+                    WHERE c.""ServiceId"" = @serviceId AND a.""Status"" = 'Active'
+                ) THEN 1 ELSE 0 END AS ""Value""";
+
+            try
+            {
+                var result = await _db.Database
+                    .SqlQueryRaw<int>(sql, new SqlParameter("@serviceId", serviceId))
+                    .SingleOrDefaultAsync(ct);
+
+                return result == 1;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking active bookings for service {ServiceId}", serviceId);
+                return false;
+            }
         }
 
         public async Task<IReadOnlyList<Service>> GetMostPopularServicesAsync(int limit = 10, CancellationToken ct = default)

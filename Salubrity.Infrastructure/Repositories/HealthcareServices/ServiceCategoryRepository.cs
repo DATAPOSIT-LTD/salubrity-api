@@ -49,5 +49,9 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
             .Include(c => c.Subcategories)
             .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
     }
-
+    public async Task<bool> IsNameUniqueAsync(string name, CancellationToken ct = default)
+    {
+        return !await _db.ServiceCategories
+            .AnyAsync(c => c.Name == name, ct);
+    }
 }

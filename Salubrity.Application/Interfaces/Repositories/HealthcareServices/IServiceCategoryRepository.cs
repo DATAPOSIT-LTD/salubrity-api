@@ -11,4 +11,5 @@ public interface IServiceCategoryRepository
     Task DeleteAsync(ServiceCategory entity);
     Task<bool> ExistsByIdAsync(Guid id);
     Task<ServiceCategory?> GetByIdWithSubcategoriesAsync(Guid categoryId);
+    Task<bool> IsNameUniqueAsync(string name, CancellationToken ct = default);
 }

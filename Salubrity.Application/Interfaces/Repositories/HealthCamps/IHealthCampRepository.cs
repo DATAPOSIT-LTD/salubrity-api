@@ -44,6 +44,9 @@ public interface IHealthCampRepository
          Guid participantId,
          Guid? subcontractorId, // null => admin (all assignments)
          CancellationToken ct = default);
+
+    // Organization-scoped
+    Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
 }
 
 

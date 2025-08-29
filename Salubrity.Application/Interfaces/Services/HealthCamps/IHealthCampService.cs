@@ -40,4 +40,5 @@ public interface IHealthCampService
        CancellationToken ct = default);
 
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
+    Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default);
 }

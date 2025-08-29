@@ -811,4 +811,26 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .ToListAsync(ct);
     }
+
+    public async Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        var expectedPatients = await _context.HealthCampParticipants
+            .Where(p => p.HealthCamp.OrganizationId == organizationId)
+            .Select(p => p.PatientId ?? p.UserId)
+            .Distinct()
+            .CountAsync(ct);
+
+        var campsHeld = await _context.HealthCamps
+            .Where(c => c.OrganizationId == organizationId &&
+                       (c.IsLaunched ||
+                        (c.HealthCampStatus != null &&
+                         (c.HealthCampStatus.Name == "Completed" || c.HealthCampStatus.Name == "Active"))))
+            .CountAsync(ct);
+
+        return new OrganizationStatsDto
+        {
+            ExpectedPatients = expectedPatients,
+            CampsHeld = campsHeld
+        };
+    }
 }

@@ -445,4 +445,9 @@ public class HealthCampService : IHealthCampService
         return dto;
     }
 
+    public async Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        return await _repo.GetCampsByOrganizationAsync(organizationId, ct);
+    }
+
 }

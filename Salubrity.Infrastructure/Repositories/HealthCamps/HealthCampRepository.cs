@@ -793,4 +793,22 @@ public class HealthCampRepository : IHealthCampRepository
                 .ToList()
         };
     }
+
+    public async Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default)
+    {
+        return await _context.HealthCamps
+            .Where(c => c.OrganizationId == organizationId)
+            .Select(c => new OrganizationCampListDto
+            {
+                Id = c.Id,
+                CampName = c.Name,
+                CampDate = c.StartDate,
+                CampVenue = c.Location ?? "Not specified",
+                CampStatus = c.HealthCampStatus != null ? c.HealthCampStatus.Name : "Unknown",
+                NumberOfPatients = c.Participants.Count()
+            })
+            .OrderByDescending(c => c.CampDate)
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
 }

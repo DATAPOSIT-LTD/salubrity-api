@@ -170,7 +170,7 @@ namespace Salubrity.Application.Services.Auth
             if (user == null)
             {
                 Console.WriteLine("❌ [Login] No user found with that email.");
-                throw new UnauthorizedAccessException("Invalid credentials.");
+                throw new UnauthorizedException("Invalid credentials.");
             }
 
             Console.WriteLine($"✅ [Login] User found: {user.Email}");
@@ -182,7 +182,7 @@ namespace Salubrity.Application.Services.Auth
             if (!passwordValid)
             {
                 Console.WriteLine("❌ [Login] Password verification failed.");
-                throw new UnauthorizedAccessException("Invalid credentials.");
+                throw new UnauthorizedException("Invalid credentials.");
             }
 
             var roles = user.UserRoles?.Select(ur => ur.Role?.Name).Where(name => !string.IsNullOrWhiteSpace(name)).ToArray()
@@ -207,7 +207,7 @@ namespace Salubrity.Application.Services.Auth
         public async Task<AuthResponseDto> RefreshTokenAsync(RefreshTokenRequestDto input)
         {
             var user = await _userRepository.FindUserByRefreshTokenAsync(input.RefreshToken);
-            if (user is null) throw new UnauthorizedAccessException("Invalid refresh token.");
+            if (user is null) throw new UnauthorizedException("Invalid refresh token.");
 
             var roles = user.UserRoles.Select(ur => ur.Role.Name).ToArray();
             var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
@@ -242,7 +242,7 @@ namespace Salubrity.Application.Services.Auth
         {
             var user = await _userRepository.FindUserByIdAsync(userId);
             if (user == null || !_passwordHasher.VerifyPassword(input.CurrentPassword, user.PasswordHash))
-                throw new UnauthorizedAccessException("Invalid current password.");
+                throw new UnauthorizedException("Invalid current password.");
 
             user.PasswordHash = _passwordHasher.HashPassword(input.NewPassword);
             user.LastPasswordChangeAt = DateTime.UtcNow;
@@ -253,7 +253,7 @@ namespace Salubrity.Application.Services.Auth
         public async Task<SetupTotpResponseDto> SetupMfaAsync(string email)
         {
             var user = await _userRepository.FindUserByEmailAsync(email)
-                ?? throw new UnauthorizedAccessException("User not found");
+                ?? throw new UnauthorizedException("User not found");
 
             var secret = _totpService.GenerateSecretKey();
             var qr = _totpService.GenerateQrCodeUri(user.Email, "Salubrity", secret);
@@ -271,7 +271,7 @@ namespace Salubrity.Application.Services.Auth
         public async Task<bool> VerifyTotpCodeAsync(VerifyTotpCodeRequestDto input)
         {
             var user = await _userRepository.FindUserByEmailAsync(input.Email)
-                ?? throw new UnauthorizedAccessException("Invalid user");
+                ?? throw new UnauthorizedException("Invalid user");
 
             if (string.IsNullOrWhiteSpace(user.TotpSecret))
                 throw new InvalidOperationException("TOTP not configured for this user.");

@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using Salubrity.Shared.Responses;
 using System.IdentityModel.Tokens.Jwt;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Api.Controllers.Common;
 
@@ -47,15 +48,13 @@ public class BaseController : ControllerBase
         var userIdClaim =
             User.FindFirst(JwtRegisteredClaimNames.Sub) ??
             User.FindFirst("sub") ??
-            User.FindFirst(ClaimTypes.NameIdentifier) ?? // ✅ THIS FIXES IT
+            User.FindFirst(ClaimTypes.NameIdentifier) ?? //  THIS FIXES IT
             User.FindFirst("user_id");
 
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-            throw new UnauthorizedAccessException("User ID claim missing or invalid.");
+            throw new UnauthorizedException("User ID claim missing or invalid.");
 
         return userId;
     }
-
-
 
 }

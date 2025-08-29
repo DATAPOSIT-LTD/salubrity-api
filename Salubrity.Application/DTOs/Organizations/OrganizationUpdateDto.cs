@@ -14,7 +14,7 @@ namespace Salubrity.Application.DTOs.Organizations
         public string Phone { get; set; } = null!;
 
         public string? ClientLogoPath { get; set; }
-
+        public Guid? InsuranceProvidingId { get; set; }
         public Guid? ContactPersonId { get; set; }
 
         public Guid? StatusId { get; set; }

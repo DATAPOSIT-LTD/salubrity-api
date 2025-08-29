@@ -37,14 +37,23 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             .AnyAsync(v => v.Id == versionId, ct);
     }
 
+    // public async Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default)
+    // {
+    //     return (await _db.IntakeFormFields
+    //         .AsNoTracking()
+    //         .Where(f => f.Form.Versions.Contains == versionId)
+    //         .Select(f => f.Id)
+    //         .ToListAsync(ct))
+    //         .ToHashSet();
+    // }
+
     public async Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default)
     {
-        return (await _db.IntakeFormFields
+        return await _db.IntakeFormFields
             .AsNoTracking()
-            // .Where(f => f.VersionId == versionId)
+            .Where(f => f.Section.IntakeFormVersionId == versionId)
             .Select(f => f.Id)
-            .ToListAsync(ct))
-            .ToHashSet();
+            .ToHashSetAsync(ct);
     }
     public async Task<Guid> GetStatusIdByNameAsync(string name, CancellationToken ct = default)
     {

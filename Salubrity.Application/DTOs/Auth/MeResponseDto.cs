@@ -12,4 +12,5 @@ public class MeResponseDto
     // Add these:
     public string? RelatedEntityType { get; set; }
     public Guid? RelatedEntityId { get; set; }
+    public bool OnboardingComplete { get; set; }
 }

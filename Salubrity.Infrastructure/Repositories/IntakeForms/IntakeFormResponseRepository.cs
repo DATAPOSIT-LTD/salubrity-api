@@ -68,5 +68,13 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return id;
     }
 
+    public async Task<List<IntakeFormResponse>> GetResponsesByPatientIdAsync(Guid patientId, CancellationToken ct = default)
+    {
+        return await _db.IntakeFormResponses
+            .AsNoTracking()
+            .Include(r => r.FieldResponses)
+            .Where(r => r.PatientId == patientId)
+            .ToListAsync(ct);
+    }
 }
 

@@ -68,7 +68,7 @@ public class IntakeFormRepository : IIntakeFormRepository
         return await _context.IntakeForms
             .Include(f => f.Sections)
                 .ThenInclude(s => s.Fields)
-                    .ThenInclude(f => f.Options)
+                    .ThenInclude(f => f.Options.OrderBy(o => o.Order))
             .FirstOrDefaultAsync(f => f.Id == formId);
     }
 

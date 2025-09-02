@@ -833,4 +833,26 @@ public class HealthCampRepository : IHealthCampRepository
             CampsHeld = campsHeld
         };
     }
+
+    public async Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default)
+    {
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+
+        return await _context.HealthCamps
+            .Where(c =>
+                !c.IsDeleted &&
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                ))
+            .Select(c => c.StartDate)
+            .Distinct()
+            .OrderBy(date => date)
+            .ToListAsync(ct);
+    }
 }

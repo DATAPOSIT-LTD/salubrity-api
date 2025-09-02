@@ -115,6 +115,8 @@ namespace Salubrity.Application
             services.AddScoped<IMyCampQueryService, MyCampQueryService>();
             services.AddScoped<ICampQueueService, CampQueueService>();
             services.AddScoped<IHealthAssessmentFormService, HealthAssessmentFormService>();
+            services.AddScoped<IOnboardingService, OnboardingService>();
+
 
 
 

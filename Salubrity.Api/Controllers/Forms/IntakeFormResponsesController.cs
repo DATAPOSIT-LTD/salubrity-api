@@ -43,11 +43,12 @@ public class IntakeFormResponsesController : BaseController
             : Success(result);
     }
 
-    [HttpGet("clinical-findings/{patientId:guid}")]
+
+    [HttpGet("findings/patient/{patientId:guid}/camp/{healthCampId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<List<IntakeFormResponseDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetResponsesByPatientId(Guid patientId, CancellationToken ct)
+    public async Task<IActionResult> GetResponsesByPatientAndCampId(Guid patientId, Guid healthCampId, CancellationToken ct)
     {
-        var responses = await _service.GetResponsesByPatientIdAsync(patientId, ct);
+        var responses = await _service.GetResponsesByPatientAndCampIdAsync(patientId, healthCampId, ct);
         return Success(responses);
     }
 }

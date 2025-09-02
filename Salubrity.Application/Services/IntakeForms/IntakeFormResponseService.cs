@@ -127,9 +127,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         };
     }
 
-    public async Task<List<IntakeFormResponseDto>> GetResponsesByPatientIdAsync(Guid patientId, CancellationToken ct = default)
+
+    public async Task<List<IntakeFormResponseDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
-        var responses = await _intakeFormResponseRepository.GetResponsesByPatientIdAsync(patientId, ct);
+        var responses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, healthCampId, ct);
         return responses.Select(entity => new IntakeFormResponseDto
         {
             Id = entity.Id,

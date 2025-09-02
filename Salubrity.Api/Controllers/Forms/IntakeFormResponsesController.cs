@@ -42,4 +42,12 @@ public class IntakeFormResponsesController : BaseController
             ? Failure("Response not found.")
             : Success(result);
     }
+
+    [HttpGet("clinical-findings/{patientId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<List<IntakeFormResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetResponsesByPatientId(Guid patientId, CancellationToken ct)
+    {
+        var responses = await _service.GetResponsesByPatientIdAsync(patientId, ct);
+        return Success(responses);
+    }
 }

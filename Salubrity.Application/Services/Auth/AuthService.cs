@@ -333,6 +333,8 @@ namespace Salubrity.Application.Services.Auth
                 }
             }
 
+            var isOnboardingComplete = await IsOnboardingCompleteAsync(user);
+
             return new MeResponseDto
             {
                 Id = user.Id,
@@ -342,8 +344,50 @@ namespace Salubrity.Application.Services.Auth
                 Permissions = [.. permissions],
                 Menus = roots,
                 RelatedEntityType = user.RelatedEntityType,
-                RelatedEntityId = user.RelatedEntityId
+                RelatedEntityId = user.RelatedEntityId,
+                OnboardingComplete = isOnboardingComplete
             };
+        }
+
+        private async Task<bool> IsOnboardingCompleteAsync(User user)
+        {
+            bool userFieldsComplete = !string.IsNullOrWhiteSpace(user.FirstName) &&
+                                      !string.IsNullOrWhiteSpace(user.MiddleName) &&
+                                      !string.IsNullOrWhiteSpace(user.LastName) &&
+                                      !string.IsNullOrWhiteSpace(user.Email) &&
+                                      !string.IsNullOrWhiteSpace(user.Phone) &&
+                                      !string.IsNullOrWhiteSpace(user.NationalId) &&
+                                      user.DateOfBirth != default &&
+                                      !string.IsNullOrWhiteSpace(user.PrimaryLanguage) &&
+                                      !string.IsNullOrWhiteSpace(user.ProfileImage) &&
+                                      user.GenderId != Guid.Empty &&
+                                      user.OrganizationId != Guid.Empty;
+
+            if (!userFieldsComplete)
+            {
+                return false;
+            }
+
+            var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+            if (roles.Contains("Patient"))
+            {
+                return userFieldsComplete;
+            }
+            else if (roles.Contains("Subcontractor") && user.RelatedEntityType == "Subcontractor")
+            {
+                var subcontractor = await _subcontractorRepository.GetByIdAsync(user.RelatedEntityId.Value);
+                if (subcontractor == null)
+                {
+                    return false;
+                }
+
+                var hasRoles = subcontractor.RoleAssignments.Any();
+                var hasSpecialties = subcontractor.Specialties.Any();
+
+                return userFieldsComplete && hasRoles && hasSpecialties;
+            }
+
+            return false;
         }
     }
 }

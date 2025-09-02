@@ -234,5 +234,21 @@ public class CampController : BaseController
         return Success(dto);
     }
 
+    [HttpGet("organization/{organizationId:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<List<OrganizationCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampsByOrganization( Guid organizationId, CancellationToken ct = default)
+    {
+        var result = await _service.GetCampsByOrganizationAsync(organizationId, ct);
+        return Success(result);
+    }
 
+    [HttpGet("organization/{organizationId:guid}/stats")]
+    [ProducesResponseType(typeof(ApiResponse<OrganizationStatsDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOrganizationStats(
+    Guid organizationId,
+    CancellationToken ct = default)
+    {
+        var result = await _service.GetOrganizationStatsAsync(organizationId, ct);
+        return Success(result);
+    }
 }

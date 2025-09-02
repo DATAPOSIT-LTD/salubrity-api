@@ -454,4 +454,9 @@ public class HealthCampService : IHealthCampService
     {
         return await _repo.GetOrganizationStatsAsync(organizationId, ct);
     }
+
+    public async Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default)
+    {
+        return await _repo.GetUpcomingCampDatesAsync(ct);
+    }
 }

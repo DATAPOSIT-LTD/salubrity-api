@@ -24,7 +24,7 @@ public sealed class CampTokenFactoryAdapter : ICampTokenFactory
     }
 
     public string BuildSignInUrl(string token) =>
-        $"{_opt.AppBaseUrl.TrimEnd('/')}/camp/signin?token={Uri.EscapeDataString(token)}";
+        $"{_opt.AppBaseUrl.TrimEnd('/')}/?token={Uri.EscapeDataString(token)}";
 
     public string CreateUserToken(Guid campId, Guid userId, string role, string jti, DateTimeOffset expiresUtc)
         => CreateTokenBase(campId, role, jti, expiresUtc,

@@ -136,7 +136,7 @@ namespace Salubrity.Application.Services.Subcontractor
 
             sub.StatusId = dto.StatusId.Value;
 
-            await _repo.SaveChangesAsync();
+            await _repo.UpdateSubAsync(sub);
             return _mapper.Map<SubcontractorDto>(sub);
         }
 

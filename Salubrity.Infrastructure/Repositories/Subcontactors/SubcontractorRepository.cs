@@ -122,5 +122,10 @@ namespace Salubrity.Infrastructure.Repositories
         {
             await _db.SaveChangesAsync();
         }
+
+        public async Task UpdateSubAsync(Subcontractor subcontractor)
+        {
+            await Task.Run(() => _db.Subcontractors.Update(subcontractor));
+        }
     }
 }

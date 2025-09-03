@@ -24,5 +24,5 @@ public interface IIntakeFormResponseRepository
     /// </summary>
     Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default);
     Task<Guid> GetStatusIdByNameAsync(string name, CancellationToken ct = default);
-    Task<List<IntakeFormResponse>> GetResponsesByPatientIdAsync(Guid patientId, CancellationToken ct = default);
+    Task<List<IntakeFormResponse>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default);
 }

@@ -251,4 +251,12 @@ public class CampController : BaseController
         var result = await _service.GetOrganizationStatsAsync(organizationId, ct);
         return Success(result);
     }
+
+    [HttpGet("camps/upcoming-dates")]
+    [ProducesResponseType(typeof(ApiResponse<List<DateTime>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUpcomingCampDates(CancellationToken ct = default)
+    {
+        var result = await _service.GetUpcomingCampDatesAsync(ct);
+        return Success(result);
+    }
 }

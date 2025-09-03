@@ -94,6 +94,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<HealthAssessmentFormType> HealthAssessmentFormTypes => Set<HealthAssessmentFormType>();
         public DbSet<HealthAssessmentFormResponse> HealthAssessmentFormResponses => Set<HealthAssessmentFormResponse>();
         public DbSet<HealthAssessmentDynamicFieldResponse> HealthAssessmentDynamicFieldResponses => Set<HealthAssessmentDynamicFieldResponse>();
+        public DbSet<OnboardingStatus> OnboardingStatuses { get; set; }
+
 
 
         // ─────────────────────────────────────

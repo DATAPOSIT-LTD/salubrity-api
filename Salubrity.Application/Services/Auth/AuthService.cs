@@ -10,6 +10,7 @@ using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Menus;
+using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Domain.Entities.Subcontractor;
@@ -30,6 +31,8 @@ namespace Salubrity.Application.Services.Auth
         private readonly ISubcontractorRepository _subcontractorRepository;
         private readonly ILookupRepository<SubcontractorStatus> _subcontractorStatusRepository;
         private readonly IPatientRepository _patientRepository;
+        private readonly IOnboardingService _onboardingService;
+
 
         public AuthService(
             IUserRepository userRepository,
@@ -42,7 +45,8 @@ namespace Salubrity.Application.Services.Auth
             IIndustryRepository industryRepository,
             ISubcontractorRepository subcontractorRepository,
             ILookupRepository<SubcontractorStatus> subcontractorStatusRepository,
-            IPatientRepository patientRepository
+            IPatientRepository patientRepository,
+            IOnboardingService onboardingService
             )
         {
             _userRepository = userRepository;
@@ -56,6 +60,7 @@ namespace Salubrity.Application.Services.Auth
             _subcontractorRepository = subcontractorRepository;
             _subcontractorStatusRepository = subcontractorStatusRepository;
             _patientRepository = patientRepository;
+            _onboardingService = onboardingService;
         }
 
 
@@ -91,13 +96,13 @@ namespace Salubrity.Application.Services.Auth
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
                 UserRoles = new List<UserRole>
-        {
-            new UserRole
-            {
-                UserId = userId,
-                RoleId = input.RoleId
-            }
-        }
+                {
+                    new UserRole
+                    {
+                        UserId = userId,
+                        RoleId = input.RoleId
+                    }
+                }
             };
 
             await _userRepository.AddUserAsync(user);
@@ -333,7 +338,13 @@ namespace Salubrity.Application.Services.Auth
                 }
             }
 
-            var isOnboardingComplete = await IsOnboardingCompleteAsync(user);
+            var onboardingStatus = await _onboardingService.GetOnboardingStatusAsync(user.Id);
+            var isOnboardingComplete = onboardingStatus?.IsOnboardingComplete ?? false;
+
+            if (onboardingStatus == null)
+            {
+                isOnboardingComplete = await _onboardingService.CheckAndUpdateOnboardingStatusAsync(user.Id);
+            }
 
             return new MeResponseDto
             {
@@ -347,47 +358,6 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete
             };
-        }
-
-        private async Task<bool> IsOnboardingCompleteAsync(User user)
-        {
-            bool userFieldsComplete = !string.IsNullOrWhiteSpace(user.FirstName) &&
-                                      !string.IsNullOrWhiteSpace(user.MiddleName) &&
-                                      !string.IsNullOrWhiteSpace(user.LastName) &&
-                                      !string.IsNullOrWhiteSpace(user.Email) &&
-                                      !string.IsNullOrWhiteSpace(user.Phone) &&
-                                      !string.IsNullOrWhiteSpace(user.NationalId) &&
-                                      user.DateOfBirth != default &&
-                                      !string.IsNullOrWhiteSpace(user.PrimaryLanguage) &&
-                                      !string.IsNullOrWhiteSpace(user.ProfileImage) &&
-                                      user.GenderId != Guid.Empty &&
-                                      user.OrganizationId != Guid.Empty;
-
-            if (!userFieldsComplete)
-            {
-                return false;
-            }
-
-            var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
-            if (roles.Contains("Patient"))
-            {
-                return userFieldsComplete;
-            }
-            else if (roles.Contains("Subcontractor") && user.RelatedEntityType == "Subcontractor")
-            {
-                var subcontractor = await _subcontractorRepository.GetByIdAsync(user.RelatedEntityId.Value);
-                if (subcontractor == null)
-                {
-                    return false;
-                }
-
-                var hasRoles = subcontractor.RoleAssignments.Any();
-                var hasSpecialties = subcontractor.Specialties.Any();
-
-                return userFieldsComplete && hasRoles && hasSpecialties;
-            }
-
-            return false;
         }
     }
 }

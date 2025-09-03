@@ -1,0 +1,112 @@
+﻿using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.Users;
+using Salubrity.Application.Interfaces.Services.Users;
+using Salubrity.Domain.Entities.Identity;
+
+namespace Salubrity.Application.Services.Users
+{
+    public class OnboardingService : IOnboardingService
+    {
+        private readonly IOnboardingStatusRepository _onboardingStatusRepository;
+        private readonly IUserRepository _userRepository;
+        private readonly ISubcontractorRepository _subcontractorRepository;
+
+        public OnboardingService(
+            IOnboardingStatusRepository onboardingStatusRepository,
+            IUserRepository userRepository,
+            ISubcontractorRepository subcontractorRepository)
+        {
+            _onboardingStatusRepository = onboardingStatusRepository;
+            _userRepository = userRepository;
+            _subcontractorRepository = subcontractorRepository;
+        }
+
+        public async Task<bool> CheckAndUpdateOnboardingStatusAsync(Guid userId)
+        {
+            var user = await _userRepository.FindUserByIdAsync(userId);
+            if (user == null) return false;
+
+            var onboardingStatus = await _onboardingStatusRepository.GetByUserIdAsync(userId);
+            if (onboardingStatus == null)
+            {
+                onboardingStatus = new OnboardingStatus
+                {
+                    UserId = userId,
+                    IsProfileComplete = false,
+                    IsRoleSpecificDataComplete = false,
+                    IsOnboardingComplete = false
+                };
+                onboardingStatus = await _onboardingStatusRepository.CreateAsync(onboardingStatus);
+            }
+
+            // Check profile completion
+            bool profileComplete = CheckProfileCompletion(user);
+
+            // Check role-specific data completion
+            bool roleSpecificComplete = await CheckRoleSpecificCompletionAsync(user);
+
+            bool overallComplete = profileComplete && roleSpecificComplete;
+
+            // Update if status changed
+            if (onboardingStatus.IsProfileComplete != profileComplete ||
+                onboardingStatus.IsRoleSpecificDataComplete != roleSpecificComplete ||
+                onboardingStatus.IsOnboardingComplete != overallComplete)
+            {
+                onboardingStatus.IsProfileComplete = profileComplete;
+                onboardingStatus.IsRoleSpecificDataComplete = roleSpecificComplete;
+                onboardingStatus.IsOnboardingComplete = overallComplete;
+
+                if (overallComplete && onboardingStatus.CompletedAt == null)
+                {
+                    onboardingStatus.CompletedAt = DateTime.UtcNow;
+                }
+
+                await _onboardingStatusRepository.UpdateAsync(onboardingStatus);
+            }
+
+            return overallComplete;
+        }
+
+        public async Task<OnboardingStatus?> GetOnboardingStatusAsync(Guid userId)
+        {
+            return await _onboardingStatusRepository.GetByUserIdAsync(userId);
+        }
+
+        private bool CheckProfileCompletion(Domain.Entities.Identity.User user)
+        {
+            return !string.IsNullOrWhiteSpace(user.FirstName) &&
+                   !string.IsNullOrWhiteSpace(user.MiddleName) &&
+                   !string.IsNullOrWhiteSpace(user.LastName) &&
+                   !string.IsNullOrWhiteSpace(user.Email) &&
+                   !string.IsNullOrWhiteSpace(user.Phone) &&
+                   !string.IsNullOrWhiteSpace(user.NationalId) &&
+                   user.DateOfBirth != default &&
+                   !string.IsNullOrWhiteSpace(user.PrimaryLanguage) &&
+                   !string.IsNullOrWhiteSpace(user.ProfileImage) &&
+                   user.GenderId != Guid.Empty &&
+                   user.OrganizationId != Guid.Empty;
+        }
+
+        private async Task<bool> CheckRoleSpecificCompletionAsync(Domain.Entities.Identity.User user)
+        {
+            var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+
+            if (roles.Contains("Patient"))
+            {
+                return true; // Profile completion is sufficient for patients
+            }
+            else if (roles.Contains("Subcontractor") && user.RelatedEntityType == "Subcontractor")
+            {
+                var subcontractor = await _subcontractorRepository.GetByIdAsync(user.RelatedEntityId.Value);
+                if (subcontractor == null) return false;
+
+                var hasRoles = subcontractor.RoleAssignments?.Any() ?? false;
+                var hasSpecialties = subcontractor.Specialties?.Any() ?? false;
+
+                return hasRoles && hasSpecialties;
+            }
+
+            return true; // For other roles, assume no additional requirements
+        }
+    }
+}

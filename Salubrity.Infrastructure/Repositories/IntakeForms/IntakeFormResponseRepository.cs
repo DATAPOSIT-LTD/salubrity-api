@@ -68,12 +68,13 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return id;
     }
 
-    public async Task<List<IntakeFormResponse>> GetResponsesByPatientIdAsync(Guid patientId, CancellationToken ct = default)
+    public async Task<List<IntakeFormResponse>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         return await _db.IntakeFormResponses
             .AsNoTracking()
             .Include(r => r.FieldResponses)
-            .Where(r => r.PatientId == patientId)
+            .Where(r => r.PatientId == patientId &&
+                        _db.HealthCampParticipants.Any(hcp => hcp.PatientId == patientId && hcp.HealthCampId == healthCampId))
             .ToListAsync(ct);
     }
 }

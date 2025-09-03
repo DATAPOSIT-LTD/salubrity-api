@@ -48,6 +48,7 @@ public interface IHealthCampRepository
     // Organization-scoped
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
     Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default);
+    Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default);
 }
 
 

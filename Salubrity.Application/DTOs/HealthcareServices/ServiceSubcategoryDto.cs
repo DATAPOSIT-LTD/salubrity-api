@@ -6,6 +6,7 @@ public class ServiceSubcategoryResponseDto
     public string Name { get; set; } = default!;
     public string? Description { get; set; }
     public Guid ServiceCategoryId { get; set; }
+    public Guid? IntakeFormId { get; set; }
     public decimal Price { get; set; }
     public int? DurationMinutes { get; set; }
 }

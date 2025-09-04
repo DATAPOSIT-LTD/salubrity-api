@@ -1,6 +1,7 @@
 // File: Salubrity.Domain.Entities.HealthcareServices.ServiceCategory.cs
 
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.IntakeForms;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -20,6 +21,11 @@ public class ServiceCategory : BaseAuditableEntity
 
     [ForeignKey(nameof(ServiceId))]
     public Service Service { get; set; } = default!;
+
+    public Guid? IntakeFormId { get; set; }
+
+    [ForeignKey(nameof(IntakeFormId))]
+    public IntakeForm? IntakeForm { get; set; }
 
     public decimal? Price { get; set; }
     public int? DurationMinutes { get; set; }

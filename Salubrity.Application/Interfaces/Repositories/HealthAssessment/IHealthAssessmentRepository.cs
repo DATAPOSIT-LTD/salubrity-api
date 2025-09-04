@@ -32,6 +32,7 @@ public interface IHealthAssessmentRepository
         Guid createdByUserId,
         CancellationToken ct);
 
-
+    // Task<List<AssessmentFormResponseDetailDto>> GetByPatientAndCampAsync(
+    //        Guid patientId, Guid healthCampId, CancellationToken ct = default);
 
 }

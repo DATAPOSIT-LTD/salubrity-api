@@ -69,7 +69,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return id;
     }
 
-    // File: IntakeFormResponseRepository.cs
+
     public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var query =

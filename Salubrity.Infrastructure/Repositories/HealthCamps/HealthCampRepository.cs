@@ -279,27 +279,20 @@ public class HealthCampRepository : IHealthCampRepository
 
     private IQueryable<HealthCampParticipant> BaseParticipants(Guid campId, string? q, string? sort)
     {
-        var query = _context.HealthCampParticipants
-            .Where(p => p.HealthCampId == campId); // only participants missing PatientId;
-
-
-        var patient = _context.Patients
-                .Where(pa => !pa.IsDeleted);
-
-
-
-        // query = query.Where(p => p.PatientId != null && patientQuery.Contains(p.Id));
-
-        foreach (var participant in query)
-        {
-            foreach (var p in patient)
-            {
-                if (p.UserId == participant.UserId)
-                    participant.PatientId = p.Id;
-
-            }
-        }
-
+        var query = from p in _context.HealthCampParticipants
+                    where p.HealthCampId == campId
+                    join patient in _context.Patients
+                        on p.UserId equals patient.UserId into patientJoin
+                    from patient in patientJoin.DefaultIfEmpty()
+                    select new HealthCampParticipant
+                    {
+                        Id = p.Id,
+                        HealthCampId = p.HealthCampId,
+                        UserId = p.UserId,
+                        CreatedAt = p.CreatedAt,
+                        // ...map other props you need...
+                        PatientId = patient != null ? patient.Id : (Guid?)null
+                    };
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -314,7 +307,7 @@ public class HealthCampRepository : IHealthCampRepository
         {
             "name" => query.OrderBy(p => p.User.FullName),
             "oldest" => query.OrderBy(p => p.CreatedAt),
-            _ => query.OrderByDescending(p => p.CreatedAt) // newest default
+            _ => query.OrderByDescending(p => p.CreatedAt)
         };
 
         return query.AsNoTracking();

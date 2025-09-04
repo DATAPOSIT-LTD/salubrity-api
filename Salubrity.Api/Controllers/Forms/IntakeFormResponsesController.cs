@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
+using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Users;
@@ -44,11 +45,12 @@ public class IntakeFormResponsesController : BaseController
     }
 
 
-    [HttpGet("findings/patient/{patientId:guid}/camp/{healthCampId:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<List<IntakeFormResponseDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetResponsesByPatientAndCampId(Guid patientId, Guid healthCampId, CancellationToken ct)
+    [HttpGet]
+    [ProducesResponseType(typeof(ApiResponse<List<IntakeFormResponseDetailDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetByPatientAndCamp([FromQuery] Guid patientId, [FromQuery] Guid healthCampId, CancellationToken ct)
     {
         var responses = await _service.GetResponsesByPatientAndCampIdAsync(patientId, healthCampId, ct);
         return Success(responses);
     }
+
 }

@@ -1,5 +1,6 @@
 #nullable enable
 using Salubrity.Application.Common.Interfaces.Repositories;
+using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
@@ -128,26 +129,14 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     }
 
 
-    public async Task<List<IntakeFormResponseDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
+    public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var responses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, healthCampId, ct);
-        return responses.Select(entity => new IntakeFormResponseDto
-        {
-            Id = entity.Id,
-            IntakeFormVersionId = entity.IntakeFormVersionId,
-            SubmittedByUserId = entity.SubmittedByUserId,
-            PatientId = entity.PatientId,
-            ServiceId = entity.ServiceId,
-            ResponseStatusId = entity.ResponseStatusId,
-            FieldResponses = entity.FieldResponses
-                .OrderBy(f => f.CreatedAt)
-                .Select(f => new IntakeFormFieldResponseDto
-                {
-                    Id = f.Id,
-                    ResponseId = f.ResponseId,
-                    FieldId = f.FieldId,
-                    Value = f.Value
-                }).ToList()
-        }).ToList();
+
+        if (!responses.Any())
+            throw new NotFoundException("No responses found for this patient in this camp.");
+
+        return responses;
     }
+
 }

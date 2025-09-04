@@ -3,6 +3,7 @@ using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Application.Interfaces;
 using Salubrity.Shared.Exceptions;
+using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 
 namespace Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
 
@@ -68,14 +69,71 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return id;
     }
 
-    public async Task<List<IntakeFormResponse>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
+    // File: IntakeFormResponseRepository.cs
+    public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
-        return await _db.IntakeFormResponses
-            .AsNoTracking()
-            .Include(r => r.FieldResponses)
-            .Where(r => r.PatientId == patientId &&
-                        _db.HealthCampParticipants.Any(hcp => hcp.PatientId == patientId && hcp.HealthCampId == healthCampId))
-            .ToListAsync(ct);
+        var query =
+            from r in _db.IntakeFormResponses
+                .Include(r => r.FieldResponses).ThenInclude(fr => fr.Field).ThenInclude(f => f.Section)
+                .Include(r => r.Status)
+                .Include(r => r.Version).ThenInclude(v => v.IntakeForm)
+                .Include(r => r.Service)
+            join hca in _db.HealthCampServiceAssignments
+                on r.ServiceId equals hca.ServiceId
+            where r.PatientId == patientId
+                  && hca.HealthCampId == healthCampId
+            orderby r.CreatedAt descending
+            select new IntakeFormResponseDetailDto
+            {
+                Id = r.Id,
+                IntakeFormVersionId = r.IntakeFormVersionId,
+                SubmittedByUserId = r.SubmittedByUserId,
+                PatientId = r.PatientId,
+                ServiceId = r.ServiceId,
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt,
+                Status = new ResponseStatusDto
+                {
+                    Id = r.ResponseStatusId,
+                    Name = r.Status.Name
+                },
+                Version = new MiniIntakeFormVersionDto
+                {
+                    Id = r.Version.Id,
+                    IntakeFormId = r.Version.IntakeFormId,
+                    VersionNumber = r.Version.VersionNumber,
+                    IntakeFormName = r.Version.IntakeForm.Name,
+                    IntakeFormDescription = r.Version.IntakeForm.Description
+                },
+                Service = r.Service == null ? null : new MiniServiceDto
+                {
+                    Id = r.Service.Id,
+                    Name = r.Service.Name,
+                    Description = r.Service.Description,
+                    ImageUrl = r.Service.ImageUrl
+                },
+                FieldResponses = r.FieldResponses
+                    .OrderBy(fr => fr.Field.Order)
+                    .Select(fr => new IntakeFormFieldResponseDetailDto
+                    {
+                        Id = fr.Id,
+                        FieldId = fr.FieldId,
+                        Value = fr.Value,
+                        Field = new FieldMetaDto
+                        {
+                            FieldId = fr.Field.Id,
+                            Label = fr.Field.Label,
+                            FieldType = fr.Field.FieldType,
+                            SectionId = fr.Field.SectionId,
+                            SectionName = fr.Field.Section != null ? fr.Field.Section.Name : null,
+                            Order = fr.Field.Order
+                        }
+                    }).ToList()
+            };
+
+        return await query.ToListAsync(ct);
     }
+
+
 }
 

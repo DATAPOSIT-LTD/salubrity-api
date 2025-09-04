@@ -1,3 +1,4 @@
+using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Domain.Entities.IntakeForms;
 
 namespace Salubrity.Application.Interfaces.Repositories.IntakeForms;
@@ -24,5 +25,6 @@ public interface IIntakeFormResponseRepository
     /// </summary>
     Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default);
     Task<Guid> GetStatusIdByNameAsync(string name, CancellationToken ct = default);
-    Task<List<IntakeFormResponse>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default);
+    Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default);
+
 }

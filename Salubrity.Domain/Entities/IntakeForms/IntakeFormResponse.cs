@@ -1,4 +1,5 @@
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Identity; // Assuming Patient is in Identity
 using Salubrity.Domain.Entities.Lookup;
 using System.ComponentModel.DataAnnotations;
@@ -25,6 +26,7 @@ public class IntakeFormResponse : BaseAuditableEntity
     public Patient Patient { get; set; } = default!;
 
     public Guid? ServiceId { get; set; }
+    public Service? Service { get; set; }
 
     [Required]
     public Guid ResponseStatusId { get; set; }

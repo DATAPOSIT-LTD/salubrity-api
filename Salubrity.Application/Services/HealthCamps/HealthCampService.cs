@@ -9,6 +9,7 @@ using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
+using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
@@ -36,8 +37,9 @@ public class HealthCampService : IHealthCampService
     private readonly IEmployeeReadRepository _employeeReadRepo;
     private readonly ISubcontractorCampAssignmentRepository _subcontractorCampAssignmentRepository;
     private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
+    private readonly INotificationService _notificationService;
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService)
     {
         _repo = repo;
         _mapper = mapper;
@@ -51,6 +53,7 @@ public class HealthCampService : IHealthCampService
         _files = files ?? throw new ArgumentNullException(nameof(files));
         _subcontractorCampAssignmentRepository = subcontractorCampAssignment ?? throw new ArgumentNullException(nameof(subcontractorCampAssignment));
         _lookupSubcontractorHealthCampAssignmentRepository = lookupSubcontractorHealthCampAssignmentRepository ?? throw new ArgumentNullException(nameof(lookupSubcontractorHealthCampAssignmentRepository));
+        _notificationService = notificationService;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -139,6 +142,15 @@ public class HealthCampService : IHealthCampService
         // Save the HealthCamp before assigning booths
         var created = await _repo.CreateAsync(entity);
 
+        await _notificationService.TriggerNotificationAsync(
+            title: "New Health Camp Created",
+            message: $"A new health camp '{created.Name}' has been created.",
+            type: "HealthCamp",
+            entityId: created.Id,
+            entityType: "Camp",
+            ct: ct
+        );
+
         // Create subcontractor booth assignments AFTER saving camp
         var assignedStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
         if (assignedStatus == null)
@@ -170,6 +182,7 @@ public class HealthCampService : IHealthCampService
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)
     {
+        var ct = CancellationToken.None;
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
 
         if (dto.Name is not null) camp.Name = dto.Name;
@@ -186,12 +199,23 @@ public class HealthCampService : IHealthCampService
         camp.UpdatedAt = DateTime.UtcNow;
 
         await _repo.UpdateAsync(camp);
+
+        await _notificationService.TriggerNotificationAsync(
+            title: "Health Camp Updated",
+            message: $"Health camp '{camp.Name}' has been updated.",
+            type: "HealthCamp",
+            entityId: camp.Id,
+            entityType: "Camp",
+            ct: ct
+        );
+
         return _mapper.Map<HealthCampDto>(camp);
     }
 
 
     public async Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto)
     {
+        var ct = CancellationToken.None;
         var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
                    ?? throw new NotFoundException("Camp not found");
 
@@ -219,6 +243,15 @@ public class HealthCampService : IHealthCampService
             throw new ValidationException([$"This camp already ended on {endDate:dd MMM yyyy} and cannot be launched."]);
 
         var closeUtc = dto.CloseDate.ToUniversalTime();
+
+        await _notificationService.TriggerNotificationAsync(
+            title: "Health Camp Launched",
+            message: $"Health camp '{camp.Name}' has been launched.",
+            type: "HealthCamp",
+            entityId: camp.Id,
+            entityType: "Camp",
+            ct: ct
+        );
 
         // Assign new JTI and expiry
         camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");

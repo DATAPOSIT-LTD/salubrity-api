@@ -11,6 +11,7 @@ using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Menus;
+using Salubrity.Domain.Entities.Notifications;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Domain.Entities.Subcontractor;
@@ -95,7 +96,9 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<HealthAssessmentFormResponse> HealthAssessmentFormResponses => Set<HealthAssessmentFormResponse>();
         public DbSet<HealthAssessmentDynamicFieldResponse> HealthAssessmentDynamicFieldResponses => Set<HealthAssessmentDynamicFieldResponse>();
         public DbSet<OnboardingStatus> OnboardingStatuses { get; set; }
-
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<NotificationRecipient> NotificationRecipients { get; set; }
+        public DbSet<NotificationType> NotificationTypes { get; set; }
 
 
         // ─────────────────────────────────────
@@ -197,6 +200,33 @@ namespace Salubrity.Infrastructure.Persistence
                 .HasMany<Employee>()
                 .WithOne(e => e.Department)
                 .HasForeignKey(e => e.DepartmentId);
+
+            modelBuilder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(n => n.Id);
+                entity.Property(n => n.Title).IsRequired().HasMaxLength(200);
+                entity.Property(n => n.Message).IsRequired();
+                entity.Property(n => n.Type).IsRequired().HasMaxLength(100);
+                entity.Property(n => n.CreatedAt).IsRequired();
+
+                entity.HasMany(n => n.Recipients)
+                      .WithOne(r => r.Notification)
+                      .HasForeignKey(r => r.NotificationId);
+            });
+
+            modelBuilder.Entity<NotificationRecipient>(entity =>
+            {
+                entity.HasKey(nr => nr.Id);
+                entity.Property(nr => nr.RecipientType).IsRequired().HasMaxLength(100);
+                entity.Property(nr => nr.IsRead).IsRequired();
+            });
+
+            modelBuilder.Entity<NotificationType>(entity =>
+            {
+                entity.HasKey(nt => nt.Id);
+                entity.Property(nt => nt.Name).IsRequired().HasMaxLength(100);
+                entity.Property(nt => nt.Description).HasMaxLength(255);
+            });
 
             modelBuilder.Entity<IntakeFormField>(e =>
             {

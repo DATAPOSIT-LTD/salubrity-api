@@ -277,22 +277,11 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
 
+    // 2) Keep BaseParticipants pure IQueryable over the entity (no projection)
     private IQueryable<HealthCampParticipant> BaseParticipants(Guid campId, string? q, string? sort)
     {
-        var query = from p in _context.HealthCampParticipants
-                    where p.HealthCampId == campId
-                    join patient in _context.Patients
-                        on p.UserId equals patient.UserId into patientJoin
-                    from patient in patientJoin.DefaultIfEmpty()
-                    select new HealthCampParticipant
-                    {
-                        Id = p.Id,
-                        HealthCampId = p.HealthCampId,
-                        UserId = p.UserId,
-                        CreatedAt = p.CreatedAt,
-                        // ...map other props you need...
-                        PatientId = patient != null ? patient.Id : (Guid?)null
-                    };
+        var query = _context.HealthCampParticipants
+            .Where(p => p.HealthCampId == campId);
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -310,8 +299,21 @@ public class HealthCampRepository : IHealthCampRepository
             _ => query.OrderByDescending(p => p.CreatedAt)
         };
 
-        return query.AsNoTracking();
+        // Include what you display; EF can also translate without Include, but this avoids lazy loads later
+        return query
+            .Include(p => p.User)
+            .Include(p => p.HealthCamp)
+                .ThenInclude(h => h.Organization)
+            .AsNoTracking();
     }
+
+
+    // 3) Materialize and inject PatientId in one DB round-trip for Patients
+    public async Task<List<HealthCampParticipant>> GetParticipantsAsync(Guid campId, string? q, string? sort, CancellationToken ct = default)
+    {
+        return await BaseParticipants(campId, q, sort).ToListAsync(ct);
+    }
+
 
     private static IQueryable<CampParticipantListDto> Project(IQueryable<Domain.Entities.Join.HealthCampParticipant> q)
     {
@@ -325,10 +327,49 @@ public class HealthCampRepository : IHealthCampRepository
             PhoneNumber = p.User.Phone,
             CompanyName = p.HealthCamp.Organization.BusinessName,
             ParticipatedAt = p.ParticipatedAt,
-            // Served = checked in UI: mark served if participated OR has any assessments
             Served = p.ParticipatedAt != null || p.HealthAssessments.Any()
         });
     }
+
+    public IQueryable<CampParticipantListDto> BaseParticipantsDto(Guid campId, string? q, string? sort)
+    {
+        var query =
+            from p in _context.HealthCampParticipants
+            where p.HealthCampId == campId
+            join patient in _context.Patients on p.UserId equals patient.UserId into pj
+            from patient in pj.DefaultIfEmpty()
+            select new CampParticipantListDto
+            {
+                Id = p.Id,
+                UserId = p.UserId,
+                PatientId = patient != null ? patient.Id : (Guid?)null,
+                FullName = p.User.FullName!,
+                Email = p.User.Email,
+                PhoneNumber = p.User.Phone,
+                CompanyName = p.HealthCamp.Organization.BusinessName!,
+                Served = p.ParticipatedAt != null || p.HealthAssessments.Any(),
+                ParticipatedAt = p.ParticipatedAt
+            };
+
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(x =>
+                (x.FullName != null && EF.Functions.ILike(x.FullName, $"%{term}%")) ||
+                (x.Email != null && EF.Functions.ILike(x.Email, $"%{term}%")) ||
+                (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
+        }
+
+        query = sort?.ToLowerInvariant() switch
+        {
+            "name" => query.OrderBy(x => x.FullName),
+            "oldest" => query.OrderBy(x => x.ParticipatedAt ?? DateTime.MinValue),
+            _ => query.OrderByDescending(x => x.ParticipatedAt ?? DateTime.MinValue)
+        };
+
+        return query.AsNoTracking();
+    }
+
 
     public async Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
@@ -502,6 +543,18 @@ public class HealthCampRepository : IHealthCampRepository
 
         // Materialize query first (EF cannot translate .Any() + .Select reliably)
         var list = await query.ToListAsync(ct);
+
+        // Populate PatientId manually
+        var userIds = list.Select(p => p.UserId).Distinct().ToList();
+
+        var patientMap = await _context.Patients
+            .Where(x => userIds.Contains(x.UserId))
+            .ToDictionaryAsync(x => x.UserId, x => x.Id, ct);
+
+        foreach (var p in list)
+            if (patientMap.TryGetValue(p.UserId, out var pid))
+                p.PatientId = pid;
+
 
         // In-memory filtering
         list = filter.ToLowerInvariant() switch

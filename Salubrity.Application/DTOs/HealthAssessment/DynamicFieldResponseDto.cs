@@ -4,4 +4,6 @@ public sealed class DynamicFieldResponseDto
     public string? Value { get; init; } // Text/textarea/number/etc
     public Guid? SelectedOptionId { get; init; } // For Radio, Dropdown, etc
     public Guid? SectionId { get; init; } // ID of IntakeFormSection
+    public Guid FormTypeId { get; init; }
+    public Guid? IntakeFormVersionId { get; init; }
 }

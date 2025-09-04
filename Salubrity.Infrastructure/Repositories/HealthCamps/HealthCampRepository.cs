@@ -549,11 +549,17 @@ public class HealthCampRepository : IHealthCampRepository
 
         var patientMap = await _context.Patients
             .Where(x => userIds.Contains(x.UserId))
+            .Select(x => new { x.UserId, x.Id })
             .ToDictionaryAsync(x => x.UserId, x => x.Id, ct);
 
         foreach (var p in list)
+        {
             if (patientMap.TryGetValue(p.UserId, out var pid))
+            {
                 p.PatientId = pid;
+            }
+        }
+
 
 
         // In-memory filtering
@@ -588,99 +594,6 @@ public class HealthCampRepository : IHealthCampRepository
 
 
 
-    // public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
-    //   Guid campId,
-    //   Guid participantId,
-    //   Guid? subcontractorId,
-    //   CancellationToken ct = default)
-    // {
-    //     // STEP 1: Participant + Camp + Org + User + Patient check
-    //     var p = await _context.HealthCampParticipants
-    //         .Where(x => x.Id == participantId
-    //                  && x.HealthCampId == campId
-    //                  //&& x.PatientId != null
-    //                  )
-    //         .Select(x => new
-    //         {
-    //             Participant = x,
-    //             Camp = x.HealthCamp,
-    //             OrgName = x.HealthCamp.Organization.BusinessName,
-    //             Venue = x.HealthCamp.Location,
-    //             Status = x.HealthCamp.HealthCampStatus != null ? x.HealthCamp.HealthCampStatus.Name : "Unknown",
-    //             User = x.User,
-    //             // PatientId = x.PatientId!.Value
-    //         })
-    //         .AsNoTracking()
-    //         .FirstOrDefaultAsync(ct);
-
-    //     // STEP 2: Reject if no matching participant or soft-deleted patient
-    //     if (p == null || !await _context.Patients.AnyAsync(pa => pa.UserId == p.User.Id && !pa.IsDeleted, ct))
-    //         return null;
-
-    //     // STEP 3: Has been served?
-    //     var served = p.Participant.ParticipatedAt != null
-    //                  || await _context.HealthAssessments
-    //                         .AnyAsync(a => a.ParticipantId == participantId, ct);
-
-    //     // STEP 4: Camp assignments for this participant (with optional subcontractor filter)
-    //     IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
-    //      .Where(a => a.HealthCampId == campId)
-    //      .Include(a => a.Service)
-    //          .ThenInclude(s => s.IntakeForm)
-    //              .ThenInclude(f => f.Versions)
-    //      .Include(a => a.Service)
-    //          .ThenInclude(s => s.IntakeForm)
-    //              .ThenInclude(f => f.Sections)
-    //                  .ThenInclude(sec => sec.Fields)
-    //                      .ThenInclude(ff => ff.Options)
-    //      .Include(a => a.Role);
-
-
-    //     if (subcontractorId.HasValue)
-    //         assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
-
-    //     var assignments = await assignQ
-    //         .AsNoTracking()
-    //         .ToListAsync(ct);
-
-    //     // STEP 5: Shape final DTO
-    //     var dto = new CampPatientDetailWithFormsDto
-    //     {
-    //         ParticipantId = p.Participant.Id,
-    //         UserId = p.User.Id,
-    //         PatientCode = p.PatientId.ToString(),
-    //         FullName = p.User.FullName ?? "Patient",
-    //         Email = p.User.Email,
-    //         Phone = p.User.Phone,
-    //         CampId = p.Camp.Id,
-    //         ClientName = p.OrgName,
-    //         Venue = p.Venue ?? "",
-    //         StartDate = p.Camp.StartDate,
-    //         EndDate = p.Camp.EndDate,
-    //         Status = p.Status,
-    //         Served = served
-    //     };
-
-    //     // STEP 6: Group services by ServiceId and attach forms
-    //     dto.Assignments = assignments
-    //         .GroupBy(a => a.ServiceId)
-    //         .Select(g =>
-    //         {
-    //             var any = g.First();
-    //             return new AssignedServiceWithFormDto
-    //             {
-    //                 ServiceId = any.ServiceId,
-    //                 ServiceName = any.Service.Name,
-    //                 ProfessionId = any.ProfessionId,
-    //                 AssignedRole = any.Role?.Name,
-    //                 Form = MapForm(any.Service.IntakeForm)
-    //             };
-    //         })
-    //         .OrderBy(x => x.ServiceName)
-    //         .ToList();
-
-    //     return dto;
-    // }
 
 
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(

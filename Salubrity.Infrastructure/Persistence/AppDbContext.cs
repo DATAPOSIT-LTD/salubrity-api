@@ -275,6 +275,16 @@ namespace Salubrity.Infrastructure.Persistence
                 .IsUnique()
                 .HasFilter("\"IsDeleted\" = FALSE");
 
+
+
+            modelBuilder.Entity<HealthAssessmentFormResponse>()
+                .HasMany(r => r.Responses)
+                .WithOne(r => r.FormResponse)
+                .HasForeignKey(r => r.FormResponseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);
         }

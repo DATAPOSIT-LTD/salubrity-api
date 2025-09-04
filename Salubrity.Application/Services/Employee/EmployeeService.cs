@@ -13,6 +13,7 @@ using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Employee;
+using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Rbac;
@@ -34,6 +35,7 @@ public class EmployeeService : IEmployeeService
     private readonly ILookupRepository<Gender> _genderRepo;
     private readonly IPatientRepository _patientRepo;
     private readonly IUserRepository _userRepo;
+    private readonly INotificationService _notificationService;
 
     public EmployeeService(
      IEmployeeRepository repo,
@@ -45,7 +47,8 @@ public class EmployeeService : IEmployeeService
      ILookupRepository<Gender> genderRepo,
      IOrganizationRepository organizationRepo,
      IPatientRepository patientRepo,
-     IUserRepository userRepo
+     IUserRepository userRepo,
+     INotificationService notificationService
      )
     {
         _repo = repo;
@@ -58,6 +61,7 @@ public class EmployeeService : IEmployeeService
         _genderRepo = genderRepo;
         _patientRepo = patientRepo;
         _userRepo = userRepo;
+        _notificationService = notificationService;
     }
 
 
@@ -168,6 +172,15 @@ public class EmployeeService : IEmployeeService
 
         // 5) Delegate full transactional save to repository
         await _repo.CreateEmployeeAndPatientAsync(employee, patient, ct);
+
+        await _notificationService.TriggerNotificationAsync(
+            title: "New Employee Added",
+            message: $"Employee '{employee.User.FullName}' has been added.",
+            type: "Employee",
+            entityId: employee.Id,
+            entityType: "Employee",
+                ct: ct
+        );
 
         // 6) Return DTO
         return new EmployeeResponseDto

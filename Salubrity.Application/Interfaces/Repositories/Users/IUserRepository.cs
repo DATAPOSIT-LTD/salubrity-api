@@ -10,5 +10,6 @@ namespace Salubrity.Application.Interfaces.Repositories.Users
         Task AddUserAsync(User user);
         Task UpdateUserAsync(User user);
         Task RevokeUserRefreshTokenAsync(Guid userId);
+        Task<IEnumerable<User>> GetAllAsync(CancellationToken ct = default);
     }
 }

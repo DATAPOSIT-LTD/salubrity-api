@@ -64,5 +64,12 @@ namespace Salubrity.Infrastructure.Repositories.Users
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<IEnumerable<User>> GetAllAsync(CancellationToken ct = default)
+        {
+            return await _context.Users
+                .Include(u => u.UserRoles)
+                .ToListAsync(ct);
+        }
     }
 }

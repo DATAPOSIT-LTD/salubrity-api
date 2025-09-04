@@ -10,6 +10,7 @@ using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Menus;
+using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Rbac;
@@ -32,6 +33,7 @@ namespace Salubrity.Application.Services.Auth
         private readonly ILookupRepository<SubcontractorStatus> _subcontractorStatusRepository;
         private readonly IPatientRepository _patientRepository;
         private readonly IOnboardingService _onboardingService;
+        private readonly INotificationService _notificationService;
 
 
         public AuthService(
@@ -46,7 +48,8 @@ namespace Salubrity.Application.Services.Auth
             ISubcontractorRepository subcontractorRepository,
             ILookupRepository<SubcontractorStatus> subcontractorStatusRepository,
             IPatientRepository patientRepository,
-            IOnboardingService onboardingService
+            IOnboardingService onboardingService,
+            INotificationService notificationService
             )
         {
             _userRepository = userRepository;
@@ -61,6 +64,7 @@ namespace Salubrity.Application.Services.Auth
             _subcontractorStatusRepository = subcontractorStatusRepository;
             _patientRepository = patientRepository;
             _onboardingService = onboardingService;
+            _notificationService = notificationService;
         }
 
 

@@ -16,6 +16,7 @@ using Salubrity.Application.Interfaces.Services.HomepageOverview;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
+using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Organizations;
 
 using Salubrity.Application.Interfaces.Services.Subcontractors;
@@ -116,6 +117,7 @@ namespace Salubrity.Application
             services.AddScoped<ICampQueueService, CampQueueService>();
             services.AddScoped<IHealthAssessmentFormService, HealthAssessmentFormService>();
             services.AddScoped<IOnboardingService, OnboardingService>();
+            services.AddScoped<INotificationService, NotificationService>();
 
 
 

@@ -12,8 +12,8 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250904111126_UpdateNotificationEntities")]
-    partial class UpdateNotificationEntities
+    [Migration("20250904121840_AddNotificationEntities")]
+    partial class AddNotificationEntities
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

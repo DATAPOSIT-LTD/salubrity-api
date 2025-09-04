@@ -1,5 +1,6 @@
 ﻿using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Users;
+using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Domain.Entities.Identity;
 
@@ -10,19 +11,23 @@ namespace Salubrity.Application.Services.Users
         private readonly IOnboardingStatusRepository _onboardingStatusRepository;
         private readonly IUserRepository _userRepository;
         private readonly ISubcontractorRepository _subcontractorRepository;
+        private readonly INotificationService _notificationService;
 
         public OnboardingService(
             IOnboardingStatusRepository onboardingStatusRepository,
             IUserRepository userRepository,
-            ISubcontractorRepository subcontractorRepository)
+            ISubcontractorRepository subcontractorRepository,
+            INotificationService notificationService)
         {
             _onboardingStatusRepository = onboardingStatusRepository;
             _userRepository = userRepository;
             _subcontractorRepository = subcontractorRepository;
+            _notificationService = notificationService;
         }
 
         public async Task<bool> CheckAndUpdateOnboardingStatusAsync(Guid userId)
         {
+            var ct = CancellationToken.None;
             var user = await _userRepository.FindUserByIdAsync(userId);
             if (user == null) return false;
 
@@ -58,11 +63,20 @@ namespace Salubrity.Application.Services.Users
 
                 if (overallComplete && onboardingStatus.CompletedAt == null)
                 {
-                    onboardingStatus.CompletedAt = DateTime.UtcNow;
+                    onboardingStatus.CompletedAt = DateTime.Now;
                 }
 
                 await _onboardingStatusRepository.UpdateAsync(onboardingStatus);
             }
+
+            await _notificationService.TriggerNotificationAsync(
+                title: "Onboarding Complete",
+                message: $"User '{user.FullName}' has completed onboarding.",
+                type: "Onboarding",
+                entityId: user.Id,
+                entityType: "User",
+                ct: ct
+            );
 
             return overallComplete;
         }

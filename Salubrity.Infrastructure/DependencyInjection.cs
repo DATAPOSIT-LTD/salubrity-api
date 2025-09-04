@@ -56,6 +56,8 @@ using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Infrastructure.Repositories.Camps;
 using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
 using Salubrity.Infrastructure.Repositories.HealthAssessments;
+using Salubrity.Application.Interfaces.Repositories.Notifications;
+using Salubrity.Infrastructure.Repositories.Notifications;
 
 
 namespace Salubrity.Infrastructure;
@@ -120,6 +122,7 @@ public static class DependencyInjection
         services.AddScoped<ICampQueueRepository, CampQueueRepository>();
         services.AddScoped<IHealthAssessmentRepository, HealthAssessmentRepository>();
         services.AddScoped<IOnboardingStatusRepository, OnboardingStatusRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
 
 

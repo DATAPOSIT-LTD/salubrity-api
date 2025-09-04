@@ -27,8 +27,19 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
     public async Task AddFormResponseAsync(HealthAssessmentFormResponse response, CancellationToken ct = default)
     {
         _db.HealthAssessmentFormResponses.Add(response);
+
+
+        if (response.Responses?.Any() == true)
+        {
+            foreach (var r in response.Responses)
+            {
+                _db.HealthAssessmentDynamicFieldResponses.Add(r);
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
     }
+
 
     public Task<HealthAssessment> CreateAsync(HealthAssessment entity)
     {

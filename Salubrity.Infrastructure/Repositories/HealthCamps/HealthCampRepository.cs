@@ -474,6 +474,7 @@ public class HealthCampRepository : IHealthCampRepository
         var query = _context.HealthCampParticipants
             .Where(p => p.HealthCampId == campId)
             .Include(p => p.User)
+            .Include(p => p.Patient).Where(p => p.UserId == p.User.Id)
             .Include(p => p.HealthCamp)
                 .ThenInclude(h => h.Organization)
             .Include(p => p.HealthAssessments) // include to avoid Any() failure
@@ -512,7 +513,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Take(pageSize)
             .Select(p => new HealthCampPatientDto
             {
-                PatientId = p.PatientId?.ToString() ?? "—",
+                PatientId = p.Patient.Id.ToString() ?? "—",
                 FullName = p.User.FullName!,
                 Company = p.HealthCamp.Organization?.BusinessName ?? "—",
                 PhoneNumber = p.User.Phone ?? "",

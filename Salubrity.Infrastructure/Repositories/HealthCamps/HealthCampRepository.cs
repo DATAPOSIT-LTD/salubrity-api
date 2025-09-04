@@ -280,7 +280,26 @@ public class HealthCampRepository : IHealthCampRepository
     private IQueryable<HealthCampParticipant> BaseParticipants(Guid campId, string? q, string? sort)
     {
         var query = _context.HealthCampParticipants
-            .Where(p => p.HealthCampId == campId);
+            .Where(p => p.HealthCampId == campId); // only participants missing PatientId;
+
+
+        var patient = _context.Patients
+                .Where(pa => !pa.IsDeleted);
+
+
+
+        // query = query.Where(p => p.PatientId != null && patientQuery.Contains(p.Id));
+
+        foreach (var participant in query)
+        {
+            foreach (var p in patient)
+            {
+                if (p.UserId == participant.UserId)
+                    participant.PatientId = p.Id;
+
+            }
+        }
+
 
         if (!string.IsNullOrWhiteSpace(q))
         {
@@ -474,7 +493,6 @@ public class HealthCampRepository : IHealthCampRepository
         var query = _context.HealthCampParticipants
             .Where(p => p.HealthCampId == campId)
             .Include(p => p.User)
-            .Include(p => p.Patient).Where(p => p.UserId == p.User.Id)
             .Include(p => p.HealthCamp)
                 .ThenInclude(h => h.Organization)
             .Include(p => p.HealthAssessments) // include to avoid Any() failure
@@ -513,7 +531,7 @@ public class HealthCampRepository : IHealthCampRepository
             .Take(pageSize)
             .Select(p => new HealthCampPatientDto
             {
-                PatientId = p.Patient.Id.ToString() ?? "—",
+                PatientId = p.PatientId?.ToString() ?? "—",
                 FullName = p.User.FullName!,
                 Company = p.HealthCamp.Organization?.BusinessName ?? "—",
                 PhoneNumber = p.User.Phone ?? "",

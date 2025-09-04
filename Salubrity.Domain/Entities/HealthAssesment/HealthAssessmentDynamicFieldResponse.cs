@@ -7,6 +7,7 @@ public class HealthAssessmentDynamicFieldResponse : BaseAuditableEntity
     public HealthAssessmentFormResponse FormResponse { get; set; } = default!;
 
     public Guid FieldId { get; set; }
+    public Guid? SectionId { get; set; }
     public IntakeFormField Field { get; set; } = default!;
 
     public string? Value { get; set; }

@@ -35,4 +35,6 @@ public interface IHealthAssessmentRepository
     // Task<List<AssessmentFormResponseDetailDto>> GetByPatientAndCampAsync(
     //        Guid patientId, Guid healthCampId, CancellationToken ct = default);
 
+    Task<List<PatientAssessmentResponseProjection>> GetPatientResponsesAsync(Guid patientId, Guid campId, CancellationToken ct = default);
+
 }

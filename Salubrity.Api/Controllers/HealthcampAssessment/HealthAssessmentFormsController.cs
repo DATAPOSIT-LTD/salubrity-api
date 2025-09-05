@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
+using Salubrity.Application.DTOs.HealthAssessments;
 using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Shared.Responses;
 
@@ -31,4 +32,13 @@ public class HealthAssessmentFormsController : BaseController
         var result = await _service.SubmitFormSectionAsync(dto, userId, ct);
         return Success(result);
     }
+
+    [HttpGet("responses")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthAssessmentResponseDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPatientResponses([FromQuery] Guid patientId, [FromQuery] Guid campId, CancellationToken ct = default)
+    {
+        var result = await _service.GetPatientAssessmentResponsesAsync(patientId, campId, ct);
+        return Success(result);
+    }
+
 }

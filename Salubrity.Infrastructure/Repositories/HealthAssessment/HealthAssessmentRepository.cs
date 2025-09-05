@@ -81,6 +81,46 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
         throw new NotImplementedException();
     }
 
+    public async Task<List<PatientAssessmentResponseProjection>> GetPatientResponsesAsync(Guid patientId, Guid campId, CancellationToken ct = default)
+    {
+        var userId = await _db.Patients
+            .Where(p => p.Id == patientId)
+            .Select(p => p.UserId)
+            .FirstOrDefaultAsync(ct);
+
+        if (userId == Guid.Empty)
+            return [];
+
+        var latestResponseId = await _db.HealthAssessmentFormResponses
+            .Where(r => r.CreatedBy == userId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (latestResponseId == Guid.Empty)
+            return [];
+
+        var responses = await _db.HealthAssessmentDynamicFieldResponses
+            .Where(r => r.FormResponseId == latestResponseId)
+            .Select(r => new PatientAssessmentResponseProjection
+            {
+                FormName = r.FormResponse.FormType.Name,
+                SectionName = r.Field.Section.Name,
+                SectionOrder = r.Field.Section.Order,
+                FieldLabel = r.Field.Label,
+                FieldOrder = r.Field.Order,
+                Value = r.Value,
+                SelectedOption = r.SelectedOptionId.HasValue
+                    ? r.Field.Options.FirstOrDefault(o => o.Id == r.SelectedOptionId).Label
+                    : null
+            })
+            .OrderBy(r => r.SectionOrder)
+            .ThenBy(r => r.FieldOrder)
+            .ToListAsync(ct);
+
+        return responses;
+    }
+
 
 
 }

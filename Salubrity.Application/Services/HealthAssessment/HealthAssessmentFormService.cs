@@ -1,3 +1,4 @@
+using Salubrity.Application.DTOs.HealthAssessments;
 using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
 using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Shared.Exceptions;
@@ -36,4 +37,37 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
 
         return formResponse.Id;
     }
+
+
+    public async Task<List<HealthAssessmentResponseDto>> GetPatientAssessmentResponsesAsync(Guid patientId, Guid campId, CancellationToken ct = default)
+    {
+        var assessments = await _repo.GetPatientResponsesAsync(patientId, campId, ct);
+
+        var result = assessments
+            .GroupBy(r => new { r.FormName, r.SectionName, r.SectionOrder })
+            .OrderBy(g => g.Key.SectionOrder)
+            .GroupBy(g => g.Key.FormName)
+            .Select(formGroup => new HealthAssessmentResponseDto
+            {
+                FormName = formGroup.Key,
+                Sections = formGroup.Select(sec => new FormSectionResponseDto
+                {
+                    SectionName = sec.Key.SectionName,
+                    SectionOrder = sec.Key.SectionOrder,
+                    Fields = sec
+                        .Select(item => new FieldResponseDto
+                        {
+                            FieldLabel = item.FieldLabel,
+                            FieldOrder = item.FieldOrder,
+                            Value = item.Value,
+                            SelectedOption = item.SelectedOption
+                        })
+                        .OrderBy(f => f.FieldOrder)
+                        .ToList()
+                }).ToList()
+            }).ToList();
+
+        return result;
+    }
+
 }

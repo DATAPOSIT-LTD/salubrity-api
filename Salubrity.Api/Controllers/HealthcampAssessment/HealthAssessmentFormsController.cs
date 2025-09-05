@@ -33,7 +33,7 @@ public class HealthAssessmentFormsController : BaseController
         return Success(result);
     }
 
-    [HttpGet("responses")]
+    [HttpGet("submitted-responses")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthAssessmentResponseDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPatientResponses([FromQuery] Guid patientId, [FromQuery] Guid campId, CancellationToken ct = default)
     {

@@ -50,7 +50,7 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
             .Select(formGroup => new HealthAssessmentResponseDto
             {
                 FormName = formGroup.Key,
-                Sections = formGroup.Select(sec => new FormSectionResponseDto
+                Sections = formGroup.Select(sec => new AssessmentSectionResponseDto
                 {
                     SectionName = sec.Key.SectionName,
                     SectionOrder = sec.Key.SectionOrder,

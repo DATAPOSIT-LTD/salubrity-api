@@ -373,7 +373,7 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
-        return await Project((IQueryable<Domain.Entities.Join.HealthCampParticipant>)BaseParticipants(campId, q, sort))
+        return await Project((IQueryable<Domain.Entities.Join.HealthCampParticipant>)BaseParticipantsDto(campId, q, sort))
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);

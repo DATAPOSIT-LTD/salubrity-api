@@ -100,25 +100,32 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
         if (latestResponseId == Guid.Empty)
             return [];
 
-        var responses = await _db.HealthAssessmentDynamicFieldResponses
+        var rawResponses = await _db.HealthAssessmentDynamicFieldResponses
             .Where(r => r.FormResponseId == latestResponseId)
+            .Include(r => r.FormResponse.FormType)
+            .Include(r => r.Field)
+                .ThenInclude(f => f.Section)
+            .Include(r => r.Field.Options)
+            .ToListAsync(ct);
+
+        var projections = rawResponses
             .Select(r => new PatientAssessmentResponseProjection
             {
-                FormName = r.FormResponse.FormType.Name,
-                SectionName = r.Field.Section.Name,
-                SectionOrder = r.Field.Section.Order,
-                FieldLabel = r.Field.Label,
-                FieldOrder = r.Field.Order,
+                FormName = r.FormResponse.FormType?.Name,
+                SectionName = r.Field.Section?.Name,
+                SectionOrder = r.Field.Section?.Order ?? 0,
+                FieldLabel = r.Field?.Label,
+                FieldOrder = r.Field?.Order ?? 0,
                 Value = r.Value,
                 SelectedOption = r.SelectedOptionId.HasValue
-                    ? r.Field.Options.FirstOrDefault(o => o.Id == r.SelectedOptionId).Label
+                    ? r.Field.Options.FirstOrDefault(o => o.Id == r.SelectedOptionId)?.Label
                     : null
             })
             .OrderBy(r => r.SectionOrder)
             .ThenBy(r => r.FieldOrder)
-            .ToListAsync(ct);
+            .ToList();
 
-        return responses;
+        return projections;
     }
 
 

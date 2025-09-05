@@ -360,24 +360,35 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
         }
 
-        query = sort?.ToLowerInvariant() switch
+        // sort: nulls-last without using DateTime.MinValue
+        var s = sort?.ToLowerInvariant();
+        query = s switch
         {
             "name" => query.OrderBy(x => x.FullName),
-            "oldest" => query.OrderBy(x => x.ParticipatedAt ?? DateTime.MinValue),
-            _ => query.OrderByDescending(x => x.ParticipatedAt ?? DateTime.MinValue)
+            "oldest" => query.OrderBy(x => x.ParticipatedAt == null)
+                             .ThenBy(x => x.ParticipatedAt),           // nulls last
+            _ => query.OrderByDescending(x => x.ParticipatedAt != null)
+                             .ThenByDescending(x => x.ParticipatedAt)  // newest first, nulls last
         };
 
         return query.AsNoTracking();
     }
 
 
-    public async Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+
+
+    public async Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(
+    Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
-        return await Project((IQueryable<Domain.Entities.Join.HealthCampParticipant>)BaseParticipantsDto(campId, q, sort))
+        if (page <= 0) page = 1;
+        if (pageSize <= 0) pageSize = 20;
+
+        return await BaseParticipantsDto(campId, q, sort)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
     }
+
 
     public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {

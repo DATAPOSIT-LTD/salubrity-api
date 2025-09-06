@@ -208,7 +208,8 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles = new List<UserRole> { new() { UserId = userId, RoleId = input.RoleId } }
+                UserRoles = [new() { UserId = userId, RoleId = input.RoleId }],
+                OrganizationId = input.OrganizationId
             };
 
             await _userRepository.AddUserAsync(user);

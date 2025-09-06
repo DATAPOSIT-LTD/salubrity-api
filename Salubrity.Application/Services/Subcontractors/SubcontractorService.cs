@@ -1,6 +1,7 @@
 using AutoMapper;
 using Salubrity.Application.DTOs.Subcontractor;
 using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
@@ -22,6 +23,7 @@ namespace Salubrity.Application.Services.Subcontractor
         private readonly IPasswordGenerator _passwordGenerator;
         private readonly IUserRepository _userRepository;
         private readonly IIndustryService _industryService;
+        private readonly ISubcontractorCampAssignmentRepository _campAssignmentRepo;
         private readonly IMapper _mapper;
 
         public SubcontractorService(
@@ -31,6 +33,7 @@ namespace Salubrity.Application.Services.Subcontractor
             IPasswordGenerator passwordGenerator,
             IUserRepository userRepository,
             IIndustryService industryService,
+            ISubcontractorCampAssignmentRepository campAssignmentRepository,
             IMapper mapper)
         {
             _repo = repo;
@@ -40,6 +43,7 @@ namespace Salubrity.Application.Services.Subcontractor
             _mapper = mapper;
             _userRepository = userRepository;
             _industryService = industryService;
+            _campAssignmentRepo = campAssignmentRepository;
         }
 
         public async Task<SubcontractorDto> CreateAsync(CreateSubcontractorDto dto)
@@ -136,7 +140,7 @@ namespace Salubrity.Application.Services.Subcontractor
 
             sub.StatusId = dto.StatusId.Value;
 
-            await _repo.UpdateSubAsync(sub);
+            await _repo.UpdateSubAsync(sub, CancellationToken.None);
             return _mapper.Map<SubcontractorDto>(sub);
         }
 
@@ -162,5 +166,29 @@ namespace Salubrity.Application.Services.Subcontractor
             await _repo.AssignSpecialtyAsync(subcontractorId, dto.ServiceId);
             await _repo.SaveChangesAsync();
         }
+
+        public async Task DeleteAsync(Guid subcontractorId, Guid performedByUserId, CancellationToken ct = default)
+        {
+            var sub = await _repo.GetByIdAsync(subcontractorId)
+                      ?? throw new NotFoundException("Subcontractor not found");
+
+            // Guardrails: block if they have active/ongoing camp assignments
+            if (await _campAssignmentRepo.HasActiveAssignmentsAsync(sub.Id, ct))
+                throw new ValidationException(["Cannot delete subcontractor while assigned to an active camp."]);
+
+            // Optional: block if they’re the only assignee for an upcoming camp, etc.
+
+            // Soft-delete
+            sub.IsDeleted = true;
+            sub.DeletedAt = DateTime.UtcNow;
+            sub.DeletedBy = performedByUserId;
+
+            // Optional: also mark their User account inactive (business-dependent)
+            // if (sub.User is not null) sub.User.IsActive = false;
+
+            await _repo.UpdateSubAsync(sub, ct);
+        }
+
     }
+
 }

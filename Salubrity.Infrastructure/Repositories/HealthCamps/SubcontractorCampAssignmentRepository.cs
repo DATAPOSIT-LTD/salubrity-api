@@ -34,4 +34,18 @@ public class SubcontractorCampAssignmentRepository : ISubcontractorCampAssignmen
                            a.HealthCampId == healthCampId &&
                            a.SubcontractorId == subcontractorId, ct);
     }
+
+    public async Task<bool> HasActiveAssignmentsAsync(Guid subcontractorId, CancellationToken ct)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        return await _db.SubcontractorHealthCampAssignments
+            .Where(a => !a.IsDeleted &&
+                        a.SubcontractorId == subcontractorId &&
+                        a.HealthCamp != null &&
+                        !a.HealthCamp.IsDeleted &&
+                        a.HealthCamp.EndDate >= today)
+            .AnyAsync(ct);
+    }
+
 }

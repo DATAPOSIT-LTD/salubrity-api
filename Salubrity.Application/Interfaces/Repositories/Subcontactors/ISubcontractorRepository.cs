@@ -12,6 +12,6 @@ namespace Salubrity.Application.Interfaces.Repositories
         Task AssignRoleAsync(Guid subcontractorId, Guid roleId, bool isPrimary, CancellationToken ct = default);
         Task AssignSpecialtyAsync(Guid subcontractorId, Guid serviceId);
         Task SaveChangesAsync();
-        Task UpdateSubAsync(Subcontractor subcontractor);
+        Task UpdateSubAsync(Subcontractor sub, CancellationToken ct);
     }
 }

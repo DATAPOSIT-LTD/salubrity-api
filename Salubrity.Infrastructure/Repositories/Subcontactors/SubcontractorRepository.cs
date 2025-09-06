@@ -34,12 +34,13 @@ namespace Salubrity.Infrastructure.Repositories
                 .Include(s => s.CampAssignments)
                 .AsNoTracking()
                 .AsSplitQuery()
-                .FirstOrDefaultAsync(s => s.Id == id);
+                .FirstOrDefaultAsync(s => s.Id == id && !s.IsDeleted);
         }
 
         public async Task<List<Subcontractor>> GetAllWithDetailsAsync()
         {
             return await _db.Subcontractors
+                .Where(s => !s.IsDeleted)
                 .Include(s => s.User)
                 .Include(s => s.Status)
                 .Include(s => s.Industry)
@@ -56,6 +57,7 @@ namespace Salubrity.Infrastructure.Repositories
         public async Task<Subcontractor?> GetByIdWithDetailsAsync(Guid id)
         {
             return await _db.Subcontractors
+                .Where(s => !s.IsDeleted)
                 .Include(s => s.User)
                 .Include(s => s.Status)
                 .Include(s => s.Industry)
@@ -123,9 +125,13 @@ namespace Salubrity.Infrastructure.Repositories
             await _db.SaveChangesAsync();
         }
 
-        public async Task UpdateSubAsync(Subcontractor subcontractor)
+
+
+        public async Task UpdateSubAsync(Subcontractor subcontractor, CancellationToken ct = default)
         {
-            await Task.Run(() => _db.Subcontractors.Update(subcontractor));
+            _db.Subcontractors.Update(subcontractor);
+            await _db.SaveChangesAsync(ct);
         }
+
     }
 }

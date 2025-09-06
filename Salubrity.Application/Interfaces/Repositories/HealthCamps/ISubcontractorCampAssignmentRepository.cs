@@ -8,4 +8,5 @@ public interface ISubcontractorCampAssignmentRepository
     Task AddAsync(SubcontractorHealthCampAssignment assignment, CancellationToken ct = default);
     Task<List<SubcontractorHealthCampAssignment>> GetByCampIdAsync(Guid healthCampId, CancellationToken ct = default);
     Task<bool> ExistsAsync(Guid subcontractorId, Guid healthCampId, CancellationToken ct = default);
+    Task<bool> HasActiveAssignmentsAsync(Guid id, CancellationToken ct);
 }

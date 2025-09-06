@@ -10,5 +10,6 @@ namespace Salubrity.Application.Interfaces.Services
         Task<List<SubcontractorDto>> GetAllAsync();
         Task AssignRoleAsync(Guid subcontractorId, AssignSubcontractorRoleDto dto);
         Task AssignSpecialtyAsync(Guid subcontractorId, CreateSubcontractorSpecialtyDto dto);
+        Task DeleteAsync(Guid subcontractorId, Guid performedByUserId, CancellationToken ct = default);
     }
 }

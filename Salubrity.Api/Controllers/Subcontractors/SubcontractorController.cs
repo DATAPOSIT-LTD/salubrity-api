@@ -70,4 +70,14 @@ public class SubcontractorController : BaseController
         await _service.AssignSpecialtyAsync(id, dto);
         return SuccessMessage("Specialty assigned to subcontractor.");
     }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
+    {
+        Guid userId = GetCurrentUserId();
+        await _service.DeleteAsync(id, userId, ct);
+        return SuccessMessage("Subcontractor deleted (soft).");
+    }
+
 }

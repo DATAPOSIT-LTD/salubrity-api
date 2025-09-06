@@ -566,4 +566,50 @@ public class HealthCampService : IHealthCampService
         return result;
     }
 
+    public async Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default)
+    {
+        var result = new CampLinkResultDto
+        {
+            CampId = campId
+        };
+
+        var camp = await _repo.GetByIdAsync(campId);
+        if (camp is null)
+        {
+            result.Warnings.Add("Camp not found.");
+            return result;
+        }
+
+        var today = DateTime.UtcNow.Date;
+        if (camp.EndDate.HasValue && camp.EndDate.Value.Date < today)
+        {
+            result.Warnings.Add("Camp has already ended.");
+            return result;
+        }
+
+        var alreadyLinked = await _campParticipantRepository.IsParticipantLinkedToCampAsync(campId, userId, ct);
+        if (alreadyLinked)
+        {
+            result.Linked = true;
+            result.Info.Add("User already linked to camp.");
+            return result;
+        }
+
+        var participant = new HealthCampParticipant
+        {
+            Id = Guid.NewGuid(),
+            HealthCampId = campId,
+            UserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            IsDeleted = false
+        };
+
+        await _campParticipantRepository.AddParticipantAsync(participant, ct);
+
+        result.Linked = true;
+        result.Info.Add("User successfully linked to camp.");
+        return result;
+    }
+
+
 }

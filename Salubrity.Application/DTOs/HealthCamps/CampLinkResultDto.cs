@@ -1,6 +1,7 @@
 // File: Salubrity.Application/DTOs/HealthCamps/CampLinkResult.cs
 
 namespace Salubrity.Application.DTOs.HealthCamps
+
 {
     public class CampLinkResultDto
     {
@@ -9,4 +10,11 @@ namespace Salubrity.Application.DTOs.HealthCamps
         public List<string> Warnings { get; set; } = [];  // Non-fatal issues (e.g., "camp has ended")
         public List<string> Info { get; set; } = [];      // Helpful info (e.g., "already linked")
     }
+
+    public class AddParticipantRequest
+    {
+        public Guid UserId { get; set; }
+
+    }
+
 }

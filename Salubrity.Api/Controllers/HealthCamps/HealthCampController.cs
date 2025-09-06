@@ -113,6 +113,15 @@ public class CampController : BaseController
         return Success(result);
     }
 
+    // [Authorize(Roles = "Admin")]
+    [HttpPost("{campId:guid}/participants")]
+    [ProducesResponseType(typeof(ApiResponse<CampLinkResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddParticipantToCamp(Guid campId, [FromBody] AddParticipantRequest dto, CancellationToken ct)
+    {
+        var result = await _service.LinkUserToCampByIdAsync(dto.UserId, campId, ct);
+        return Success(result, "Participant processed.");
+    }
+
 
 
     [HttpGet("{campId:guid}/participants")]
@@ -236,7 +245,7 @@ public class CampController : BaseController
 
     [HttpGet("organization/{organizationId:guid}")]
     [ProducesResponseType(typeof(ApiResponse<List<OrganizationCampListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampsByOrganization( Guid organizationId, CancellationToken ct = default)
+    public async Task<IActionResult> GetCampsByOrganization(Guid organizationId, CancellationToken ct = default)
     {
         var result = await _service.GetCampsByOrganizationAsync(organizationId, ct);
         return Success(result);

@@ -220,7 +220,7 @@ public class HealthCampRepository : IHealthCampRepository
     private IQueryable<HealthCamp> CampsForSubcontractor(Guid subcontractorId)
     {
         return _context.HealthCampServiceAssignments
-            .Where(a => a.SubcontractorId == subcontractorId)
+            .Where(a => (a.SubcontractorId == subcontractorId) && !a.HealthCamp.IsDeleted)
             .Select(a => a.HealthCamp)
             .Distinct()
             .Include(c => c.Organization)
@@ -235,7 +235,7 @@ public class HealthCampRepository : IHealthCampRepository
 
         return await CampsForSubcontractor(subcontractorId)
             .Where(c =>
-                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
                 (
                     c.StartDate >= todayLocal ||
                     (c.IsLaunched &&
@@ -256,7 +256,7 @@ public class HealthCampRepository : IHealthCampRepository
         var today = DateTime.UtcNow.Date;
 
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c => c.IsLaunched
+            .Where(c => c.IsLaunched && !c.IsDeleted
                         && ((c.EndDate ?? c.StartDate) < today))
             .OrderByDescending(c => c.StartDate)
             .ToListAsync(ct);

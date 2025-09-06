@@ -404,11 +404,41 @@ public class HealthCampService : IHealthCampService
     }
 
 
-    public async Task DeleteAsync(Guid id)
+    public async Task DeleteAsync(Guid id, Guid userId)
     {
         var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
-        await _repo.DeleteAsync(camp.Id);
+
+        // Guardrails
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
+
+        var start = camp.StartDate.Date;
+        var end = (camp.EndDate ?? camp.StartDate).Date;
+
+        // If ongoing or completed -> do NOT delete; advise cancel/archive
+        var hasStarted = todayLocal >= start;
+        var hasEnded = todayLocal > end;
+        var isLaunched = camp.IsLaunched;
+
+        if (isLaunched || hasStarted || hasEnded)
+            throw new ValidationException([
+                "You cannot delete a launched or past camp. Use 'Cancel' (pre-start) or keep it for records."
+            ]);
+
+        // (Optional) safety checks: no assessments, no irreversible data, etc.
+        // if (await _repo.HasAnyAssessmentsAsync(camp.Id)) throw new ValidationException([...]);
+
+        // Soft delete
+        camp.IsDeleted = true;
+        camp.DeletedAt = DateTime.UtcNow;
+        camp.DeletedBy = userId;
+        await _repo.UpdateAsync(camp); // or _repo.SoftDeleteAsync(camp)
+
+        // (Optional) cascade soft-delete light-touch for related joins created at camp creation time
+        // await _repo.SoftDeleteParticipantsForCampAsync(camp.Id);
+        // await _repo.SoftDeleteAssignmentsForCampAsync(camp.Id);
     }
+
     //  Use nullable Guid
     public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId)
     {

@@ -9,7 +9,7 @@ public interface IHealthCampService
 
     Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto);
     Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto);
-    Task DeleteAsync(Guid id);
+    Task DeleteAsync(Guid id, Guid userId);
     Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto);
 
     // These now accept nullable Guid?

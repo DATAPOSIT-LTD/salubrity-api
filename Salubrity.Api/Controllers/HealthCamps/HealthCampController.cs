@@ -61,7 +61,8 @@ public class CampController : BaseController
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        await _service.DeleteAsync(id);
+        Guid userId = GetCurrentUserId();
+        await _service.DeleteAsync(id, userId);
         return Success("Camp deleted.");
     }
 

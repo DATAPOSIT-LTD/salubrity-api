@@ -1,7 +1,11 @@
-﻿using Salubrity.Application.DTOs.Auth;
+﻿using Microsoft.IdentityModel.Tokens;
+using Salubrity.Application.Common.Interfaces.Repositories;
+using Salubrity.Application.DTOs.Auth;
+using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.DTOs.Menus;
 using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Patients;
@@ -9,10 +13,12 @@ using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.Auth;
+using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Shared.Exceptions;
@@ -34,6 +40,8 @@ namespace Salubrity.Application.Services.Auth
         private readonly IPatientRepository _patientRepository;
         private readonly IOnboardingService _onboardingService;
         private readonly INotificationService _notificationService;
+        private readonly IHealthCampService _campService;
+
 
 
         public AuthService(
@@ -49,7 +57,8 @@ namespace Salubrity.Application.Services.Auth
             ILookupRepository<SubcontractorStatus> subcontractorStatusRepository,
             IPatientRepository patientRepository,
             IOnboardingService onboardingService,
-            INotificationService notificationService
+            INotificationService notificationService,
+            IHealthCampService campService
             )
         {
             _userRepository = userRepository;
@@ -65,9 +74,109 @@ namespace Salubrity.Application.Services.Auth
             _patientRepository = patientRepository;
             _onboardingService = onboardingService;
             _notificationService = notificationService;
+            _campService = campService;
+
         }
 
 
+
+        // public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
+        // {
+        //     if (!input.AcceptTerms)
+        //         throw new ValidationException(["You must accept the Terms & Conditions to register."]);
+
+        //     if (input.Password != input.ConfirmPassword)
+        //         throw new ValidationException(["Passwords do not match."]);
+
+        //     var normalizedEmail = input.Email.Trim().ToLowerInvariant();
+        //     var existingUser = await _userRepository.FindUserByEmailAsync(normalizedEmail);
+        //     if (existingUser is not null)
+        //         throw new ValidationException(["A user with this email already exists."]);
+
+        //     var role = await _roleRepository.GetByIdAsync(input.RoleId)
+        //         ?? throw new NotFoundException("Role", input.RoleId.ToString());
+
+        //     var hashed = _passwordHasher.HashPassword(input.Password);
+        //     var userId = Guid.NewGuid();
+
+        //     var user = new User
+        //     {
+        //         Id = userId,
+        //         FirstName = input.FirstName,
+        //         MiddleName = input.MiddleName,
+        //         LastName = input.LastName,
+        //         Email = normalizedEmail,
+        //         PasswordHash = hashed,
+        //         IsActive = true,
+        //         IsVerified = false,
+        //         CreatedAt = DateTime.UtcNow,
+        //         UserRoles = new List<UserRole>
+        //         {
+        //             new UserRole
+        //             {
+        //                 UserId = userId,
+        //                 RoleId = input.RoleId
+        //             }
+        //         }
+        //     };
+
+        //     await _userRepository.AddUserAsync(user);
+
+        //     // Create & link related entity based on role
+        //     switch (role.Name)
+        //     {
+        //         case "Subcontractor":
+        //             {
+        //                 var industry = await _industryRepository.GetByNameAsync("General")
+        //                     ?? throw new NotFoundException("Industry", "General");
+
+        //                 var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
+        //                     ?? throw new NotFoundException("SubcontractorStatus", "Active");
+
+        //                 var subcontractor = new Salubrity.Domain.Entities.Subcontractor.Subcontractor
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     UserId = user.Id,
+        //                     IndustryId = industry.Id,
+        //                     StatusId = status.Id,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     IsDeleted = false
+        //                 };
+
+        //                 await _subcontractorRepository.AddAsync(subcontractor);
+
+        //                 user.RelatedEntityType = "Subcontractor";
+        //                 user.RelatedEntityId = subcontractor.Id;
+        //                 await _userRepository.UpdateUserAsync(user);
+        //                 break;
+        //             }
+
+        //         case "Patient":
+        //             {
+        //                 var patient = new Patient
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     UserId = user.Id,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     IsDeleted = false
+        //                 };
+
+        //                 await _patientRepository.AddAsync(patient);
+
+        //                 user.RelatedEntityType = "Patient";
+        //                 user.RelatedEntityId = patient.Id;
+        //                 await _userRepository.UpdateUserAsync(user);
+        //                 break;
+        //             }
+        //     }
+
+        //     var expiresAt = DateTime.UtcNow.AddMinutes(30);
+        //     var roles = new[] { role.Name };
+        //     var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
+        //     var refreshToken = _jwtService.GenerateRefreshToken();
+
+        //     return new AuthResponseDto(token, refreshToken, expiresAt);
+        // }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
         {
@@ -99,26 +208,18 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles = new List<UserRole>
-                {
-                    new UserRole
-                    {
-                        UserId = userId,
-                        RoleId = input.RoleId
-                    }
-                }
+                UserRoles = new List<UserRole> { new() { UserId = userId, RoleId = input.RoleId } }
             };
 
             await _userRepository.AddUserAsync(user);
 
-            // Create & link related entity based on role
+            // Role-specific entity
             switch (role.Name)
             {
                 case "Subcontractor":
                     {
                         var industry = await _industryRepository.GetByNameAsync("General")
                             ?? throw new NotFoundException("Industry", "General");
-
                         var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
                             ?? throw new NotFoundException("SubcontractorStatus", "Active");
 
@@ -131,7 +232,6 @@ namespace Salubrity.Application.Services.Auth
                             CreatedAt = DateTime.UtcNow,
                             IsDeleted = false
                         };
-
                         await _subcontractorRepository.AddAsync(subcontractor);
 
                         user.RelatedEntityType = "Subcontractor";
@@ -149,7 +249,6 @@ namespace Salubrity.Application.Services.Auth
                             CreatedAt = DateTime.UtcNow,
                             IsDeleted = false
                         };
-
                         await _patientRepository.AddAsync(patient);
 
                         user.RelatedEntityType = "Patient";
@@ -159,13 +258,34 @@ namespace Salubrity.Application.Services.Auth
                     }
             }
 
+            // ---- Best-effort camp linking ----
+            CampLinkResultDto? campResult = null;
+
+            if (!string.IsNullOrWhiteSpace(input.CampToken))
+            {
+                campResult = await _campService.TryLinkUserToCampAsync(user.Id, input.CampToken, CancellationToken.None);
+            }
+
+
+            // ---- Tokens ----
             var expiresAt = DateTime.UtcNow.AddMinutes(30);
-            var roles = new[] { role.Name };
-            var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
+            var rolesArr = new[] { role.Name };
+            var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, rolesArr);
             var refreshToken = _jwtService.GenerateRefreshToken();
 
-            return new AuthResponseDto(token, refreshToken, expiresAt);
+            return new AuthResponseDto
+            {
+                AccessToken = accessToken,
+                RefreshToken = refreshToken,
+                ExpiresAt = expiresAt,
+                CampLinked = campResult?.Linked,
+                CampId = campResult?.CampId,
+                Warnings = campResult?.Warnings,
+                Info = campResult?.Info
+            };
+
         }
+
 
 
         public async Task<AuthResponseDto> LoginAsync(LoginRequestDto input)

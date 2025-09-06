@@ -37,7 +37,19 @@ namespace Salubrity.Infrastructure.Repositories
                 .FirstOrDefaultAsync(ct);
         }
 
+        public async Task<bool> IsParticipantLinkedToCampAsync(Guid campId, Guid userId, CancellationToken ct = default)
+        {
+            return await _context.HealthCampParticipants
+                .AnyAsync(p => p.HealthCampId == campId && p.UserId == userId && !p.IsDeleted, ct);
+        }
+        public async Task AddParticipantAsync(HealthCampParticipant participant, CancellationToken ct = default)
+        {
+            await _context.HealthCampParticipants.AddAsync(participant, ct);
+            await _context.SaveChangesAsync(ct);
+        }
+
 
 
     }
+
 }

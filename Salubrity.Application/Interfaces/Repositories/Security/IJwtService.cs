@@ -17,5 +17,7 @@ namespace Salubrity.Application.Interfaces.Security
         string GenerateRefreshToken();
 
         ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
+        ClaimsPrincipal ValidateToken(string token, string expectedAudience, string expectedIssuer);
+
     }
 }

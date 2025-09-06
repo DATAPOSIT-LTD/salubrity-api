@@ -1,4 +1,6 @@
 using AutoMapper;
+using Microsoft.IdentityModel.Tokens;
+using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Email;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.DTOs.Rbac;
@@ -7,6 +9,7 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.Notifications;
@@ -29,6 +32,7 @@ public class HealthCampService : IHealthCampService
     private readonly IMapper _mapper;
     private readonly IPackageReferenceResolver _referenceResolver;
     private readonly ICampTokenFactory _tokenFactory;
+    private readonly IJwtService _jwt;
     private readonly IFileStorage _files;
 
     private readonly IQrCodeService _qr;
@@ -38,8 +42,9 @@ public class HealthCampService : IHealthCampService
     private readonly ISubcontractorCampAssignmentRepository _subcontractorCampAssignmentRepository;
     private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
     private readonly INotificationService _notificationService;
+    private readonly IHealthCampParticipantRepository _campParticipantRepository;
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService)
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt)
     {
         _repo = repo;
         _mapper = mapper;
@@ -54,6 +59,8 @@ public class HealthCampService : IHealthCampService
         _subcontractorCampAssignmentRepository = subcontractorCampAssignment ?? throw new ArgumentNullException(nameof(subcontractorCampAssignment));
         _lookupSubcontractorHealthCampAssignmentRepository = lookupSubcontractorHealthCampAssignmentRepository ?? throw new ArgumentNullException(nameof(lookupSubcontractorHealthCampAssignmentRepository));
         _notificationService = notificationService;
+        _campParticipantRepository = campParticipantRepository ?? throw new ArgumentNullException(nameof(campParticipantRepository));
+        _jwt = jwt ?? throw new ArgumentNullException(nameof(jwt));
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -492,4 +499,71 @@ public class HealthCampService : IHealthCampService
     {
         return await _repo.GetUpcomingCampDatesAsync(ct);
     }
+
+    public async Task<CampLinkResultDto> TryLinkUserToCampAsync(Guid userId, string campToken, CancellationToken ct = default)
+    {
+        var result = new CampLinkResultDto();
+
+        try
+        {
+            var principal = _jwt.ValidateToken(campToken, "camp-signin", "salubrity-api");
+
+            var campIdStr = principal.FindFirst("campId")?.Value;
+            if (!Guid.TryParse(campIdStr, out var campId))
+            {
+                result.Warnings.Add("Camp token is invalid.");
+                return result;
+            }
+
+            result.CampId = campId;
+
+            var camp = await _repo.GetByIdAsync(campId);
+            if (camp is null)
+            {
+                result.Warnings.Add("Camp not found.");
+                return result;
+            }
+
+            // Don't link to past camps
+            var today = DateTime.UtcNow.Date;
+            if (camp.EndDate.HasValue && camp.EndDate.Value.Date < today)
+            {
+                result.Warnings.Add("Camp has already ended.");
+                return result;
+            }
+
+            var alreadyLinked = await _campParticipantRepository.IsParticipantLinkedToCampAsync(campId, userId, ct);
+            if (alreadyLinked)
+            {
+                result.Linked = true;
+                result.Info.Add("User already linked to camp.");
+                return result;
+            }
+
+            var participant = new HealthCampParticipant
+            {
+                Id = Guid.NewGuid(),
+                HealthCampId = campId,
+                UserId = userId,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false
+            };
+
+            await _campParticipantRepository.AddParticipantAsync(participant, ct);
+
+            result.Linked = true;
+            result.Info.Add("User linked to camp.");
+        }
+        catch (SecurityTokenExpiredException)
+        {
+            result.Warnings.Add("Camp token expired.");
+        }
+        catch (Exception)
+        {
+            result.Warnings.Add("Unexpected error during camp linking.");
+        }
+
+        return result;
+    }
+
 }

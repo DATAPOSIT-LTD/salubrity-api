@@ -130,5 +130,24 @@ namespace Salubrity.Infrastructure.Security
                 return null;
             }
         }
+
+        public ClaimsPrincipal ValidateToken(string token, string expectedAudience, string expectedIssuer)
+        {
+            var handler = new JwtSecurityTokenHandler();
+
+            var validationParams = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = expectedIssuer,
+                ValidAudience = expectedAudience,
+                IssuerSigningKey = _keyProvider.GetPublicKey()
+            };
+
+            return handler.ValidateToken(token, validationParams, out _);
+        }
+
     }
 }

@@ -204,7 +204,7 @@ namespace Salubrity.Application.Services.Auth
             if (input.OrganizationId.HasValue)
             {
                 var orgExists = await _organizationRepository.GetByIdAsync(input.OrganizationId.Value);
-                if (orgExists != null)
+                if (orgExists == null)
                     throw new NotFoundException("Organization", input.OrganizationId.Value.ToString());
             }
 

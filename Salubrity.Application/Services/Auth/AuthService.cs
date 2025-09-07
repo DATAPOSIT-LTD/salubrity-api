@@ -8,6 +8,7 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
+using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Users;
@@ -41,6 +42,8 @@ namespace Salubrity.Application.Services.Auth
         private readonly IOnboardingService _onboardingService;
         private readonly INotificationService _notificationService;
         private readonly IHealthCampService _campService;
+        private readonly IEmployeeRepository _employeeRepository;
+        private readonly IOrganizationRepository _organizationRepository;
 
 
 
@@ -58,7 +61,9 @@ namespace Salubrity.Application.Services.Auth
             IPatientRepository patientRepository,
             IOnboardingService onboardingService,
             INotificationService notificationService,
-            IHealthCampService campService
+            IHealthCampService campService,
+            IEmployeeRepository employeeRepository,
+            IOrganizationRepository organizationRepository
             )
         {
             _userRepository = userRepository;
@@ -75,7 +80,8 @@ namespace Salubrity.Application.Services.Auth
             _onboardingService = onboardingService;
             _notificationService = notificationService;
             _campService = campService;
-
+            _employeeRepository = employeeRepository;
+            _organizationRepository = organizationRepository;
         }
 
 
@@ -194,6 +200,14 @@ namespace Salubrity.Application.Services.Auth
             var role = await _roleRepository.GetByIdAsync(input.RoleId)
                 ?? throw new NotFoundException("Role", input.RoleId.ToString());
 
+            // If OrganizationId is provided, make sure it exists
+            if (input.OrganizationId.HasValue)
+            {
+                var orgExists = await _organizationRepository.GetByIdAsync(input.OrganizationId.Value);
+                if (orgExists != null)
+                    throw new NotFoundException("Organization", input.OrganizationId.Value.ToString());
+            }
+
             var hashed = _passwordHasher.HashPassword(input.Password);
             var userId = Guid.NewGuid();
 
@@ -212,9 +226,34 @@ namespace Salubrity.Application.Services.Auth
                 OrganizationId = input.OrganizationId
             };
 
+            // Optional: wrap in a transaction if your infra provides it
+            // using var tx = await _unitOfWork.BeginTransactionAsync();
+
             await _userRepository.AddUserAsync(user);
 
-            // Role-specific entity
+            // ---- Create Employee if OrganizationId provided ----
+            if (input.OrganizationId.HasValue)
+            {
+                var orgId = input.OrganizationId.Value;
+
+                var existingEmployee = await _employeeRepository.FindByUserAndOrgAsync(user.Id, orgId);
+                if (existingEmployee is null)
+                {
+                    var employee = new Employee
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = user.Id,
+                        OrganizationId = orgId,
+                        CreatedAt = DateTime.UtcNow,
+                        IsDeleted = false
+                        // JobTitleId, DepartmentId remain null unless you set defaults
+                    };
+
+                    await _employeeRepository.CreateAsync(employee);
+                }
+            }
+
+            // ---- Role-specific entity ----
             switch (role.Name)
             {
                 case "Subcontractor":
@@ -261,18 +300,18 @@ namespace Salubrity.Application.Services.Auth
 
             // ---- Best-effort camp linking ----
             CampLinkResultDto? campResult = null;
-
             if (!string.IsNullOrWhiteSpace(input.CampToken))
             {
                 campResult = await _campService.TryLinkUserToCampAsync(user.Id, input.CampToken, CancellationToken.None);
             }
-
 
             // ---- Tokens ----
             var expiresAt = DateTime.UtcNow.AddMinutes(30);
             var rolesArr = new[] { role.Name };
             var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, rolesArr);
             var refreshToken = _jwtService.GenerateRefreshToken();
+
+            // await tx.CommitAsync();
 
             return new AuthResponseDto
             {
@@ -284,7 +323,6 @@ namespace Salubrity.Application.Services.Auth
                 Warnings = campResult?.Warnings,
                 Info = campResult?.Info
             };
-
         }
 
 

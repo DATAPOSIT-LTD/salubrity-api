@@ -93,4 +93,15 @@ public class EmployeeRepository : IEmployeeRepository
     {
         return await _context.Employees.AnyAsync(e => e.Id == id);
     }
+
+    public async Task<Employee?> FindByUserAndOrgAsync(Guid userId, Guid organizationId)
+    {
+        return await _context.Employees
+            .Include(e => e.User)
+            .Include(e => e.Organization)
+            .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == organizationId);
+    }
+
+
+
 }

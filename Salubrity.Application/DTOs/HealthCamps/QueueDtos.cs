@@ -24,3 +24,11 @@ public class CheckInStateDto
     public string? ActiveStationName { get; set; }
     public string Status { get; set; } = "None"; // None/Queued/InService
 }
+
+public static class CampQueueStatus
+{
+    public const string Queued = "Queued";
+    public const string InService = "InService";
+    public const string Completed = "Completed";
+    public const string Canceled = "Canceled";
+}

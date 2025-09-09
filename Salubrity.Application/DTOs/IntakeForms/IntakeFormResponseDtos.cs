@@ -18,6 +18,10 @@ public sealed class CreateIntakeFormResponseDto
 
     public Guid? ResponseStatusId { get; set; }
 
+    public Guid ParticipantId { get; set; }             // already present (you’re using it)
+    public Guid? HealthCampServiceAssignmentId { get; set; } // add this
+    public Guid? StationCheckInId { get; set; }              // optional shortcut if you already know the check-in id
+
     public List<CreateIntakeFormFieldResponseDto> FieldResponses { get; set; } = [];
 }
 

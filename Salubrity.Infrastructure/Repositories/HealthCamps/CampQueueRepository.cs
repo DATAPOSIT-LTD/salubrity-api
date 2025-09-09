@@ -163,4 +163,35 @@ public class CampQueueRepository : ICampQueueRepository
         ci.FinishedAt = DateTimeOffset.UtcNow;
         await _db.SaveChangesAsync(ct);
     }
+
+
+
+    public async Task<HealthCampStationCheckIn?> GetActiveForParticipantAsync(
+    Guid participantId, Guid? assignmentId, CancellationToken ct = default)
+    {
+        var q = _db.HealthCampStationCheckIns
+            .Where(c => c.HealthCampParticipantId == participantId
+                     && (c.Status == CampQueueStatus.Queued || c.Status == CampQueueStatus.InService));
+
+        if (assignmentId.HasValue)
+            q = q.Where(c => c.HealthCampServiceAssignmentId == assignmentId.Value);
+
+        // Latest by priority desc then CreatedAt asc gives FIFO within same priority
+        return await q
+            .OrderByDescending(c => c.Priority)
+            .ThenBy(c => c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
+
+
+    public Task<HealthCampStationCheckIn?> GetByIdAsync(Guid checkInId, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task UpdateAsync(HealthCampStationCheckIn checkIn, CancellationToken ct = default)
+    {
+        throw new NotImplementedException();
+    }
+
 }

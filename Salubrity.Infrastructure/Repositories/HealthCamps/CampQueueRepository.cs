@@ -184,14 +184,21 @@ public class CampQueueRepository : ICampQueueRepository
     }
 
 
-    public Task<HealthCampStationCheckIn?> GetByIdAsync(Guid checkInId, CancellationToken ct = default)
+
+    public async Task<HealthCampStationCheckIn?> GetByIdAsync(Guid checkInId, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        return await _db.HealthCampStationCheckIns
+            .Include(c => c.Participant) // optional
+            .Include(c => c.Assignment)  // optional
+            .FirstOrDefaultAsync(c => c.Id == checkInId, ct);
     }
 
-    public Task UpdateAsync(HealthCampStationCheckIn checkIn, CancellationToken ct = default)
+
+    public async Task UpdateAsync(HealthCampStationCheckIn checkIn, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        _db.HealthCampStationCheckIns.Update(checkIn);
+        await _db.SaveChangesAsync(ct);
     }
+
 
 }

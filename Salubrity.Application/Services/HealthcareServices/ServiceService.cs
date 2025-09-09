@@ -500,13 +500,13 @@ public class ServiceService : IServiceService
 
     public async Task AssignFormAsync(AssignFormToServiceDto dto)
     {
-        _logger.LogInformation("▶️ AssignFormAsync started");
+        _logger.LogInformation("AssignFormAsync started");
         _logger.LogInformation("Incoming DTO: FormId = {FormId}, ServiceId = {ServiceId}", dto.FormId, dto.ServiceId);
 
         var form = await _formRepo.GetByIdAsync(dto.FormId);
         if (form == null)
         {
-            _logger.LogWarning("❌ Form not found: {FormId}", dto.FormId);
+            _logger.LogWarning("Form not found: {FormId}", dto.FormId);
             throw new NotFoundException("Form not found");
         }
 
@@ -514,10 +514,10 @@ public class ServiceService : IServiceService
         var service = await _serviceRepo.GetByIdAsync(dto.ServiceId);
         if (service != null)
         {
-            _logger.LogInformation("✅ Found Service: {ServiceName}, ID: {ServiceId}", service.Name, service.Id);
+            _logger.LogInformation("Found Service: {ServiceName}, ID: {ServiceId}", service.Name, service.Id);
             service.IntakeFormId = form.Id;
             await _serviceRepo.UpdateAsync(service);
-            _logger.LogInformation("✔️ Assigned form {FormId} to service {ServiceId}", dto.FormId, dto.ServiceId);
+            _logger.LogInformation("Assigned form {FormId} to service {ServiceId}", dto.FormId, dto.ServiceId);
             return;
         }
 
@@ -525,10 +525,10 @@ public class ServiceService : IServiceService
         var category = await _categoryRepo.GetByIdAsync(dto.ServiceId);
         if (category != null)
         {
-            _logger.LogInformation("✅ Found Category: {CategoryName}, ID: {CategoryId}", category.Name, category.Id);
+            _logger.LogInformation("Found Category: {CategoryName}, ID: {CategoryId}", category.Name, category.Id);
             category.IntakeFormId = form.Id;
             await _categoryRepo.UpdateAsync(category);
-            _logger.LogInformation("✔️ Assigned form {FormId} to service category {CategoryId}", dto.FormId, dto.ServiceId);
+            _logger.LogInformation("Assigned form {FormId} to service category {CategoryId}", dto.FormId, dto.ServiceId);
             return;
         }
 
@@ -536,15 +536,15 @@ public class ServiceService : IServiceService
         var subcategory = await _subcategoryRepo.GetByIdAsync(dto.ServiceId);
         if (subcategory != null)
         {
-            _logger.LogInformation("✅ Found Subcategory: {SubcategoryName}, ID: {SubcategoryId}", subcategory.Name, subcategory.Id);
+            _logger.LogInformation("Found Subcategory: {SubcategoryName}, ID: {SubcategoryId}", subcategory.Name, subcategory.Id);
             subcategory.IntakeFormId = form.Id;
             await _subcategoryRepo.UpdateAsync(subcategory);
-            _logger.LogInformation("✔️ Assigned form {FormId} to service subcategory {SubcategoryId}", dto.FormId, dto.ServiceId);
+            _logger.LogInformation("Assigned form {FormId} to service subcategory {SubcategoryId}", dto.FormId, dto.ServiceId);
             return;
         }
 
         // Nothing matched
-        _logger.LogWarning("❌ No Service, Category, or Subcategory found with ID: {ServiceId}", dto.ServiceId);
+        _logger.LogWarning("No Service, Category, or Subcategory found with ID: {ServiceId}", dto.ServiceId);
         throw new NotFoundException($"No Service, Category, or Subcategory found with ID {dto.ServiceId}");
     }
 

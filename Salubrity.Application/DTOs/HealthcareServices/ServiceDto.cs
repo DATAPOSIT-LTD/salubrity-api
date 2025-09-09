@@ -30,6 +30,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
         public string? Description { get; set; }
         public decimal? Price { get; set; }
         public int? DurationMinutes { get; set; }
+        public Guid? IntakeFormId { get; set; }
         public bool IsActive { get; set; } = true;
 
         public List<ServiceSubcategoryDto> Subcategories { get; set; } = [];
@@ -42,6 +43,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
         public string? Description { get; set; }
         public decimal Price { get; set; }
         public int? DurationMinutes { get; set; }
+        public Guid? IntakeFormId { get; set; }
         public bool IsActive { get; set; } = true;
     }
 
@@ -83,6 +85,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
         public int? DurationMinutes { get; set; }
 
         public bool IsActive { get; set; } = true;
+        public Guid? IntakeFormId { get; set; }
 
         public List<CreateServiceSubcategoryDto> Subcategories { get; set; } = [];
         public Guid ServiceId { get; set; }
@@ -100,6 +103,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
         public decimal Price { get; set; }
 
         public int? DurationMinutes { get; set; }
+        public Guid? IntakeFormId { get; set; }
 
         public bool IsActive { get; set; } = true;
     }
@@ -142,6 +146,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
         public decimal? Price { get; set; }
 
         public int? DurationMinutes { get; set; }
+        public Guid? IntakeFormId { get; set; }
 
         public bool IsActive { get; set; } = true;
 
@@ -161,6 +166,7 @@ namespace Salubrity.Application.DTOs.HealthcareServices
 
         [Range(0, double.MaxValue)]
         public decimal Price { get; set; }
+        public Guid? IntakeFormId { get; set; }
 
         public int? DurationMinutes { get; set; }
 

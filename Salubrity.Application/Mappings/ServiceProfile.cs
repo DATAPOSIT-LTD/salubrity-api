@@ -41,7 +41,9 @@ namespace Salubrity.Application.Mapping
                 .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.UpdatedBy, opt => opt.Ignore())
                 .ForMember(dest => dest.Industry, opt => opt.Ignore()) // Navigation property
-                .ForMember(dest => dest.IntakeForm, opt => opt.Ignore()); // Navigation property
+                .ForMember(dest => dest.IntakeForm, opt => opt.Ignore())// Navigation property
+                .ForMember(dest => dest.Categories, opt => opt.Ignore()); 
+
 
             CreateMap<Service, ServiceResponseDto>()
                 .ForMember(dest => dest.IntakeForm, opt => opt.MapFrom(src => src.IntakeForm));

@@ -116,22 +116,22 @@ public class HealthCampService : IHealthCampService
             });
         }
 
-        // Add service assignments
+        // Add service assignments (resolve type server-side)
         foreach (var assignment in dto.ServiceAssignments)
         {
+            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
 
             entity.ServiceAssignments.Add(new HealthCampServiceAssignment
             {
                 Id = Guid.NewGuid(),
                 HealthCampId = entity.Id,
                 AssignmentId = assignment.ServiceId,
-                AssignmentType = assignment.AssignmentType,
+                AssignmentType = (PackageItemType)referenceType,
                 SubcontractorId = assignment.SubcontractorId,
                 ProfessionId = assignment.ProfessionId
             });
-
-
         }
+
         // Add participants
         var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
         if (employeeUserIds.Count > 0)
@@ -166,10 +166,9 @@ public class HealthCampService : IHealthCampService
         if (assignedStatus == null)
             throw new InvalidOperationException("Assignment status 'Pending' not found");
 
-
-
         foreach (var assignment in dto.ServiceAssignments)
         {
+            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
             var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
 
             var boothAssignment = new SubcontractorHealthCampAssignment
@@ -183,17 +182,16 @@ public class HealthCampService : IHealthCampService
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false,
                 IsPrimaryAssignment = true,
-
-                AssignmentId = assignment.ServiceId, // support polymorphism
-                AssignmentType = assignment.AssignmentType
+                AssignmentId = assignment.ServiceId,
+                AssignmentType = (PackageItemType)referenceType
             };
 
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
         }
 
-
         return _mapper.Map<HealthCampDto>(created);
     }
+
 
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)

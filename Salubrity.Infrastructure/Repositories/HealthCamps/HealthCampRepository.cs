@@ -697,6 +697,7 @@ public class HealthCampRepository : IHealthCampRepository
         };
 
         // STEP 6: Normalize assignments
+        // STEP 6: Normalize assignments
         var normalizedAssignments = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
 
         foreach (var a in assignments)
@@ -719,17 +720,29 @@ public class HealthCampRepository : IHealthCampRepository
             normalizedAssignments.Add((a.AssignmentId, a.AssignmentType, a));
         }
 
-        // Deduplicate categories: keep only one per (RefId, Type)
-        var grouped = normalizedAssignments
+        // STEP 7: Deduplicate with rules
+        var deduped = normalizedAssignments
             .GroupBy(x => new { x.RefId, x.Type })
-            .Select(g => g.First())   // keep only one
+            .Select(g => g.First()) // keep first per RefId+Type
             .ToList();
 
-        // Now fetch forms only for unique categories/services
+        // Rule: If a category is present, drop any subcategory-normalized duplicates
+        var finalAssignments = deduped
+            .GroupBy(x => x.RefId)
+            .Select(g =>
+                g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory)
+                .Equals(default((Guid, PackageItemType, HealthCampServiceAssignment)))
+                    ? g.First()
+                    : g.First(x => x.Type == PackageItemType.ServiceCategory)
+            )
+            .ToList();
+
+
+        // STEP 8: Build DTO list
         var result = new List<AssignedServiceWithFormDto>();
         var referenceResolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
 
-        foreach (var item in grouped)
+        foreach (var item in finalAssignments)
         {
             var any = item.Source;
             IntakeForm? form = null;
@@ -767,6 +780,7 @@ public class HealthCampRepository : IHealthCampRepository
                 Form = MapForm(form)
             });
         }
+
 
         dto.Assignments = result.OrderBy(x => x.ServiceName).ToList();
 

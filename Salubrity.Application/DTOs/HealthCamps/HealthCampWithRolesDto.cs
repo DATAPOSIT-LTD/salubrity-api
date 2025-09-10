@@ -13,4 +13,5 @@ public class RoleAssignmentDto
 {
     public string AssignedBooth { get; set; } = default!;
     public string AssignedRole { get; set; } = default!;
+    public Guid ServiceId { get; set; }
 }

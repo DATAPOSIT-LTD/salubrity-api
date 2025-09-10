@@ -763,7 +763,8 @@ public class HealthCampRepository : IHealthCampRepository
                     dto.Roles.Add(new RoleAssignmentDto
                     {
                         AssignedBooth = boothName,
-                        AssignedRole = role
+                        AssignedRole = role,
+                        ServiceId = boothGroup.Key.RefId
                     });
                 }
             }

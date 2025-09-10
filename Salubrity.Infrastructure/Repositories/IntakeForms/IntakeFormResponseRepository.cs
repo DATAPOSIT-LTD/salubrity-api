@@ -4,6 +4,7 @@ using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Application.Interfaces;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
+using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
 
@@ -38,16 +39,6 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             .AnyAsync(v => v.Id == versionId, ct);
     }
 
-    // public async Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default)
-    // {
-    //     return (await _db.IntakeFormFields
-    //         .AsNoTracking()
-    //         .Where(f => f.Form.Versions.Contains == versionId)
-    //         .Select(f => f.Id)
-    //         .ToListAsync(ct))
-    //         .ToHashSet();
-    // }
-
     public async Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default)
     {
         return await _db.IntakeFormFields
@@ -70,18 +61,23 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     }
 
 
-    public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
+    public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(
+     Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var query =
             from r in _db.IntakeFormResponses
-                .Include(r => r.FieldResponses).ThenInclude(fr => fr.Field).ThenInclude(f => f.Section)
+                .Include(r => r.FieldResponses)
+                    .ThenInclude(fr => fr.Field)
+                        .ThenInclude(f => f.Section)
                 .Include(r => r.Status)
-                .Include(r => r.Version).ThenInclude(v => v.IntakeForm)
+                .Include(r => r.Version)
+                    .ThenInclude(v => v.IntakeForm)
                 .Include(r => r.Service)
-            join hca in _db.HealthCampServiceAssignments
-                on r.ServiceId equals hca.ServiceId
+            join a in _db.HealthCampServiceAssignments
+                on r.ServiceId equals a.AssignmentId
             where r.PatientId == patientId
-                  && hca.HealthCampId == healthCampId
+                  && a.HealthCampId == healthCampId
+                  && a.AssignmentType == (int)PackageItemType.Service
             orderby r.CreatedAt descending
             select new IntakeFormResponseDetailDto
             {

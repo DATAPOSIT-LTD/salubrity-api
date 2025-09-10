@@ -3,8 +3,10 @@ using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
@@ -19,12 +21,21 @@ public class HealthCampRepository : IHealthCampRepository
     private readonly AppDbContext _context;
     private readonly IPackageReferenceResolver _referenceResolver;
     private readonly IMapper _mapper;
+    private readonly IServiceRepository _serviceRepo;
 
-    public HealthCampRepository(AppDbContext context, IPackageReferenceResolver referenceResolver, IMapper mapper)
+    private readonly IServiceCategoryRepository _categoryRepo;
+    private readonly IServiceSubcategoryRepository _subcategoryRepo;
+
+
+
+    public HealthCampRepository(AppDbContext context, IPackageReferenceResolver referenceResolver, IMapper mapper, IServiceRepository serviceRepository, IServiceCategoryRepository categoryRepository, IServiceSubcategoryRepository serviceSubcategory)
     {
         _context = context;
         _referenceResolver = referenceResolver;
         _mapper = mapper;
+        _categoryRepo = categoryRepository;
+        _serviceRepo = serviceRepository;
+        _subcategoryRepo = serviceSubcategory;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -461,9 +472,9 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
     public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
-        Guid subcontractorId,
-        string status,
-        CancellationToken ct = default)
+     Guid subcontractorId,
+     string status,
+     CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
 
@@ -473,7 +484,6 @@ public class HealthCampRepository : IHealthCampRepository
                 .ThenInclude(c => c.Organization)
             .Include(x => x.HealthCamp)
                 .ThenInclude(c => c.HealthCampStatus)
-            .Include(x => x.Service)
             .Include(x => x.Role)
             .Where(x => x.HealthCamp.IsActive);
 
@@ -490,39 +500,55 @@ public class HealthCampRepository : IHealthCampRepository
 
             "canceled" => baseQuery.Where(x =>
                 !x.HealthCamp.IsLaunched ||
-                (x.HealthCamp.HealthCampStatus != null && x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
+                (x.HealthCamp.HealthCampStatus != null &&
+                 x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
 
             _ => baseQuery
         };
 
-        // Materialize everything first
-        var assignments = await baseQuery.ToListAsync(ct);
+        // Materialize
+        var assignments = await baseQuery.AsNoTracking().ToListAsync(ct);
 
-        // Group and project in-memory
-        var result = assignments
-            .GroupBy(x => x.HealthCamp)
-            .Select(g => new HealthCampWithRolesDto
+        // Resolve booth names (AssignmentName) in memory
+        var resolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
+
+        var result = new List<HealthCampWithRolesDto>();
+
+        foreach (var campGroup in assignments.GroupBy(x => x.HealthCamp))
+        {
+            var dto = new HealthCampWithRolesDto
             {
-                CampId = g.Key.Id,
-                ClientName = g.Key.Organization?.BusinessName ?? "—",
-                Venue = g.Key.Location ?? "—",
-                StartDate = g.Key.StartDate,
-                EndDate = g.Key.EndDate,
-                Status = g.Key.HealthCampStatus?.Name ?? "Unknown",
-                Roles = g
-                    .Select(r => new RoleAssignmentDto
-                    {
-                        AssignedBooth = r.Service?.Name ?? "—",
-                        AssignedRole = r.Role?.Name ?? "—"
-                    })
-                    .Distinct()
-                    .ToList()
-            })
-            .ToList();
+                CampId = campGroup.Key.Id,
+                ClientName = campGroup.Key.Organization?.BusinessName ?? "—",
+                Venue = campGroup.Key.Location ?? "—",
+                StartDate = campGroup.Key.StartDate,
+                EndDate = campGroup.Key.EndDate,
+                Status = campGroup.Key.HealthCampStatus?.Name ?? "Unknown",
+                Roles = new List<RoleAssignmentDto>()
+            };
+
+            foreach (var assign in campGroup)
+            {
+                var boothName = await resolver.GetNameAsync(
+                    (PackageItemType)assign.AssignmentType,
+                    assign.AssignmentId);
+
+                dto.Roles.Add(new RoleAssignmentDto
+                {
+                    AssignedBooth = boothName,
+                    AssignedRole = assign.Role?.Name ?? "—"
+                });
+            }
+
+            dto.Roles = dto.Roles
+                .DistinctBy(r => (r.AssignedBooth, r.AssignedRole))
+                .ToList();
+
+            result.Add(dto);
+        }
 
         return result;
     }
-
 
 
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
@@ -608,12 +634,12 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
-        Guid campId,
-        Guid participantId,
-        Guid? subcontractorId,
-        CancellationToken ct = default)
+      Guid campId,
+      Guid participantId,
+      Guid? subcontractorId,
+      CancellationToken ct = default)
     {
-        // STEP 1: Participant + Camp + Org + User check (no longer includes PatientId)
+        // STEP 1: Load participant + camp + org + user
         var p = await _context.HealthCampParticipants
             .Where(x => x.Id == participantId && x.HealthCampId == campId)
             .Select(x => new
@@ -631,7 +657,7 @@ public class HealthCampRepository : IHealthCampRepository
         if (p == null)
             return null;
 
-        // STEP 2: Lookup patient from UserId
+        // STEP 2: Lookup patient
         var patient = await _context.Patients
             .AsNoTracking()
             .FirstOrDefaultAsync(pa => pa.UserId == p.User.Id && !pa.IsDeleted, ct);
@@ -639,32 +665,22 @@ public class HealthCampRepository : IHealthCampRepository
         if (patient == null)
             return null;
 
-        // STEP 3: Has been served?
+        // STEP 3: Served check
         var served = p.Participant.ParticipatedAt != null
                      || await _context.HealthAssessments
                             .AnyAsync(a => a.ParticipantId == participantId, ct);
 
-        // STEP 4: Camp assignments
+        // STEP 4: Load assignments polymorphically
         IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
             .Where(a => a.HealthCampId == campId)
-            .Include(a => a.Service)
-                .ThenInclude(s => s.IntakeForm)
-                    .ThenInclude(f => f.Versions)
-            .Include(a => a.Service)
-                .ThenInclude(s => s.IntakeForm)
-                    .ThenInclude(f => f.Sections)
-                        .ThenInclude(sec => sec.Fields)
-                            .ThenInclude(ff => ff.Options)
             .Include(a => a.Role);
 
         if (subcontractorId.HasValue)
             assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
 
-        var assignments = await assignQ
-            .AsNoTracking()
-            .ToListAsync(ct);
+        var assignments = await assignQ.AsNoTracking().ToListAsync(ct);
 
-        // STEP 5: Shape final DTO
+        // STEP 5: Final response
         var dto = new CampPatientDetailWithFormsDto
         {
             ParticipantId = p.Participant.Id,
@@ -682,26 +698,49 @@ public class HealthCampRepository : IHealthCampRepository
             Served = served
         };
 
-        // STEP 6: Attach assignments
-        dto.Assignments = assignments
-            .GroupBy(a => a.ServiceId)
-            .Select(g =>
-            {
-                var any = g.First();
-                return new AssignedServiceWithFormDto
-                {
-                    ServiceId = any.ServiceId,
-                    ServiceName = any.Service.Name,
-                    ProfessionId = any.ProfessionId,
-                    AssignedRole = any.Role?.Name,
-                    Form = MapForm(any.Service.IntakeForm)
-                };
-            })
-            .OrderBy(x => x.ServiceName)
-            .ToList();
+        // STEP 6: Resolve each assignment's name and form
+        var referenceResolver = new PackageReferenceResolverService(
+            _serviceRepo, _categoryRepo, _subcategoryRepo); // inject these if needed
 
+        var grouped = assignments.GroupBy(x => new { x.AssignmentId, x.AssignmentType });
+
+        var result = new List<AssignedServiceWithFormDto>();
+
+        foreach (var group in grouped)
+        {
+            var any = group.First();
+
+            // Load IntakeForm manually based on assignment type
+            IntakeForm? form = null;
+            string name = await referenceResolver.GetNameAsync((PackageItemType)group.Key.AssignmentType, group.Key.AssignmentId);
+
+            switch (group.Key.AssignmentType)
+            {
+                case PackageItemType.Service:
+                    form = (await _serviceRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+                    break;
+                case PackageItemType.ServiceCategory:
+                    form = (await _categoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+                    break;
+                case PackageItemType.ServiceSubcategory:
+                    form = (await _subcategoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+                    break;
+            }
+
+            result.Add(new AssignedServiceWithFormDto
+            {
+                ServiceId = group.Key.AssignmentId,
+                ServiceName = name,
+                ProfessionId = any.ProfessionId,
+                AssignedRole = any.Role?.Name,
+                Form = MapForm(form)
+            });
+        }
+
+        dto.Assignments = result.OrderBy(x => x.ServiceName).ToList();
         return dto;
     }
+
 
     // --- helpers ---
 

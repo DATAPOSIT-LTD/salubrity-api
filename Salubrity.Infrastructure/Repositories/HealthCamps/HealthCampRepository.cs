@@ -731,7 +731,7 @@ public class HealthCampRepository : IHealthCampRepository
             .GroupBy(x => x.RefId)
             .Select(g =>
                 g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory)
-                .Equals(default((Guid, PackageItemType, HealthCampServiceAssignment)))
+                .Equals(default)
                     ? g.First()
                     : g.First(x => x.Type == PackageItemType.ServiceCategory)
             )

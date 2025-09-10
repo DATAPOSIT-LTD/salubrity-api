@@ -471,10 +471,90 @@ public class HealthCampRepository : IHealthCampRepository
             .ToListAsync(ct);
     }
 
+    // public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
+    //  Guid subcontractorId,
+    //  string status,
+    //  CancellationToken ct = default)
+    // {
+    //     var today = DateTime.UtcNow.Date;
+
+    //     var baseQuery = _context.HealthCampServiceAssignments
+    //         .Where(x => x.SubcontractorId == subcontractorId)
+    //         .Include(x => x.HealthCamp)
+    //             .ThenInclude(c => c.Organization)
+    //         .Include(x => x.HealthCamp)
+    //             .ThenInclude(c => c.HealthCampStatus)
+    //         .Include(x => x.Role)
+    //         .Where(x => x.HealthCamp.IsActive);
+
+    //     baseQuery = status.ToLowerInvariant() switch
+    //     {
+    //         "upcoming" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today) &&
+    //             (x.HealthCamp.CloseDate == null || x.HealthCamp.CloseDate >= today)),
+
+    //         "complete" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) < today)),
+
+    //         "canceled" => baseQuery.Where(x =>
+    //             !x.HealthCamp.IsLaunched ||
+    //             (x.HealthCamp.HealthCampStatus != null &&
+    //              x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
+
+    //         _ => baseQuery
+    //     };
+
+    //     // Materialize
+    //     var assignments = await baseQuery.AsNoTracking().ToListAsync(ct);
+
+    //     // Resolve booth names (AssignmentName) in memory
+    //     var resolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
+
+    //     var result = new List<HealthCampWithRolesDto>();
+
+    //     foreach (var campGroup in assignments.GroupBy(x => x.HealthCamp))
+    //     {
+    //         var dto = new HealthCampWithRolesDto
+    //         {
+    //             CampId = campGroup.Key.Id,
+    //             ClientName = campGroup.Key.Organization?.BusinessName ?? "—",
+    //             Venue = campGroup.Key.Location ?? "—",
+    //             StartDate = campGroup.Key.StartDate,
+    //             EndDate = campGroup.Key.EndDate,
+    //             Status = campGroup.Key.HealthCampStatus?.Name ?? "Unknown",
+    //             Roles = new List<RoleAssignmentDto>()
+    //         };
+
+    //         foreach (var assign in campGroup)
+    //         {
+    //             var boothName = await resolver.GetNameAsync(
+    //                 assign.AssignmentType,
+    //                 assign.AssignmentId);
+
+    //             dto.Roles.Add(new RoleAssignmentDto
+    //             {
+    //                 AssignedBooth = boothName,
+    //                 AssignedRole = assign.Role?.Name ?? "—"
+    //             });
+    //         }
+
+    //         dto.Roles = dto.Roles
+    //             .DistinctBy(r => (r.AssignedBooth, r.AssignedRole))
+    //             .ToList();
+
+    //         result.Add(dto);
+    //     }
+
+    //     return result;
+    // }
+
+
     public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
-     Guid subcontractorId,
-     string status,
-     CancellationToken ct = default)
+        Guid subcontractorId,
+        string status,
+        CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
 
@@ -509,12 +589,43 @@ public class HealthCampRepository : IHealthCampRepository
         // Materialize
         var assignments = await baseQuery.AsNoTracking().ToListAsync(ct);
 
-        // Resolve booth names (AssignmentName) in memory
+        // Normalize subcategory → category
+        var normalized = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
+        foreach (var a in assignments)
+        {
+            if (a.AssignmentType == PackageItemType.ServiceSubcategory)
+            {
+                var parent = await _context.ServiceSubcategories
+                    .Where(sc => sc.Id == a.AssignmentId)
+                    .Select(sc => sc.ServiceCategory)
+                    .FirstOrDefaultAsync(ct);
+
+                if (parent != null)
+                {
+                    normalized.Add((parent.Id, PackageItemType.ServiceCategory, a));
+                    continue;
+                }
+            }
+
+            normalized.Add((a.AssignmentId, a.AssignmentType, a));
+        }
+
+        // Deduplicate: prefer category over subcategory
+        var finalAssignments = normalized
+            .GroupBy(x => x.RefId)
+            .Select(g =>
+            {
+                var category = g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory);
+                return category.RefId != Guid.Empty ? category : g.First();
+            })
+            .ToList();
+
+        // Resolve booth names
         var resolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
 
         var result = new List<HealthCampWithRolesDto>();
 
-        foreach (var campGroup in assignments.GroupBy(x => x.HealthCamp))
+        foreach (var campGroup in finalAssignments.GroupBy(x => x.Source.HealthCamp))
         {
             var dto = new HealthCampWithRolesDto
             {
@@ -529,14 +640,12 @@ public class HealthCampRepository : IHealthCampRepository
 
             foreach (var assign in campGroup)
             {
-                var boothName = await resolver.GetNameAsync(
-                    assign.AssignmentType,
-                    assign.AssignmentId);
+                var boothName = await resolver.GetNameAsync(assign.Type, assign.RefId);
 
                 dto.Roles.Add(new RoleAssignmentDto
                 {
                     AssignedBooth = boothName,
-                    AssignedRole = assign.Role?.Name ?? "—"
+                    AssignedRole = assign.Source.Role?.Name ?? "—"
                 });
             }
 
@@ -549,7 +658,6 @@ public class HealthCampRepository : IHealthCampRepository
 
         return result;
     }
-
 
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
     Guid campId,

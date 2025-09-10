@@ -632,10 +632,10 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
-      Guid campId,
-      Guid participantId,
-      Guid? subcontractorId,
-      CancellationToken ct = default)
+       Guid campId,
+       Guid participantId,
+       Guid? subcontractorId,
+       CancellationToken ct = default)
     {
         // STEP 1: Load participant + camp + org + user
         var p = await _context.HealthCampParticipants
@@ -696,90 +696,75 @@ public class HealthCampRepository : IHealthCampRepository
             Served = served
         };
 
-        // STEP 6: Resolve each assignment's name and form
-        var referenceResolver = new PackageReferenceResolverService(
-            _serviceRepo, _categoryRepo, _subcategoryRepo); // inject these if needed
+        // STEP 6: Normalize assignments
+        var normalizedAssignments = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
 
-        var grouped = assignments.GroupBy(x => new { x.AssignmentId, x.AssignmentType });
+        foreach (var a in assignments)
+        {
+            if (a.AssignmentType == PackageItemType.ServiceSubcategory)
+            {
+                var parent = await _context.ServiceSubcategories
+                    .Where(sc => sc.Id == a.AssignmentId)
+                    .Select(sc => sc.ServiceCategory)
+                    .FirstOrDefaultAsync(ct);
+
+                if (parent != null)
+                {
+                    normalizedAssignments.Add((parent.Id, PackageItemType.ServiceCategory, a));
+                    continue;
+                }
+            }
+
+            // Keep service or category as-is
+            normalizedAssignments.Add((a.AssignmentId, a.AssignmentType, a));
+        }
+
+        // Group by normalized reference (so subcategories collapse into one category)
+        var grouped = normalizedAssignments
+            .GroupBy(x => new { x.RefId, x.Type })
+            .ToList();
 
         var result = new List<AssignedServiceWithFormDto>();
-
+        var referenceResolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
 
         foreach (var group in grouped)
         {
-            var any = group.First();
-
+            var any = group.First().Source;
             IntakeForm? form = null;
-            Guid displayId = group.Key.AssignmentId;
-            string displayName;
+            string displayName = await referenceResolver.GetNameAsync(group.Key.Type, group.Key.RefId);
 
-            switch (group.Key.AssignmentType)
+            switch (group.Key.Type)
             {
                 case PackageItemType.Service:
                     form = await _context.Services
-                        .Where(s => s.Id == group.Key.AssignmentId)
+                        .Where(s => s.Id == group.Key.RefId)
                         .Include(s => s.IntakeForm).ThenInclude(f => f.Versions)
                         .Include(s => s.IntakeForm).ThenInclude(f => f.Sections)
                             .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
                         .Select(s => s.IntakeForm)
                         .FirstOrDefaultAsync(ct);
-
-                    displayName = await referenceResolver.GetNameAsync(PackageItemType.Service, group.Key.AssignmentId);
                     break;
 
                 case PackageItemType.ServiceCategory:
                     form = await _context.ServiceCategories
-                        .Where(c => c.Id == group.Key.AssignmentId)
+                        .Where(c => c.Id == group.Key.RefId)
                         .Include(c => c.IntakeForm).ThenInclude(f => f.Versions)
                         .Include(c => c.IntakeForm).ThenInclude(f => f.Sections)
                             .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
                         .Select(c => c.IntakeForm)
                         .FirstOrDefaultAsync(ct);
-
-                    displayName = await referenceResolver.GetNameAsync(PackageItemType.ServiceCategory, group.Key.AssignmentId);
-                    break;
-
-                case PackageItemType.ServiceSubcategory:
-                    // Use parent category instead of subcategory
-                    var parent = await _context.ServiceSubcategories
-                        .Where(sc => sc.Id == group.Key.AssignmentId)
-                        .Include(sc => sc.ServiceCategory)
-                            .ThenInclude(c => c.IntakeForm).ThenInclude(f => f.Versions)
-                        .Include(sc => sc.ServiceCategory)
-                            .ThenInclude(c => c.IntakeForm).ThenInclude(f => f.Sections)
-                                .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
-                        .Select(sc => sc.ServiceCategory)
-                        .FirstOrDefaultAsync(ct);
-
-                    if (parent != null)
-                    {
-                        form = parent.IntakeForm;
-                        displayId = parent.Id;
-                        displayName = parent.Name;
-                    }
-                    else
-                    {
-                        displayName = "[Unknown Category]";
-                    }
-                    break;
-
-                default:
-                    displayName = "[Unknown Assignment]";
                     break;
             }
 
             result.Add(new AssignedServiceWithFormDto
             {
-                ServiceId = displayId,
+                ServiceId = group.Key.RefId,
                 ServiceName = displayName,
                 ProfessionId = any.ProfessionId,
                 AssignedRole = any.Role?.Name,
                 Form = MapForm(form)
             });
         }
-
-
-
 
         dto.Assignments = result.OrderBy(x => x.ServiceName).ToList();
         return dto;

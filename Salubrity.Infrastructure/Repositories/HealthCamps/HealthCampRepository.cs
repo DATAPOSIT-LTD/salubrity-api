@@ -710,34 +710,36 @@ public class HealthCampRepository : IHealthCampRepository
 
                 if (parent != null)
                 {
+                    // Collapse into parent category
                     normalizedAssignments.Add((parent.Id, PackageItemType.ServiceCategory, a));
                     continue;
                 }
             }
 
-            // Keep service or category as-is
             normalizedAssignments.Add((a.AssignmentId, a.AssignmentType, a));
         }
 
-        // Group by normalized reference (so subcategories collapse into one category)
+        // Deduplicate categories: keep only one per (RefId, Type)
         var grouped = normalizedAssignments
             .GroupBy(x => new { x.RefId, x.Type })
+            .Select(g => g.First())   // keep only one
             .ToList();
 
+        // Now fetch forms only for unique categories/services
         var result = new List<AssignedServiceWithFormDto>();
         var referenceResolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
 
-        foreach (var group in grouped)
+        foreach (var item in grouped)
         {
-            var any = group.First().Source;
+            var any = item.Source;
             IntakeForm? form = null;
-            string displayName = await referenceResolver.GetNameAsync(group.Key.Type, group.Key.RefId);
+            string displayName = await referenceResolver.GetNameAsync(item.Type, item.RefId);
 
-            switch (group.Key.Type)
+            switch (item.Type)
             {
                 case PackageItemType.Service:
                     form = await _context.Services
-                        .Where(s => s.Id == group.Key.RefId)
+                        .Where(s => s.Id == item.RefId)
                         .Include(s => s.IntakeForm).ThenInclude(f => f.Versions)
                         .Include(s => s.IntakeForm).ThenInclude(f => f.Sections)
                             .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
@@ -747,7 +749,7 @@ public class HealthCampRepository : IHealthCampRepository
 
                 case PackageItemType.ServiceCategory:
                     form = await _context.ServiceCategories
-                        .Where(c => c.Id == group.Key.RefId)
+                        .Where(c => c.Id == item.RefId)
                         .Include(c => c.IntakeForm).ThenInclude(f => f.Versions)
                         .Include(c => c.IntakeForm).ThenInclude(f => f.Sections)
                             .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
@@ -758,7 +760,7 @@ public class HealthCampRepository : IHealthCampRepository
 
             result.Add(new AssignedServiceWithFormDto
             {
-                ServiceId = group.Key.RefId,
+                ServiceId = item.RefId,
                 ServiceName = displayName,
                 ProfessionId = any.ProfessionId,
                 AssignedRole = any.Role?.Name,
@@ -767,6 +769,7 @@ public class HealthCampRepository : IHealthCampRepository
         }
 
         dto.Assignments = result.OrderBy(x => x.ServiceName).ToList();
+
         return dto;
     }
 

@@ -530,7 +530,7 @@ public class HealthCampRepository : IHealthCampRepository
             foreach (var assign in campGroup)
             {
                 var boothName = await resolver.GetNameAsync(
-                    (PackageItemType)assign.AssignmentType,
+                    assign.AssignmentType,
                     assign.AssignmentId);
 
                 dto.Roles.Add(new RoleAssignmentDto
@@ -706,24 +706,87 @@ public class HealthCampRepository : IHealthCampRepository
 
         var result = new List<AssignedServiceWithFormDto>();
 
+        // foreach (var group in grouped)
+        // {
+        //     var any = group.First();
+
+        //     // Load IntakeForm manually based on assignment type
+        //     IntakeForm? form = null;
+        //     string name = await referenceResolver.GetNameAsync(group.Key.AssignmentType, group.Key.AssignmentId);
+
+        //     switch (group.Key.AssignmentType)
+        //     {
+        //         case PackageItemType.Service:
+        //             form = (await _serviceRepo.GetByIdAsync(group.Key.AssignmentId, ct))?.IntakeForm;
+        //             break;
+        //         case PackageItemType.ServiceCategory:
+        //             form = (await _categoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+        //             break;
+        //         case PackageItemType.ServiceSubcategory:
+        //             form = (await _subcategoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+        //             break;
+        //     }
+
+        //     result.Add(new AssignedServiceWithFormDto
+        //     {
+        //         ServiceId = group.Key.AssignmentId,
+        //         ServiceName = name,
+        //         ProfessionId = any.ProfessionId,
+        //         AssignedRole = any.Role?.Name,
+        //         Form = MapForm(form)
+        //     });
+        // }
+
         foreach (var group in grouped)
         {
             var any = group.First();
 
             // Load IntakeForm manually based on assignment type
             IntakeForm? form = null;
-            string name = await referenceResolver.GetNameAsync((PackageItemType)group.Key.AssignmentType, group.Key.AssignmentId);
+            string name = await referenceResolver.GetNameAsync(group.Key.AssignmentType, group.Key.AssignmentId);
 
             switch (group.Key.AssignmentType)
             {
                 case PackageItemType.Service:
-                    form = (await _serviceRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+                    form = await _context.Services
+                        .Where(s => s.Id == group.Key.AssignmentId)
+                        .Include(s => s.IntakeForm)
+                            .ThenInclude(f => f.Versions)
+                        .Include(s => s.IntakeForm)
+                            .ThenInclude(f => f.Sections)
+                                .ThenInclude(sec => sec.Fields)
+                                    .ThenInclude(ff => ff.Options)
+                        .Select(s => s.IntakeForm)
+                        .FirstOrDefaultAsync(ct);
                     break;
+
                 case PackageItemType.ServiceCategory:
-                    form = (await _categoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+                    form = await _context.ServiceCategories
+                        .Where(c => c.Id == group.Key.AssignmentId)
+                        .Include(c => c.IntakeForm)
+                            .ThenInclude(f => f.Versions)
+                        .Include(c => c.IntakeForm)
+                            .ThenInclude(f => f.Sections)
+                                .ThenInclude(sec => sec.Fields)
+                                    .ThenInclude(ff => ff.Options)
+                        .Select(c => c.IntakeForm)
+                        .FirstOrDefaultAsync(ct);
                     break;
+
                 case PackageItemType.ServiceSubcategory:
-                    form = (await _subcategoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
+                    // fetch category → then its IntakeForm
+                    form = await _context.ServiceSubcategories
+                        .Where(sc => sc.Id == group.Key.AssignmentId)
+                        .Include(sc => sc.ServiceCategory)
+                            .ThenInclude(c => c.IntakeForm)
+                                .ThenInclude(f => f.Versions)
+                        .Include(sc => sc.ServiceCategory)
+                            .ThenInclude(c => c.IntakeForm)
+                                .ThenInclude(f => f.Sections)
+                                    .ThenInclude(sec => sec.Fields)
+                                        .ThenInclude(ff => ff.Options)
+                        .Select(sc => sc.ServiceCategory.IntakeForm)
+                        .FirstOrDefaultAsync(ct);
                     break;
             }
 
@@ -736,6 +799,9 @@ public class HealthCampRepository : IHealthCampRepository
                 Form = MapForm(form)
             });
         }
+
+
+
 
         dto.Assignments = result.OrderBy(x => x.ServiceName).ToList();
         return dto;

@@ -631,8 +631,6 @@ public class HealthCampRepository : IHealthCampRepository
 
 
 
-
-
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
       Guid campId,
       Guid participantId,

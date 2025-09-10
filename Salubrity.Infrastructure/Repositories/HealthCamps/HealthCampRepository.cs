@@ -706,94 +706,74 @@ public class HealthCampRepository : IHealthCampRepository
 
         var result = new List<AssignedServiceWithFormDto>();
 
-        // foreach (var group in grouped)
-        // {
-        //     var any = group.First();
-
-        //     // Load IntakeForm manually based on assignment type
-        //     IntakeForm? form = null;
-        //     string name = await referenceResolver.GetNameAsync(group.Key.AssignmentType, group.Key.AssignmentId);
-
-        //     switch (group.Key.AssignmentType)
-        //     {
-        //         case PackageItemType.Service:
-        //             form = (await _serviceRepo.GetByIdAsync(group.Key.AssignmentId, ct))?.IntakeForm;
-        //             break;
-        //         case PackageItemType.ServiceCategory:
-        //             form = (await _categoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
-        //             break;
-        //         case PackageItemType.ServiceSubcategory:
-        //             form = (await _subcategoryRepo.GetByIdAsync(group.Key.AssignmentId))?.IntakeForm;
-        //             break;
-        //     }
-
-        //     result.Add(new AssignedServiceWithFormDto
-        //     {
-        //         ServiceId = group.Key.AssignmentId,
-        //         ServiceName = name,
-        //         ProfessionId = any.ProfessionId,
-        //         AssignedRole = any.Role?.Name,
-        //         Form = MapForm(form)
-        //     });
-        // }
 
         foreach (var group in grouped)
         {
             var any = group.First();
 
-            // Load IntakeForm manually based on assignment type
             IntakeForm? form = null;
-            string name = await referenceResolver.GetNameAsync(group.Key.AssignmentType, group.Key.AssignmentId);
+            Guid displayId = group.Key.AssignmentId;
+            string displayName;
 
             switch (group.Key.AssignmentType)
             {
                 case PackageItemType.Service:
                     form = await _context.Services
                         .Where(s => s.Id == group.Key.AssignmentId)
-                        .Include(s => s.IntakeForm)
-                            .ThenInclude(f => f.Versions)
-                        .Include(s => s.IntakeForm)
-                            .ThenInclude(f => f.Sections)
-                                .ThenInclude(sec => sec.Fields)
-                                    .ThenInclude(ff => ff.Options)
+                        .Include(s => s.IntakeForm).ThenInclude(f => f.Versions)
+                        .Include(s => s.IntakeForm).ThenInclude(f => f.Sections)
+                            .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
                         .Select(s => s.IntakeForm)
                         .FirstOrDefaultAsync(ct);
+
+                    displayName = await referenceResolver.GetNameAsync(PackageItemType.Service, group.Key.AssignmentId);
                     break;
 
                 case PackageItemType.ServiceCategory:
                     form = await _context.ServiceCategories
                         .Where(c => c.Id == group.Key.AssignmentId)
-                        .Include(c => c.IntakeForm)
-                            .ThenInclude(f => f.Versions)
-                        .Include(c => c.IntakeForm)
-                            .ThenInclude(f => f.Sections)
-                                .ThenInclude(sec => sec.Fields)
-                                    .ThenInclude(ff => ff.Options)
+                        .Include(c => c.IntakeForm).ThenInclude(f => f.Versions)
+                        .Include(c => c.IntakeForm).ThenInclude(f => f.Sections)
+                            .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
                         .Select(c => c.IntakeForm)
                         .FirstOrDefaultAsync(ct);
+
+                    displayName = await referenceResolver.GetNameAsync(PackageItemType.ServiceCategory, group.Key.AssignmentId);
                     break;
 
                 case PackageItemType.ServiceSubcategory:
-                    // fetch category → then its IntakeForm
-                    form = await _context.ServiceSubcategories
+                    // Use parent category instead of subcategory
+                    var parent = await _context.ServiceSubcategories
                         .Where(sc => sc.Id == group.Key.AssignmentId)
                         .Include(sc => sc.ServiceCategory)
-                            .ThenInclude(c => c.IntakeForm)
-                                .ThenInclude(f => f.Versions)
+                            .ThenInclude(c => c.IntakeForm).ThenInclude(f => f.Versions)
                         .Include(sc => sc.ServiceCategory)
-                            .ThenInclude(c => c.IntakeForm)
-                                .ThenInclude(f => f.Sections)
-                                    .ThenInclude(sec => sec.Fields)
-                                        .ThenInclude(ff => ff.Options)
-                        .Select(sc => sc.ServiceCategory.IntakeForm)
+                            .ThenInclude(c => c.IntakeForm).ThenInclude(f => f.Sections)
+                                .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
+                        .Select(sc => sc.ServiceCategory)
                         .FirstOrDefaultAsync(ct);
+
+                    if (parent != null)
+                    {
+                        form = parent.IntakeForm;
+                        displayId = parent.Id;
+                        displayName = parent.Name;
+                    }
+                    else
+                    {
+                        displayName = "[Unknown Category]";
+                    }
+                    break;
+
+                default:
+                    displayName = "[Unknown Assignment]";
                     break;
             }
 
             result.Add(new AssignedServiceWithFormDto
             {
-                ServiceId = group.Key.AssignmentId,
-                ServiceName = name,
+                ServiceId = displayId,
+                ServiceName = displayName,
                 ProfessionId = any.ProfessionId,
                 AssignedRole = any.Role?.Name,
                 Form = MapForm(form)

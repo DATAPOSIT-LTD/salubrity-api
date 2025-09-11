@@ -107,10 +107,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         if (dto.HealthCampServiceAssignmentId.HasValue)
         {
-            var assignment = await _assignmentRepository.GetByIdAsync(dto.HealthCampServiceAssignmentId.Value, ct);
-            if (assignment is null)
-                throw new NotFoundException($"Assignment not found: {dto.HealthCampServiceAssignmentId}");
-
+            var assignment = await _assignmentRepository.GetByIdAsync(dto.HealthCampServiceAssignmentId.Value, ct) ?? throw new NotFoundException($"Assignment not found: {dto.HealthCampServiceAssignmentId}");
             submittedServiceId = assignment.AssignmentId;
             submittedServiceType = assignment.AssignmentType;
 
@@ -129,13 +126,13 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
                 case PackageItemType.ServiceSubcategory:
                     var subcategory = await _serviceSubcategoryRepository.GetByIdAsync(assignment.AssignmentId);
-                    if (subcategory?.ServiceCategory?.ServiceId == null)
+                    if (subcategory?.ServiceCategory == null)
                         throw new ValidationException(["Subcategory is not linked to a root Service via its category."]);
                     resolvedServiceId = subcategory.ServiceCategory.ServiceId;
                     break;
 
                 default:
-                    throw new ValidationException(["Unknown assignment type for response submission."]);
+                    throw new ValidationException([$"Unsupported assignment type: {assignment.AssignmentType}"]);
             }
         }
         else if (dto.ServiceId.HasValue)
@@ -163,13 +160,13 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             SubmittedServiceType = submittedServiceType,
             ResolvedServiceId = resolvedServiceId,
             ResponseStatusId = statusId,
-            FieldResponses = dto.FieldResponses.Select(f => new IntakeFormFieldResponse
+            FieldResponses = [.. dto.FieldResponses.Select(f => new IntakeFormFieldResponse
             {
                 Id = Guid.NewGuid(),
                 ResponseId = responseId,
                 FieldId = f.FieldId,
                 Value = f.Value
-            }).ToList()
+            })]
         };
 
         await _intakeFormResponseRepository.AddAsync(response, ct);
@@ -205,6 +202,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         return response.Id;
     }
+
 
 
     public async Task<IntakeFormResponseDto?> GetAsync(Guid id, CancellationToken ct = default)

@@ -641,5 +641,15 @@ public class HealthCampService : IHealthCampService
         return result;
     }
 
+    public async Task UpdateParticipantBillingStatusAsync(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct = default)
+    {
+        var participant = await _campParticipantRepository.GetParticipantAsync(campId, participantId, ct);
+        if (participant is null)
+        {
+            throw new NotFoundException("Participant not found in this camp.");
+        }
 
+        participant.BillingStatusId = dto.BillingStatusId;
+        await _campParticipantRepository.UpdateParticipantAsync(participant, ct);
+    }
 }

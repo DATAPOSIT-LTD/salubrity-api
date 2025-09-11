@@ -47,9 +47,17 @@ namespace Salubrity.Infrastructure.Repositories
             await _context.HealthCampParticipants.AddAsync(participant, ct);
             await _context.SaveChangesAsync(ct);
         }
+        public async Task<HealthCampParticipant?> GetParticipantAsync(Guid campId, Guid participantId, CancellationToken ct = default)
+        {
+            return await _context.Set<HealthCampParticipant>()
+                .FirstOrDefaultAsync(p => p.HealthCampId == campId && p.Id == participantId && !p.IsDeleted, ct);
+        }
 
-
-
+        public async Task UpdateParticipantAsync(HealthCampParticipant participant, CancellationToken ct = default)
+        {
+            _context.Set<HealthCampParticipant>().Update(participant);
+            await _context.SaveChangesAsync(ct);
+        }
     }
 
 }

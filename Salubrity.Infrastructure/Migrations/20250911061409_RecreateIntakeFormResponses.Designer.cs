@@ -12,8 +12,8 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250911035831_AddServiceTrackingToIntakeFormResponse")]
-    partial class AddServiceTrackingToIntakeFormResponse
+    [Migration("20250911061409_RecreateIntakeFormResponses")]
+    partial class RecreateIntakeFormResponses
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

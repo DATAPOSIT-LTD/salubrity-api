@@ -56,4 +56,21 @@ public class PackageReferenceResolverService : IPackageReferenceResolver
     }
 
 
+    public async Task<Service?> ResolveServiceAsync(Guid assignmentId, PackageItemType type)
+    {
+        return type switch
+        {
+            PackageItemType.Service => await _serviceRepo.GetByIdAsync(assignmentId),
+
+            PackageItemType.ServiceCategory =>
+                (await _categoryRepo.GetByIdAsync(assignmentId))?.Service,
+
+            PackageItemType.ServiceSubcategory =>
+                (await _subcategoryRepo.GetByIdAsync(assignmentId))?.ServiceCategory?.Service,
+
+            _ => throw new ValidationException(["Invalid PackageItemType when resolving service."])
+        };
+    }
+
+
 }

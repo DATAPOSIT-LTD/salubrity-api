@@ -19,6 +19,7 @@ public class ServiceService : IServiceService
     private readonly IMapper _mapper;
     private readonly ILogger<ServiceService> _logger;
     private readonly IIntakeFormRepository _formRepo;
+    private readonly IPackageReferenceResolver _packageReferenceResolver;
 
     public ServiceService(
         IServiceRepository serviceRepo,
@@ -26,6 +27,7 @@ public class ServiceService : IServiceService
         IServiceSubcategoryRepository subcategoryRepo,
         IMapper mapper,
         IIntakeFormRepository intakeForm,
+        IPackageReferenceResolver packageReferenceResolver,
         ILogger<ServiceService> logger)
     {
         _serviceRepo = serviceRepo;
@@ -34,6 +36,7 @@ public class ServiceService : IServiceService
         _mapper = mapper;
         _logger = logger;
         _formRepo = intakeForm;
+        _packageReferenceResolver = packageReferenceResolver;
     }
 
     // ========== BASIC CRUD OPERATIONS ==========
@@ -52,17 +55,39 @@ public class ServiceService : IServiceService
         return _mapper.Map<List<ServiceResponseDto>>(services);
     }
 
+    // public async Task<ServiceResponseDto> GetByIdAsync(Guid id)
+    // {
+    //     _logger.LogInformation("Retrieving service {ServiceId} with hierarchy", id);
+
+    //     var service = await _serviceRepo.GetByIdWithHierarchyAsync(id)
+    //         ?? throw new NotFoundException($"Service with ID {id} not found");
+
+    //     // Map base service
+    //     var dto = _mapper.Map<ServiceResponseDto>(service);
+
+    //     // Manually map the attached IntakeForm if present
+    //     if (service.IntakeForm is not null)
+    //     {
+    //         dto.IntakeForm = _mapper.Map<FormResponseDto>(service.IntakeForm);
+    //     }
+
+    //     return dto;
+    // }
+
     public async Task<ServiceResponseDto> GetByIdAsync(Guid id)
     {
-        _logger.LogInformation("Retrieving service {ServiceId} with hierarchy", id);
+        _logger.LogInformation("Resolving top-level service for reference ID: {ReferenceId}", id);
 
-        var service = await _serviceRepo.GetByIdWithHierarchyAsync(id)
-            ?? throw new NotFoundException($"Service with ID {id} not found");
+        // Resolve true top-level ServiceId
+        var serviceId = await _packageReferenceResolver.ResolveServiceIdAsync(id);
 
-        // Map base service
+        _logger.LogInformation("Resolved to service ID: {ServiceId}", serviceId);
+
+        var service = await _serviceRepo.GetByIdWithHierarchyAsync(serviceId)
+            ?? throw new NotFoundException($"Service with ID {serviceId} not found");
+
         var dto = _mapper.Map<ServiceResponseDto>(service);
 
-        // Manually map the attached IntakeForm if present
         if (service.IntakeForm is not null)
         {
             dto.IntakeForm = _mapper.Map<FormResponseDto>(service.IntakeForm);
@@ -70,6 +95,7 @@ public class ServiceService : IServiceService
 
         return dto;
     }
+
 
 
     public async Task<ServiceResponseDto> CreateAsync(CreateServiceDto input)

@@ -61,7 +61,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     }
 
     public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(
-        Guid patientId, Guid healthCampId, CancellationToken ct = default)
+     Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var query =
             from r in _db.IntakeFormResponses
@@ -76,7 +76,6 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 on r.SubmittedServiceId equals a.AssignmentId
             where r.PatientId == patientId
                   && a.HealthCampId == healthCampId
-                  && a.AssignmentType == (int)PackageItemType.Service
             orderby r.CreatedAt descending
             select new IntakeFormResponseDetailDto
             {
@@ -84,7 +83,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 IntakeFormVersionId = r.IntakeFormVersionId,
                 SubmittedByUserId = r.SubmittedByUserId,
                 PatientId = r.PatientId,
-                ServiceId = r.ResolvedServiceId, // 
+                ServiceId = r.ResolvedServiceId,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,
                 Status = new ResponseStatusDto
@@ -128,6 +127,8 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
 
         return await query.ToListAsync(ct);
     }
+
+
 
 
 }

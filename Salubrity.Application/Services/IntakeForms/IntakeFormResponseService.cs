@@ -97,6 +97,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
                 _ => throw new ValidationException([$"Unsupported assignment type: {assignment.AssignmentType}"])
             };
+
+
         }
         else if (dto.ServiceId.HasValue)
         {

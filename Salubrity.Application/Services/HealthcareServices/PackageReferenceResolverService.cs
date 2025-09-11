@@ -73,4 +73,33 @@ public class PackageReferenceResolverService : IPackageReferenceResolver
     }
 
 
+
+    public async Task<Guid> ResolveServiceIdAsync(Guid referenceId)
+    {
+        // 1. If it's a Service → return as-is
+        if (await _serviceRepo.ExistsByIdAsync(referenceId))
+            return referenceId;
+
+        // 2. If it's a Category → return .ServiceId
+        var category = await _categoryRepo.GetByIdAsync(referenceId);
+        if (category != null)
+            return category.ServiceId;
+
+        // 3. If it's a Subcategory → get .Category → then .ServiceId
+        var subcategory = await _subcategoryRepo.GetByIdAsync(referenceId);
+        if (subcategory != null)
+        {
+            var parentCategory = await _categoryRepo.GetByIdAsync(subcategory.ServiceCategoryId);
+            if (parentCategory == null)
+                throw new ValidationException(["Subcategory's parent category not found."]);
+            return parentCategory.ServiceId;
+        }
+
+        // 4. Nothing matched
+        throw new ValidationException(["Invalid ReferenceId: No matching service, category, or subcategory found."]);
+    }
+
+
+
+
 }

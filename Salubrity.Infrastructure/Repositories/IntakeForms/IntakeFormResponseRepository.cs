@@ -127,9 +127,5 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
 
         return await query.ToListAsync(ct);
     }
-
-
-
-
 }
 

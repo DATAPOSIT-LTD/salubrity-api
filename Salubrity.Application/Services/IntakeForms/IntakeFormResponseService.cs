@@ -75,6 +75,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         PackageItemType submittedServiceType;
         Guid resolvedServiceId;
 
+        // ---- PATH A: Assignment provided (already correct) ----
         if (dto.HealthCampServiceAssignmentId.HasValue)
         {
             var assignment = await _assignmentRepository.GetByIdAsync(dto.HealthCampServiceAssignmentId.Value, ct)
@@ -89,33 +90,72 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             {
                 PackageItemType.Service => assignment.AssignmentId,
 
-                PackageItemType.ServiceCategory => (await _serviceCategoryRepository.GetByIdAsync(assignment.AssignmentId))?.ServiceId
+                PackageItemType.ServiceCategory =>
+                    (await _serviceCategoryRepository.GetByIdAsync(assignment.AssignmentId))?.ServiceId
                     ?? throw new ValidationException(["ServiceCategory is not linked to a root Service."]),
 
-                PackageItemType.ServiceSubcategory => (await _serviceSubcategoryRepository.GetByIdAsync(assignment.AssignmentId))?.ServiceCategory?.ServiceId
+                PackageItemType.ServiceSubcategory =>
+                    (await _serviceSubcategoryRepository.GetByIdAsync(assignment.AssignmentId))?.ServiceCategory?.ServiceId
                     ?? throw new ValidationException(["Subcategory is not linked to a root Service via its category."]),
 
                 _ => throw new ValidationException([$"Unsupported assignment type: {assignment.AssignmentType}"])
             };
-
-
         }
+        // ---- PATH B: Only ServiceId provided by client (MUST resolve & detect type) ----
         else if (dto.ServiceId.HasValue)
         {
-            submittedServiceId = dto.ServiceId.Value;
-            submittedServiceType = PackageItemType.Service;
-            resolvedServiceId = dto.ServiceId.Value;
+            var incomingRefId = dto.ServiceId.Value;
+            _logger.LogInformation("🧾 Incoming reference Id (from client ServiceId field): {RefId}", incomingRefId);
 
-            _logger.LogInformation("🧾 Direct service ID submitted: {ServiceId}", resolvedServiceId);
+            // Detect what the incomingRefId actually is and resolve to top-level ServiceId
+            if (await _serviceRepository.ExistsByIdAsync(incomingRefId))
+            {
+                submittedServiceType = PackageItemType.Service;
+                submittedServiceId = incomingRefId;
+                resolvedServiceId = incomingRefId;
+                _logger.LogInformation("🧭 Detected type=Service. Using ServiceId as resolved: {ServiceId}", resolvedServiceId);
+            }
+            else
+            {
+                // Try category
+                var category = await _serviceCategoryRepository.GetByIdAsync(incomingRefId);
+                if (category is not null)
+                {
+                    submittedServiceType = PackageItemType.ServiceCategory;
+                    submittedServiceId = incomingRefId;
+                    resolvedServiceId = category.ServiceId;
+                    _logger.LogInformation("🧭 Detected type=ServiceCategory. Resolved root ServiceId: {ServiceId}", resolvedServiceId);
+                }
+                else
+                {
+                    // Try subcategory
+                    var subcategory = await _serviceSubcategoryRepository.GetByIdAsync(incomingRefId);
+                    if (subcategory is not null)
+                    {
+                        submittedServiceType = PackageItemType.ServiceSubcategory;
+                        submittedServiceId = incomingRefId;
+                        var parentServiceId = subcategory.ServiceCategory?.ServiceId;
+                        if (parentServiceId == null)
+                            throw new ValidationException(["Subcategory is not linked to a root Service via its category."]);
+                        resolvedServiceId = parentServiceId.Value;
+                        _logger.LogInformation("🧭 Detected type=ServiceSubcategory. Resolved root ServiceId: {ServiceId}", resolvedServiceId);
+                    }
+                    else
+                    {
+                        _logger.LogError("❌ Incoming reference Id does not match Service/Category/Subcategory: {RefId}", incomingRefId);
+                        throw new ValidationException([$"Invalid ServiceId: {incomingRefId} is not a Service, ServiceCategory, or ServiceSubcategory."]);
+                    }
+                }
+            }
         }
         else
         {
             throw new ValidationException(["Either HealthCampServiceAssignmentId or ServiceId must be provided."]);
         }
 
-        _logger.LogInformation("🔗 Resolved ServiceId: {ResolvedServiceId}", resolvedServiceId);
+        _logger.LogInformation("🔗 Final Resolved ServiceId (must exist in Services): {ResolvedServiceId}", resolvedServiceId);
 
-        var serviceExists = await _serviceRepository.ExistsByIdAsync(resolvedServiceId);
+        var serviceExists = await _serviceRepository.ExistsByIdAsync(resolvedServiceId, ct);
         if (!serviceExists)
         {
             _logger.LogError("❌ Resolved ServiceId does NOT exist in Services table: {ResolvedServiceId}", resolvedServiceId);
@@ -132,9 +172,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             IntakeFormVersionId = dto.IntakeFormVersionId,
             SubmittedByUserId = submittedByUserId,
             PatientId = patientId.Value,
-            SubmittedServiceId = submittedServiceId,
-            SubmittedServiceType = submittedServiceType,
-            ResolvedServiceId = resolvedServiceId,
+            SubmittedServiceId = submittedServiceId,     // raw thing client sent (service/category/subcategory)
+            SubmittedServiceType = submittedServiceType, // detected type of that raw thing
+            ResolvedServiceId = resolvedServiceId,       // top-level ServiceId (FK-safe)
             ResponseStatusId = statusId,
             FieldResponses = dto.FieldResponses.Select(f => new IntakeFormFieldResponse
             {
@@ -150,6 +190,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         await _intakeFormResponseRepository.AddAsync(response, ct);
 
+        // --- Check-in flow ---
         HealthCampStationCheckIn? checkIn = null;
 
         if (dto.StationCheckInId is Guid explicitCheckInId)
@@ -176,7 +217,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             checkIn.StartedAt ??= now;
 
             _logger.LogInformation("✅ Marking station check-in as completed: CheckInId={CheckInId}, FinishedAt={FinishedAt}", checkIn.Id, now);
-
             await _stationCheckInRepository.UpdateAsync(checkIn, ct);
         }
 

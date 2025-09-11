@@ -60,9 +60,8 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return id;
     }
 
-
     public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(
-     Guid patientId, Guid healthCampId, CancellationToken ct = default)
+        Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var query =
             from r in _db.IntakeFormResponses
@@ -72,9 +71,9 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 .Include(r => r.Status)
                 .Include(r => r.Version)
                     .ThenInclude(v => v.IntakeForm)
-                .Include(r => r.Service)
+                .Include(r => r.ResolvedService)
             join a in _db.HealthCampServiceAssignments
-                on r.ServiceId equals a.AssignmentId
+                on r.SubmittedServiceId equals a.AssignmentId
             where r.PatientId == patientId
                   && a.HealthCampId == healthCampId
                   && a.AssignmentType == (int)PackageItemType.Service
@@ -85,7 +84,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 IntakeFormVersionId = r.IntakeFormVersionId,
                 SubmittedByUserId = r.SubmittedByUserId,
                 PatientId = r.PatientId,
-                ServiceId = r.ServiceId,
+                ServiceId = r.ResolvedServiceId, // 👈 correct resolved FK
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,
                 Status = new ResponseStatusDto
@@ -101,12 +100,12 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                     IntakeFormName = r.Version.IntakeForm.Name,
                     IntakeFormDescription = r.Version.IntakeForm.Description
                 },
-                Service = r.Service == null ? null : new MiniServiceDto
+                Service = r.ResolvedService == null ? null : new MiniServiceDto
                 {
-                    Id = r.Service.Id,
-                    Name = r.Service.Name,
-                    Description = r.Service.Description,
-                    ImageUrl = r.Service.ImageUrl
+                    Id = r.ResolvedService.Id,
+                    Name = r.ResolvedService.Name,
+                    Description = r.ResolvedService.Description,
+                    ImageUrl = r.ResolvedService.ImageUrl
                 },
                 FieldResponses = r.FieldResponses
                     .OrderBy(fr => fr.Field.Order)

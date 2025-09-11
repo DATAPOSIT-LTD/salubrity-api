@@ -1,4 +1,6 @@
-using Salubrity.Application.DTOs.IntakeForms;
+using Salubrity.Domain.Entities.HealthcareServices;
+
+namespace Salubrity.Application.DTOs.IntakeForms;
 
 public sealed class CreateIntakeFormFieldResponseDto
 {
@@ -14,15 +16,18 @@ public sealed class CreateIntakeFormResponseDto
 
     public Guid PatientId { get; set; }
 
-    public Guid? ServiceId { get; set; }
+    // New service logic
+    public Guid? ServiceId { get; set; }                     // fallback if no assignment
+    public Guid? HealthCampServiceAssignmentId { get; set; } // strongly preferred
+    public Guid? StationCheckInId { get; set; }
 
     public Guid? ResponseStatusId { get; set; }
 
-    public Guid ParticipantId { get; set; }             // already present (you’re using it)
-    public Guid? HealthCampServiceAssignmentId { get; set; } // add this
-    public Guid? StationCheckInId { get; set; }              // optional shortcut if you already know the check-in id
+    public Guid ParticipantId { get; set; }
+
     public List<CreateIntakeFormFieldResponseDto> FieldResponses { get; set; } = [];
 }
+
 
 public sealed class IntakeFormFieldResponseDto
 {
@@ -39,7 +44,7 @@ public sealed class IntakeFormResponseDto
 {
     public Guid Id { get; set; }
 
-    public Guid IntakeFormId { get; set; } // 
+    public Guid IntakeFormId { get; set; }
 
     public Guid IntakeFormVersionId { get; set; }
 
@@ -47,7 +52,10 @@ public sealed class IntakeFormResponseDto
 
     public Guid PatientId { get; set; }
 
-    public Guid? ServiceId { get; set; }
+    // 🔥 NEW SERVICE TRACKING FIELDS
+    public Guid? SubmittedServiceId { get; set; }           // Raw ID from user/assignment
+    public PackageItemType? SubmittedServiceType { get; set; } // Enum: Service / Category / Subcategory
+    public Guid? ResolvedServiceId { get; set; }            // Final FK to Service
 
     public Guid ResponseStatusId { get; set; }
 

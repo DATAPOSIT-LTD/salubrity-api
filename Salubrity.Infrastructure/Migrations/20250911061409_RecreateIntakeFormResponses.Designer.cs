@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250911061409_RecreateIntakeFormResponses")]
+    partial class RecreateIntakeFormResponses
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1891,9 +1894,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("BillingStatusId")
-                        .HasColumnType("uuid");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1943,8 +1943,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BillingStatusId");
 
                     b.HasIndex("HealthCampId");
 
@@ -2087,47 +2085,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasIndex("LanguageId");
 
                     b.ToTable("UserLanguages");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.BillingStatus", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("BillingStatus");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Department", b =>
@@ -4156,10 +4113,6 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Join.HealthCampParticipant", b =>
                 {
-                    b.HasOne("Salubrity.Domain.Entities.Lookup.BillingStatus", "BillingStatus")
-                        .WithMany("HealthCampParticipants")
-                        .HasForeignKey("BillingStatusId");
-
                     b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCamp", "HealthCamp")
                         .WithMany("Participants")
                         .HasForeignKey("HealthCampId")
@@ -4179,8 +4132,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("BillingStatus");
 
                     b.Navigation("HealthCamp");
 
@@ -4549,11 +4500,6 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.Join.HealthCampParticipant", b =>
                 {
                     b.Navigation("HealthAssessments");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.BillingStatus", b =>
-                {
-                    b.Navigation("HealthCampParticipants");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Department", b =>

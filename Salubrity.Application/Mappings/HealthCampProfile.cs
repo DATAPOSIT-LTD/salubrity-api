@@ -25,12 +25,13 @@ public class HealthCampProfile : Profile
 
         //  Add this:
         CreateMap<HealthCampServiceAssignment, HealthCampServiceAssignmentDto>()
-            // If your DTO only has Ids, keep just the two lines below
-            .ForMember(d => d.ServiceId, m => m.MapFrom(s => s.ServiceId))
-            .ForMember(d => d.SubcontractorId, m => m.MapFrom(s => s.SubcontractorId))
-            // If your DTO exposes names, keep these; otherwise remove them
-            .ForMember(d => d.ServiceName, m => m.MapFrom(s => s.Service != null ? s.Service.Name : null))
-            .ForMember(d => d.SubcontractorName, m => m.MapFrom(s => s.Subcontractor != null ? s.Subcontractor.User.FullName : null));
+             .ForMember(d => d.AssignmentId, m => m.MapFrom(s => s.AssignmentId))
+             .ForMember(d => d.AssignmentType, m => m.MapFrom(s => s.AssignmentType))
+             .ForMember(d => d.SubcontractorId, m => m.MapFrom(s => s.SubcontractorId))
+             .ForMember(d => d.ProfessionId, m => m.MapFrom(s => s.ProfessionId))
+             .ForMember(d => d.SubcontractorName, m => m.MapFrom(s => s.Subcontractor.User.FullName))
+             .ForMember(d => d.AssignmentName, m => m.MapFrom<AssignmentNameResolver>());
+
 
         // Entity -> Generic DTO
         CreateMap<HealthCamp, HealthCampDto>()

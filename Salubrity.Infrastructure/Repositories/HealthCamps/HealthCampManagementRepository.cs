@@ -32,6 +32,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 			.Include(x => x.Subcontractor)
 			.ToListAsync();
 
+		// Fetch all distinct UserIds
 		var userIds = assignments
 			.Select(a => a.Subcontractor.UserId)
 			.Distinct()
@@ -39,11 +40,10 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 
 		var users = await _context.Users
 			.Where(u => userIds.Contains(u.Id))
-			.ToDictionaryAsync(u => u.Id, u =>
-				string.Join(" ",
-					new[] { u.FirstName, u.MiddleName, u.LastName }
-						.Where(n => !string.IsNullOrWhiteSpace(n))
-				)
+			.ToDictionaryAsync(
+				u => u.Id,
+				u => string.Join(" ", new[] { u.FirstName, u.MiddleName, u.LastName }
+					.Where(n => !string.IsNullOrWhiteSpace(n)))
 			);
 
 		var result = new List<ServiceStationSummaryDto>();
@@ -52,17 +52,16 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 		{
 			var name = await _referenceResolver.GetNameAsync(item.ReferenceType, item.ReferenceId);
 
-			List<string> staffNames = new();
-
-			if (item.ReferenceType == PackageItemType.Service)
-			{
-				staffNames = assignments
-					.Where(a => a.ServiceId == item.ReferenceId)
-					.Select(a => a.Subcontractor.UserId)
-					.Where(userId => users.ContainsKey(userId))
-					.Select(userId => users[userId])
-					.ToList();
-			}
+			// 🔁 Match assignments by polymorphic reference
+			var staffNames = assignments
+				.Where(a =>
+					a.AssignmentId == item.ReferenceId &&
+					(PackageItemType)a.AssignmentType == item.ReferenceType)
+				.Select(a => a.Subcontractor.UserId)
+				.Where(userId => users.ContainsKey(userId))
+				.Select(userId => users[userId])
+				.Distinct()
+				.ToList();
 
 			result.Add(new ServiceStationSummaryDto
 			{
@@ -98,17 +97,17 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 		return new(); // Stubbed
 	}
 
-    public async Task<HealthCamp?> GetWithDetailsAsync(Guid id)
-    {
-        return await _context.HealthCamps
-            .Include(h => h.Organization)
-                .ThenInclude(o => o.InsuranceProviders)
-                    .ThenInclude(oi => oi.InsuranceProvider)
-            .Include(h => h.Organization)
-                .ThenInclude(o => o.Packages)
-                    .ThenInclude(op => op.ServicePackage)
-            .Include(h => h.ServiceAssignments)
-            .Include(h => h.PackageItems)
-            .FirstOrDefaultAsync(h => h.Id == id);
-    }
+	public async Task<HealthCamp?> GetWithDetailsAsync(Guid id)
+	{
+		return await _context.HealthCamps
+			.Include(h => h.Organization)
+				.ThenInclude(o => o.InsuranceProviders)
+					.ThenInclude(oi => oi.InsuranceProvider)
+			.Include(h => h.Organization)
+				.ThenInclude(o => o.Packages)
+					.ThenInclude(op => op.ServicePackage)
+			.Include(h => h.ServiceAssignments)
+			.Include(h => h.PackageItems)
+			.FirstOrDefaultAsync(h => h.Id == id);
+	}
 }

@@ -116,14 +116,17 @@ public class HealthCampService : IHealthCampService
             });
         }
 
-        // Add service assignments
+        // Add service assignments (resolve type server-side)
         foreach (var assignment in dto.ServiceAssignments)
         {
+            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
+
             entity.ServiceAssignments.Add(new HealthCampServiceAssignment
             {
                 Id = Guid.NewGuid(),
                 HealthCampId = entity.Id,
-                ServiceId = assignment.ServiceId,
+                AssignmentId = assignment.ServiceId,
+                AssignmentType = (PackageItemType)referenceType,
                 SubcontractorId = assignment.SubcontractorId,
                 ProfessionId = assignment.ProfessionId
             });
@@ -165,19 +168,22 @@ public class HealthCampService : IHealthCampService
 
         foreach (var assignment in dto.ServiceAssignments)
         {
+            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
             var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
 
             var boothAssignment = new SubcontractorHealthCampAssignment
             {
                 Id = Guid.NewGuid(),
-                HealthCampId = created.Id, //  Use saved camp ID
+                HealthCampId = created.Id,
                 SubcontractorId = assignment.SubcontractorId,
                 AssignmentStatusId = assignedStatus.Id,
                 BoothLabel = boothLabel,
                 StartDate = created.StartDate,
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false,
-                IsPrimaryAssignment = true
+                IsPrimaryAssignment = true,
+                AssignmentId = assignment.ServiceId,
+                AssignmentType = (PackageItemType)referenceType
             };
 
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
@@ -185,6 +191,7 @@ public class HealthCampService : IHealthCampService
 
         return _mapper.Map<HealthCampDto>(created);
     }
+
 
 
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)

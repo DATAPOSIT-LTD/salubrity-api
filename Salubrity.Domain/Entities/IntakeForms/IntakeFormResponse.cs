@@ -1,6 +1,6 @@
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.HealthcareServices;
-using Salubrity.Domain.Entities.Identity; // Assuming Patient is in Identity
+using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Lookup;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -25,8 +25,19 @@ public class IntakeFormResponse : BaseAuditableEntity
     [ForeignKey(nameof(PatientId))]
     public Patient Patient { get; set; } = default!;
 
-    public Guid? ServiceId { get; set; }
-    public Service? Service { get; set; }
+    // WHAT USER ACTUALLY SELECTED
+    [Required]
+    public Guid SubmittedServiceId { get; set; }
+
+    [Required]
+    public PackageItemType SubmittedServiceType { get; set; }
+
+    // RESOLVED FK TO Service
+    [Required]
+    public Guid ResolvedServiceId { get; set; }
+
+    [ForeignKey(nameof(ResolvedServiceId))]
+    public Service ResolvedService { get; set; } = default!;
 
     [Required]
     public Guid ResponseStatusId { get; set; }

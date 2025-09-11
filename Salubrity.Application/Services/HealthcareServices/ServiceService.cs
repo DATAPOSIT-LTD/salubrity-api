@@ -445,6 +445,7 @@ public class ServiceService : IServiceService
             }
         }
     }
+
     //public async Task AssignFormAsync(AssignFormToServiceDto dto)
     //{
     //    var service = await _serviceRepo.GetByIdAsync(dto.ServiceId)
@@ -460,40 +461,93 @@ public class ServiceService : IServiceService
     //    // await _serviceRepo.SaveChangesAsync();
     //}
 
+    // public async Task AssignFormAsync(AssignFormToServiceDto dto)
+    // {
+    //     var form = await _formRepo.GetByIdAsync(dto.FormId)
+    //         ?? throw new NotFoundException("Form not found");
+
+    //     var service = await _serviceRepo.GetByIdAsync(dto.ServiceId);
+    //     if (service != null)
+    //     {
+    //         service.IntakeFormId = form.Id;
+    //         await _serviceRepo.UpdateAsync(service);
+    //         _logger.LogInformation("Assigned form {FormId} to service {ServiceId}", dto.FormId, dto.ServiceId);
+    //         return;
+    //     }
+
+    //     var category = await _categoryRepo.GetByIdAsync(dto.ServiceId);
+    //     if (category != null)
+    //     {
+    //         category.IntakeFormId = form.Id;
+    //         await _categoryRepo.UpdateAsync(category);
+    //         _logger.LogInformation("Assigned form {FormId} to service category {CategoryId}", dto.FormId, dto.ServiceId);
+    //         return;
+    //     }
+
+    //     var subcategory = await _subcategoryRepo.GetByIdAsync(dto.ServiceId);
+    //     if (subcategory != null)
+    //     {
+
+    //         subcategory.IntakeFormId = form.Id;
+    //         await _subcategoryRepo.UpdateAsync(subcategory);
+    //         _logger.LogInformation("Assigned form {FormId} to service subcategory {SubcategoryId}", dto.FormId, dto.ServiceId);
+    //         return;
+    //     }
+
+    //     // 4. If none of the above, the entity was not found
+    //     throw new NotFoundException($"No Service, Category, or Subcategory found with ID {dto.ServiceId}");
+    // }
+
+
     public async Task AssignFormAsync(AssignFormToServiceDto dto)
     {
-        var form = await _formRepo.GetByIdAsync(dto.FormId)
-            ?? throw new NotFoundException("Form not found");
+        _logger.LogInformation("AssignFormAsync started");
+        _logger.LogInformation("Incoming DTO: FormId = {FormId}, ServiceId = {ServiceId}", dto.FormId, dto.ServiceId);
 
+        var form = await _formRepo.GetByIdAsync(dto.FormId);
+        if (form == null)
+        {
+            _logger.LogWarning("Form not found: {FormId}", dto.FormId);
+            throw new NotFoundException("Form not found");
+        }
+
+        // Try Service
         var service = await _serviceRepo.GetByIdAsync(dto.ServiceId);
         if (service != null)
         {
+            _logger.LogInformation("Found Service: {ServiceName}, ID: {ServiceId}", service.Name, service.Id);
             service.IntakeFormId = form.Id;
             await _serviceRepo.UpdateAsync(service);
             _logger.LogInformation("Assigned form {FormId} to service {ServiceId}", dto.FormId, dto.ServiceId);
             return;
         }
 
+        // Try Category
         var category = await _categoryRepo.GetByIdAsync(dto.ServiceId);
         if (category != null)
         {
+            _logger.LogInformation("Found Category: {CategoryName}, ID: {CategoryId}", category.Name, category.Id);
             category.IntakeFormId = form.Id;
             await _categoryRepo.UpdateAsync(category);
             _logger.LogInformation("Assigned form {FormId} to service category {CategoryId}", dto.FormId, dto.ServiceId);
             return;
         }
 
+        // Try Subcategory
         var subcategory = await _subcategoryRepo.GetByIdAsync(dto.ServiceId);
         if (subcategory != null)
         {
+            _logger.LogInformation("Found Subcategory: {SubcategoryName}, ID: {SubcategoryId}", subcategory.Name, subcategory.Id);
             subcategory.IntakeFormId = form.Id;
             await _subcategoryRepo.UpdateAsync(subcategory);
             _logger.LogInformation("Assigned form {FormId} to service subcategory {SubcategoryId}", dto.FormId, dto.ServiceId);
             return;
         }
 
-        // 4. If none of the above, the entity was not found
+        // Nothing matched
+        _logger.LogWarning("No Service, Category, or Subcategory found with ID: {ServiceId}", dto.ServiceId);
         throw new NotFoundException($"No Service, Category, or Subcategory found with ID {dto.ServiceId}");
     }
+
 
 }

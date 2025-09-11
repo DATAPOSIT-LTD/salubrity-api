@@ -1,0 +1,17 @@
+using Microsoft.EntityFrameworkCore;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Infrastructure.Persistence;
+
+public class HealthCampServiceAssignmentRepository : IHealthCampServiceAssignmentRepository
+{
+    private readonly AppDbContext _db;
+    public HealthCampServiceAssignmentRepository(AppDbContext db) => _db = db;
+
+    public async Task<HealthCampServiceAssignment?> GetByIdAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _db.HealthCampServiceAssignments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+    }
+}

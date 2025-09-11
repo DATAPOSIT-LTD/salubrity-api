@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250910140352_AddBillingStatusLookup")]
+    partial class AddBillingStatusLookup
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -735,12 +738,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AssignmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("AssignmentType")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -762,6 +759,9 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid?>("ProfessionId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("SubcontractorId")
                         .HasColumnType("uuid");
 
@@ -776,6 +776,8 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasIndex("HealthCampId");
 
                     b.HasIndex("ProfessionId");
+
+                    b.HasIndex("ServiceId");
 
                     b.HasIndex("SubcontractorId");
 
@@ -1747,20 +1749,14 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid>("PatientId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ResolvedServiceId")
+                    b.Property<Guid>("ResponseStatusId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("ResponseStatusId")
+                    b.Property<Guid?>("ServiceId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("SubmittedByUserId")
                         .HasColumnType("uuid");
-
-                    b.Property<Guid>("SubmittedServiceId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("SubmittedServiceType")
-                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1774,9 +1770,9 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.HasIndex("ResolvedServiceId");
-
                     b.HasIndex("ResponseStatusId");
+
+                    b.HasIndex("ServiceId");
 
                     b.ToTable("IntakeFormResponses");
                 });
@@ -3248,60 +3244,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("UserRoles");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Reporting.ReportingMetricMapping", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DataType")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("boolean");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("FieldId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Label")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<string>("MetricCode")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FieldId");
-
-                    b.ToTable("ReportingMetricMappings", (string)null);
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Subcontractor.Subcontractor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3362,14 +3304,8 @@ namespace Salubrity.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AssignmentId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("AssignmentStatusId")
                         .HasColumnType("uuid");
-
-                    b.Property<int>("AssignmentType")
-                        .HasColumnType("integer");
 
                     b.Property<string>("BoothLabel")
                         .IsRequired()
@@ -3408,6 +3344,12 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid?>("ServiceCategoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ServiceSubcategoryId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -3431,6 +3373,10 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasIndex("AssignmentStatusId");
 
                     b.HasIndex("HealthCampId");
+
+                    b.HasIndex("ServiceCategoryId");
+
+                    b.HasIndex("ServiceSubcategoryId");
 
                     b.HasIndex("SubcontractorId");
 
@@ -3835,6 +3781,12 @@ namespace Salubrity.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProfessionId");
 
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("Salubrity.Domain.Entities.Subcontractor.Subcontractor", "Subcontractor")
                         .WithMany()
                         .HasForeignKey("SubcontractorId")
@@ -3844,6 +3796,8 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("HealthCamp");
 
                     b.Navigation("Role");
+
+                    b.Navigation("Service");
 
                     b.Navigation("Subcontractor");
                 });
@@ -4105,21 +4059,19 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.Service", "ResolvedService")
-                        .WithMany()
-                        .HasForeignKey("ResolvedServiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.HasOne("Salubrity.Domain.Entities.Lookup.IntakeFormResponseStatus", "Status")
                         .WithMany("Responses")
                         .HasForeignKey("ResponseStatusId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId");
+
                     b.Navigation("Patient");
 
-                    b.Navigation("ResolvedService");
+                    b.Navigation("Service");
 
                     b.Navigation("Status");
 
@@ -4357,17 +4309,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Reporting.ReportingMetricMapping", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormField", "Field")
-                        .WithMany()
-                        .HasForeignKey("FieldId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Field");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Subcontractor.Subcontractor", b =>
                 {
                     b.HasOne("Salubrity.Domain.Entities.HealthcareServices.Industry", "Industry")
@@ -4409,6 +4350,14 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.ServiceCategory", "ServiceCategory")
+                        .WithMany()
+                        .HasForeignKey("ServiceCategoryId");
+
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.ServiceSubcategory", "ServiceSubcategory")
+                        .WithMany()
+                        .HasForeignKey("ServiceSubcategoryId");
+
                     b.HasOne("Salubrity.Domain.Entities.Subcontractor.Subcontractor", "Subcontractor")
                         .WithMany("CampAssignments")
                         .HasForeignKey("SubcontractorId")
@@ -4418,6 +4367,10 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("AssignmentStatus");
 
                     b.Navigation("HealthCamp");
+
+                    b.Navigation("ServiceCategory");
+
+                    b.Navigation("ServiceSubcategory");
 
                     b.Navigation("Subcontractor");
                 });

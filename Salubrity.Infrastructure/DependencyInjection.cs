@@ -1,17 +1,27 @@
 using MediatR;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.Camps;
+using Salubrity.Application.Interfaces.Repositories.Concierge;
 using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
+using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
+using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories.HomepageOverview;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Menus;
+using Salubrity.Application.Interfaces.Repositories.Notifications;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Repositories.Subcontactors;
@@ -21,43 +31,36 @@ using Salubrity.Domain.Seeders;
 using Salubrity.Infrastructure.Configuration;
 using Salubrity.Infrastructure.EventHandlers;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Infrastructure.Persistence.Repositories.HealthCamps;
+using Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
 using Salubrity.Infrastructure.Repositories;
 using Salubrity.Infrastructure.Repositories;
+using Salubrity.Infrastructure.Repositories;
+using Salubrity.Infrastructure.Repositories.Camps;
+using Salubrity.Infrastructure.Repositories.Concierge;
+using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories.HealthAssesment;
+using Salubrity.Infrastructure.Repositories.HealthAssesment;
+using Salubrity.Infrastructure.Repositories.HealthAssessments;
 using Salubrity.Infrastructure.Repositories.HealthCamps;
 using Salubrity.Infrastructure.Repositories.HealthcareServices;
 using Salubrity.Infrastructure.Repositories.HomepageOverview;
 using Salubrity.Infrastructure.Repositories.IntakeForms;
 using Salubrity.Infrastructure.Repositories.IntakeForms;
+using Salubrity.Infrastructure.Repositories.IntakeForms;
 using Salubrity.Infrastructure.Repositories.Lookups;
 using Salubrity.Infrastructure.Repositories.Menus;
+using Salubrity.Infrastructure.Repositories.Notifications;
 using Salubrity.Infrastructure.Repositories.Organizations;
+using Salubrity.Infrastructure.Repositories.Patients;
 using Salubrity.Infrastructure.Repositories.Patients;
 using Salubrity.Infrastructure.Repositories.Rbac;
 using Salubrity.Infrastructure.Repositories.Subcontactors;
 using Salubrity.Infrastructure.Repositories.Users;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Infrastructure.Seeders;
-
-using Salubrity.Application.Interfaces.Repositories;
-using Salubrity.Infrastructure.Repositories.Employees;
-using Salubrity.Infrastructure.Repositories;
-using Salubrity.Infrastructure.Repositories.IntakeForms;
-using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
-using Salubrity.Infrastructure.Repositories.HealthAssesment;
-using Salubrity.Application.Interfaces.Repositories.Patients;
-using Salubrity.Infrastructure.Repositories.Patients;
-using Salubrity.Infrastructure.Persistence.Repositories.HealthCamps;
-using Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
-using Salubrity.Application.Common.Interfaces.Repositories;
-using Salubrity.Application.Interfaces.Repositories.Camps;
-using Salubrity.Infrastructure.Repositories.Camps;
-using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
-using Salubrity.Infrastructure.Repositories.HealthAssessments;
-using Salubrity.Application.Interfaces.Repositories.Notifications;
-using Salubrity.Infrastructure.Repositories.Notifications;
 
 
 namespace Salubrity.Infrastructure;
@@ -123,19 +126,14 @@ public static class DependencyInjection
         services.AddScoped<IHealthAssessmentRepository, HealthAssessmentRepository>();
         services.AddScoped<IOnboardingStatusRepository, OnboardingStatusRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+
+        services.AddScoped<IConciergeRepository, ConciergeRepository>();
+
         services.AddScoped<IHealthCampServiceAssignmentRepository, HealthCampServiceAssignmentRepository>();
-
-
-
-
-
-
-
 
 
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(connectionString));
-
 
         return services;
     }

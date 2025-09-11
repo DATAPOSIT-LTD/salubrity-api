@@ -20,8 +20,8 @@ public static class LookupRegistry
         { "subcontractorhealthcampassignmentstatuses", typeof(SubcontractorHealthCampAssignmentStatus) },
         { "healthcampstatuses", typeof(HealthCampStatus) },
         {"intakeformresponsestatuses", typeof(IntakeFormResponseStatus) },
-        {"healthassessmentformtypes", typeof(HealthAssessmentFormType) }
-
+        {"healthassessmentformtypes", typeof(HealthAssessmentFormType) },
+        {"billingstatus", typeof(BillingStatus) }
     };
 
 }

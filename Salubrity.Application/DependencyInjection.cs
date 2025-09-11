@@ -8,6 +8,7 @@ using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Camps;
+using Salubrity.Application.Interfaces.Services.Concierge;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
@@ -27,6 +28,7 @@ using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
 using Salubrity.Application.Services.Camps;
+using Salubrity.Application.Services.Concierge;
 using Salubrity.Application.Services.EmployeeServices;
 using Salubrity.Application.Services.Forms;
 using Salubrity.Application.Services.HealthAssessments;
@@ -108,6 +110,7 @@ namespace Salubrity.Application
             services.AddScoped<ISubcontractorOverviewService, SubcontractorOverviewService>();
             services.AddScoped<ICurrentSubcontractorService, CurrentSubcontractorService>();
             services.AddScoped<IFileStorage, LocalFileStorage>();
+            services.AddScoped<GenericLookupService<BillingStatus>>();
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();
@@ -118,7 +121,7 @@ namespace Salubrity.Application
             services.AddScoped<IHealthAssessmentFormService, HealthAssessmentFormService>();
             services.AddScoped<IOnboardingService, OnboardingService>();
             services.AddScoped<INotificationService, NotificationService>();
-
+            services.AddScoped<IConciergeService, ConciergeService>();
 
 
 

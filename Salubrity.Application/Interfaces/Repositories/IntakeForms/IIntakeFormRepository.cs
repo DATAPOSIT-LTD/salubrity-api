@@ -15,4 +15,9 @@ public interface IIntakeFormRepository
     // Form with related data
     Task<IntakeForm?> GetWithSectionsAsync(Guid formId); // sections + fields + options
     Task<IntakeForm?> GetWithFieldsAsync(Guid formId);   // direct fields + options
+    /// <summary>
+    /// Checks if an intake form is assigned to any service, category, or subcategory
+    /// </summary>
+    Task<bool> IsFormAssignedAnywhereAsync(Guid formId);
+
 }

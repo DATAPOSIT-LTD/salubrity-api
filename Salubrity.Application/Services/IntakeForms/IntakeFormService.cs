@@ -2,6 +2,7 @@ using Salubrity.Application.DTOs.IntakeForms;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Domain.Entities.IntakeForms;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -69,8 +70,12 @@ public class IntakeFormService : IIntakeFormService
         var form = await _repo.GetByIdAsync(id);
         if (form == null) return false;
 
-        await _repo.DeleteAsync(id);
+        var isAssigned = await _repo.IsFormAssignedAnywhereAsync(id);
+        if (isAssigned)
+            throw new ValidationException(["This intake form is currently assigned to one or more services and cannot be deleted."]);
 
+        await _repo.DeleteAsync(id);
         return true;
     }
+
 }

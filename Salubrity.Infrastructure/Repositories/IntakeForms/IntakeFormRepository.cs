@@ -80,4 +80,13 @@ public class IntakeFormRepository : IIntakeFormRepository
                 .ThenInclude(ff => ff.Options)
             .FirstOrDefaultAsync(f => f.Id == formId);
     }
+    public async Task<bool> IsFormAssignedAnywhereAsync(Guid formId)
+    {
+        var isUsedByService = await _context.Services.AnyAsync(s => s.IntakeFormId == formId);
+        var isUsedByCategory = await _context.ServiceCategories.AnyAsync(c => c.IntakeFormId == formId);
+        var isUsedBySubcategory = await _context.ServiceSubcategories.AnyAsync(sc => sc.IntakeFormId == formId);
+
+        return isUsedByService || isUsedByCategory || isUsedBySubcategory;
+    }
+
 }

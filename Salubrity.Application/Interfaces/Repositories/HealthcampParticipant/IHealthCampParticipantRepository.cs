@@ -12,5 +12,6 @@ namespace Salubrity.Application.Common.Interfaces.Repositories
         Task AddParticipantAsync(Domain.Entities.Join.HealthCampParticipant participant, CancellationToken ct = default);
         Task<HealthCampParticipant?> GetParticipantAsync(Guid campId, Guid participantId, CancellationToken ct = default);
         Task UpdateParticipantAsync(HealthCampParticipant participant, CancellationToken ct = default);
+
     }
 }

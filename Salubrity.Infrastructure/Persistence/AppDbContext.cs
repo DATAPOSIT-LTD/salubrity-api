@@ -101,6 +101,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<NotificationRecipient> NotificationRecipients { get; set; }
         public DbSet<NotificationType> NotificationTypes { get; set; }
         public DbSet<ReportingMetricMapping> ReportingMetricMappings { get; set; }
+        public DbSet<FormFieldMapping> FormFieldMappings { get; set; }
 
         // ─────────────────────────────────────
         //  Model Configuration

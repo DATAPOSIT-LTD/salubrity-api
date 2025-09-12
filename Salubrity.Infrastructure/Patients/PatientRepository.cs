@@ -23,5 +23,21 @@ namespace Salubrity.Infrastructure.Repositories.Patients
 
         public Task<Patient?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
             _db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
+
+        /// <summary>
+        /// Get PatientId by PatientNumber (external identifier)
+        /// </summary>
+        public async Task<Guid?> GetPatientIdByPatientNumberAsync(string patientNumber, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(patientNumber))
+                return null;
+
+            var patient = await _db.Patients
+                .Where(p => p.PatientNumber == patientNumber.Trim())
+                .Select(p => new { p.Id })
+                .FirstOrDefaultAsync(ct);
+
+            return patient?.Id;
+        }
     }
 }

@@ -15,6 +15,12 @@ public class Patient : BaseAuditableEntity
     public Guid? PrimaryOrganizationId { get; set; }
     public Organization? PrimaryOrganization { get; set; }
 
+    // Optional current patient number (external identifier)
+    public string? PatientNumber { get; set; }
+
+    // Optional legacy patient number (from old systems, migrations)
+    public string? LegacyPatientNumber { get; set; }
+
     // Placeholder for light metadata 
     public string? Notes { get; set; }
 }

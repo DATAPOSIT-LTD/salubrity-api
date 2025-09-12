@@ -8,5 +8,12 @@ namespace Salubrity.Application.Interfaces.Repositories.Patients
         Task AddAsync(Patient patient, CancellationToken ct = default);
         Task<Patient?> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
         Task<Patient?> GetByIdAsync(Guid id, CancellationToken ct = default);
+        /// <summary>
+        /// Get the PatientId by a patient number (external identifier).
+        /// Returns null if not found.
+        /// </summary>
+        Task<Guid?> GetPatientIdByPatientNumberAsync(string patientNumber, CancellationToken ct = default);
+
+
     }
 }

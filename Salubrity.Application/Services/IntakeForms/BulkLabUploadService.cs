@@ -5,6 +5,7 @@ using Salubrity.Application.DTOs.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -65,10 +66,10 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var patientNumber = dict.GetValueOrDefault("patient number");
                     if (string.IsNullOrEmpty(patientNumber))
-                        throw new Exception("Missing patient number");
+                        throw new NotFoundException("Missing patient number");
 
                     var patientId = await _patientRepo.GetPatientIdByPatientNumberAsync(patientNumber, ct)
-                        ?? throw new Exception($"Patient not found: {patientNumber}");
+                        ?? throw new NotFoundException($"Patient not found: {patientNumber}");
 
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
                     foreach (var kvp in dict)
@@ -112,11 +113,11 @@ public class BulkLabUploadService : IBulkLabUploadService
     {
         var formVersion = await _mappingRepo.GetFormVersionBySheetNameAsync(sheetName, ct);
         if (formVersion == null)
-            throw new Exception($"No Intake Form configured for sheet: {sheetName}");
+            throw new NotFoundException($"No Intake Form configured for sheet: {sheetName}");
 
         var mappings = await _mappingRepo.GetFieldMappingsAsync(formVersion.Id, ct);
         if (!mappings.Any())
-            throw new Exception("No field mappings configured");
+            throw new NotFoundException("No field mappings configured");
 
         var stream = new MemoryStream();
         using var writer = new StreamWriter(stream, Encoding.UTF8, leaveOpen: true);

@@ -14,7 +14,7 @@ namespace Salubrity.Application.Interfaces.Repositories.Patients
         /// </summary>
         Task<Guid?> GetPatientIdByPatientNumberAsync(string patientNumber, CancellationToken ct = default);
         Task<List<Patient>> GetAllPatientsAsync(CancellationToken ct);
-        Task<List<Patient>> GetPatientsByCampAsync(Guid campId, CancellationToken ct = default);
+        Task<List<Patient>> GetPatientsByCampViaUserAsync(Guid campId, CancellationToken ct = default);
 
     }
 }

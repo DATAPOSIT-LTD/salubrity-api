@@ -191,7 +191,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             throw new NotFoundException("No lab forms found for your assigned services.");
 
         // Get all patients in the camp
-        var patients = await _patientRepo.GetPatientsByCampAsync(campId, ct);
+        var patients = await _patientRepo.GetPatientsByCampViaUserAsync(campId, ct);
 
         // Generate worksheet per lab form
         foreach (var form in formsToInclude)

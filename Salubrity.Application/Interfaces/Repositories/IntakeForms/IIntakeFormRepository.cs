@@ -20,6 +20,6 @@ public interface IIntakeFormRepository
     /// </summary>
     Task<bool> IsFormAssignedAnywhereAsync(Guid formId);
     // IIntakeFormRepository.cs
-    Task<List<IntakeForm>> GetAllLabFormsAsync(CancellationToken ct = default);
+    Task<List<IntakeForm>> GetLabFormsByIdsAsync(HashSet<Guid> ids, CancellationToken ct);
 
 }

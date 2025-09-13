@@ -123,12 +123,13 @@ public class BulkLabUploadService : IBulkLabUploadService
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
         var stream = new MemoryStream();
-
         using var package = new ExcelPackage(stream);
 
+        // Get subcontractor
         var subcontractor = await _subcontractorRepo.GetByUserIdAsync(userId)
             ?? throw new NotFoundException("You are not linked to any provider profile.");
 
+        // Get assignments for this subcontractor
         var assignments = await _assignmentRepo.GetBySubcontractorIdAsync(subcontractor.Id, ct);
 
         var scopedAssignments = assignments
@@ -138,8 +139,8 @@ public class BulkLabUploadService : IBulkLabUploadService
         if (scopedAssignments.Count == 0)
             throw new NotFoundException("You are not assigned to the selected health camp.");
 
+        // Collect all intake form IDs linked to the services you're assigned
         var intakeFormIds = new HashSet<Guid>();
-
         foreach (var assignment in scopedAssignments)
         {
             ct.ThrowIfCancellationRequested();
@@ -152,16 +153,16 @@ public class BulkLabUploadService : IBulkLabUploadService
         if (intakeFormIds.Count == 0)
             throw new NotFoundException("No intake forms assigned to your services in this camp.");
 
-        var labForms = await _formRepo.GetAllLabFormsAsync(ct);
-        var formsToInclude = labForms
-            .Where(f => intakeFormIds.Contains(f.Id))
-            .ToList();
+        // Get only lab forms scoped to those intake form IDs
+        var formsToInclude = await _formRepo.GetLabFormsByIdsAsync(intakeFormIds, ct);
 
         if (formsToInclude.Count == 0)
             throw new NotFoundException("No lab forms found for your assigned services.");
 
+        // Get all patients in the camp
         var patients = await _patientRepo.GetPatientsByCampAsync(campId, ct);
 
+        // For each lab form, generate a worksheet
         foreach (var form in formsToInclude)
         {
             ct.ThrowIfCancellationRequested();
@@ -179,13 +180,13 @@ public class BulkLabUploadService : IBulkLabUploadService
                 );
             }
 
+            // Write headers
             for (int col = 0; col < headers.Count; col++)
-            {
                 sheet.Cells[1, col + 1].Value = headers[col];
-            }
 
             sheet.View.FreezePanes(2, 1);
 
+            // Write patient rows
             int rowIndex = 2;
             foreach (var patient in patients)
             {
@@ -204,10 +205,9 @@ public class BulkLabUploadService : IBulkLabUploadService
                 sheet.Cells[rowIndex, 1].Value = patient.PatientNumber;
                 sheet.Cells[rowIndex, 2].Value = fullName;
 
+                // Leave fields empty
                 for (int col = 3; col <= headers.Count; col++)
-                {
                     sheet.Cells[rowIndex, col].Value = string.Empty;
-                }
 
                 rowIndex++;
             }
@@ -219,6 +219,7 @@ public class BulkLabUploadService : IBulkLabUploadService
         stream.Position = 0;
         return stream;
     }
+
 
 
 }

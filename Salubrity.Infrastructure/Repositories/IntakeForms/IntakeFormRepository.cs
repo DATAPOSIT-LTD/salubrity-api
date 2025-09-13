@@ -91,15 +91,15 @@ public class IntakeFormRepository : IIntakeFormRepository
     /// <summary>
     /// Fetch all forms that are marked as lab forms (IsLabForm = true), including sections and fields.
     /// </summary>
-    public async Task<List<IntakeForm>> GetAllLabFormsAsync(CancellationToken ct = default)
+    public async Task<List<IntakeForm>> GetLabFormsByIdsAsync(HashSet<Guid> ids, CancellationToken ct)
     {
         return await _context.IntakeForms
-            .Where(f => f.IsLabForm)
-            .Include(f => f.Sections)
+            .Where(f => f.IsLabForm && ids.Contains(f.Id))
+            .Include(f => f.Sections.OrderBy(s => s.Order))
                 .ThenInclude(s => s.Fields.OrderBy(fld => fld.Order))
                     .ThenInclude(fld => fld.Options.OrderBy(opt => opt.Order))
-            .OrderBy(f => f.Name)
             .ToListAsync(ct);
     }
+
 
 }

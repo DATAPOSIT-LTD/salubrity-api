@@ -35,6 +35,9 @@ public class BulkLabUploadService : IBulkLabUploadService
     /// </summary>
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
+        // ✅ EPPlus v8 license setup
+        ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
+
         var result = new BulkUploadResultDto();
 
         using var package = new ExcelPackage(dto.ExcelFile.OpenReadStream());
@@ -112,6 +115,9 @@ public class BulkLabUploadService : IBulkLabUploadService
     /// </summary>
     public async Task<Stream> GenerateAllLabTemplatesExcelAsync(CancellationToken ct = default)
     {
+        // ✅ EPPlus v8 license setup
+        ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
+
         var stream = new MemoryStream();
         using var package = new ExcelPackage(stream);
 

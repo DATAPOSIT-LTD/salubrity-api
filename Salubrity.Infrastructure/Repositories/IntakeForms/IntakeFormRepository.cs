@@ -88,5 +88,18 @@ public class IntakeFormRepository : IIntakeFormRepository
 
         return isUsedByService || isUsedByCategory || isUsedBySubcategory;
     }
+    /// <summary>
+    /// Fetch all forms that are marked as lab forms (IsLabForm = true), including sections and fields.
+    /// </summary>
+    public async Task<List<IntakeForm>> GetAllLabFormsAsync(CancellationToken ct = default)
+    {
+        return await _context.IntakeForms
+            .Where(f => f.IsLabForm)
+            .Include(f => f.Sections)
+                .ThenInclude(s => s.Fields.OrderBy(fld => fld.Order))
+                    .ThenInclude(fld => fld.Options.OrderBy(opt => opt.Order))
+            .OrderBy(f => f.Name)
+            .ToListAsync(ct);
+    }
 
 }

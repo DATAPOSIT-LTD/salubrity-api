@@ -18,7 +18,7 @@ public class BulkUploadError
 
 public class CreateBulkLabUploadDto
 {
-    public IFormFile CsvFile { get; set; } = null!;
+    public IFormFile ExcelFile { get; set; } = null!;
     public Guid IntakeFormVersionId { get; set; }
     public Guid SubmittedByUserId { get; set; }
 }

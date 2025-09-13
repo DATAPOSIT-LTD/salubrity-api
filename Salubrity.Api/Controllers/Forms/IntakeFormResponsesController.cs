@@ -59,48 +59,24 @@ public class IntakeFormResponsesController : BaseController
     }
 
     // ---------------------------------------------------------
-    // Bulk Lab Results Endpoints
+    // Bulk Lab Results (Excel) Endpoints
     // ---------------------------------------------------------
-    /// <summary>
-    /// Upload a CSV file with lab results. Server determines the form version from the file name.
-    /// </summary>
-    [HttpPost("bulk-upload/lab-results")]
-    [ProducesResponseType(typeof(ApiResponse<BulkUploadResultDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> UploadLabResultsCsv([FromForm] UploadLabResultsFormDto dto, CancellationToken ct = default)
-    {
-        if (dto.File == null || dto.File.Length == 0)
-            return Failure("No file uploaded.", 422);
-
-        var userId = GetCurrentUserId();
-
-        var bulkDto = new CreateBulkLabUploadDto
-        {
-            CsvFile = dto.File,
-            SubmittedByUserId = userId
-        };
-
-        var result = await _bulkUploadService.UploadCsvAsync(bulkDto, ct);
-        return Success(result);
-    }
 
     /// <summary>
-    /// Download a CSV template for lab results. Headers match expected field mappings.
+    /// Download a single Excel workbook with all lab templates (one sheet per lab form)
     /// </summary>
     [HttpGet("bulk-upload/lab-results/template")]
-    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> DownloadLabResultsTemplate([FromQuery] string sheetName, CancellationToken ct = default)
+    public async Task<IActionResult> DownloadLabResultsTemplate(CancellationToken ct = default)
     {
-        var templateStream = await _bulkUploadService.GenerateCsvTemplateAsync(sheetName, ct);
-        var downloadName = $"LabResults_Template_{sheetName}.csv";
-        return File(templateStream, "text/csv", downloadName);
+        var templateStream = await _bulkUploadService.GenerateAllLabTemplatesExcelAsync(ct);
+        return File(templateStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "LabResults_Template_AllForms.xlsx");
     }
 
     /// <summary>
-    /// Upload a CSV template with sample or test data.
+    /// Upload a completed Excel with lab results
     /// </summary>
-    [HttpPost("bulk-upload/lab-results/template")]
-    [ProducesResponseType(typeof(ApiResponse<BulkUploadResultDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> UploadLabResultsWithTemplate([FromForm] UploadLabResultsFormDto dto, CancellationToken ct = default)
+    [HttpPost("bulk-upload/lab-results")]
+    public async Task<IActionResult> UploadLabResultsExcel([FromForm] UploadLabResultsFormDto dto, CancellationToken ct = default)
     {
         if (dto.File == null || dto.File.Length == 0)
             return Failure("No file uploaded.", 422);
@@ -109,11 +85,11 @@ public class IntakeFormResponsesController : BaseController
 
         var bulkDto = new CreateBulkLabUploadDto
         {
-            CsvFile = dto.File,
+            ExcelFile = dto.File,
             SubmittedByUserId = userId
         };
 
-        var result = await _bulkUploadService.UploadCsvAsync(bulkDto, ct);
+        var result = await _bulkUploadService.UploadExcelAsync(bulkDto, ct);
         return Success(result);
     }
 }

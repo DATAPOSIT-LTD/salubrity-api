@@ -13,7 +13,6 @@ namespace Salubrity.Application.Interfaces.Repositories.Patients
         /// Returns null if not found.
         /// </summary>
         Task<Guid?> GetPatientIdByPatientNumberAsync(string patientNumber, CancellationToken ct = default);
-
-
+        Task<List<Patient>> GetAllPatientsAsync(CancellationToken ct);
     }
 }

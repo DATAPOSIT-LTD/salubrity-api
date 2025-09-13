@@ -19,5 +19,7 @@ public interface IIntakeFormRepository
     /// Checks if an intake form is assigned to any service, category, or subcategory
     /// </summary>
     Task<bool> IsFormAssignedAnywhereAsync(Guid formId);
+    // IIntakeFormRepository.cs
+    Task<List<IntakeForm>> GetAllLabFormsAsync(CancellationToken ct = default);
 
 }

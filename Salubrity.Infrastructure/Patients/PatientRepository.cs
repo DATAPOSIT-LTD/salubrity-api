@@ -39,5 +39,16 @@ namespace Salubrity.Infrastructure.Repositories.Patients
 
             return patient?.Id;
         }
+        /// <summary>
+        /// Fetch all patients with user details (names) for Excel lab templates.
+        /// </summary>
+        public async Task<List<Patient>> GetAllPatientsAsync(CancellationToken ct = default)
+        {
+            return await _db.Patients
+                .Include(p => p.User)   // Required to get FirstName, MiddleName, LastName
+                .OrderBy(p => p.PatientNumber)
+                .ToListAsync(ct);
+        }
     }
+
 }

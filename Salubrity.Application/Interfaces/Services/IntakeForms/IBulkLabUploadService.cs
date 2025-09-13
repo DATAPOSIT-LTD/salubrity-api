@@ -5,15 +5,13 @@ namespace Salubrity.Application.Interfaces.Services.IntakeForms;
 public interface IBulkLabUploadService
 {
     /// <summary>
-    /// Upload a CSV file containing lab results. 
-    /// The server will determine the correct IntakeFormVersion based on the file/sheet name.
+    /// Upload an Excel file containing lab results.
+    /// The system determines the correct IntakeFormVersion and maps to patients.
     /// </summary>
-    Task<BulkUploadResultDto> UploadCsvAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default);
+    Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default);
 
     /// <summary>
-    /// Generate a CSV template for a lab results form.
-    /// The form version will be determined internally from the given file/sheet name identifier.
+    /// Generate a single Excel workbook containing all lab forms with headers and patient info.
     /// </summary>
-    /// <param name="fileIdentifier">File name or sheet name used to determine form version</param>
-    Task<Stream> GenerateCsvTemplateAsync(string fileIdentifier, CancellationToken ct = default);
+    Task<Stream> GenerateAllLabTemplatesExcelAsync(CancellationToken ct = default);
 }

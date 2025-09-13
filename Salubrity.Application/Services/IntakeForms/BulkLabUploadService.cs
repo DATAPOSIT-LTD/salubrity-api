@@ -11,6 +11,7 @@ using Salubrity.Shared.Exceptions;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -24,6 +25,11 @@ public class BulkLabUploadService : IBulkLabUploadService
     private readonly IHealthCampServiceAssignmentRepository _assignmentRepo;
     private readonly IPackageReferenceResolver _packageResolver;
 
+    // NEW
+    private readonly IServiceRepository _serviceRepo;
+    private readonly IServiceCategoryRepository _categoryRepo;
+    private readonly IServiceSubcategoryRepository _subcategoryRepo;
+
     public BulkLabUploadService(
         IFormFieldMappingRepository mappingRepo,
         IIntakeFormResponseService formResponseService,
@@ -31,7 +37,10 @@ public class BulkLabUploadService : IBulkLabUploadService
         IIntakeFormRepository formRepo,
         ISubcontractorRepository subcontractorRepo,
         IHealthCampServiceAssignmentRepository assignmentRepo,
-        IPackageReferenceResolver packageResolver
+        IPackageReferenceResolver packageResolver,
+        IServiceRepository serviceRepo,
+        IServiceCategoryRepository categoryRepo,
+        IServiceSubcategoryRepository subcategoryRepo
     )
     {
         _mappingRepo = mappingRepo;
@@ -41,7 +50,12 @@ public class BulkLabUploadService : IBulkLabUploadService
         _subcontractorRepo = subcontractorRepo;
         _assignmentRepo = assignmentRepo;
         _packageResolver = packageResolver;
+
+        _serviceRepo = serviceRepo;
+        _categoryRepo = categoryRepo;
+        _subcategoryRepo = subcategoryRepo;
     }
+
 
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
@@ -139,21 +153,38 @@ public class BulkLabUploadService : IBulkLabUploadService
         if (scopedAssignments.Count == 0)
             throw new NotFoundException("You are not assigned to the selected health camp.");
 
-        // Collect all intake form IDs linked to the services you're assigned
+        // Collect intake form IDs directly from service/category/subcategory
         var intakeFormIds = new HashSet<Guid>();
         foreach (var assignment in scopedAssignments)
         {
             ct.ThrowIfCancellationRequested();
 
-            var service = await _packageResolver.ResolveServiceAsync(assignment.AssignmentId, assignment.AssignmentType);
-            if (service?.IntakeFormId != null)
-                intakeFormIds.Add(service.IntakeFormId.Value);
+            switch (assignment.AssignmentType)
+            {
+                case PackageItemType.Service:
+                    var service = await _serviceRepo.GetByIdAsync(assignment.AssignmentId);
+                    if (service?.IntakeFormId != null)
+                        intakeFormIds.Add(service.IntakeFormId.Value);
+                    break;
+
+                case PackageItemType.ServiceCategory:
+                    var category = await _categoryRepo.GetByIdAsync(assignment.AssignmentId);
+                    if (category?.IntakeFormId != null)
+                        intakeFormIds.Add(category.IntakeFormId.Value);
+                    break;
+
+                case PackageItemType.ServiceSubcategory:
+                    var subcategory = await _subcategoryRepo.GetByIdAsync(assignment.AssignmentId);
+                    if (subcategory?.IntakeFormId != null)
+                        intakeFormIds.Add(subcategory.IntakeFormId.Value);
+                    break;
+            }
         }
 
         if (intakeFormIds.Count == 0)
             throw new NotFoundException("No intake forms assigned to your services in this camp.");
 
-        // Get only lab forms scoped to those intake form IDs
+        // Only include forms that are flagged as Lab Forms
         var formsToInclude = await _formRepo.GetLabFormsByIdsAsync(intakeFormIds, ct);
 
         if (formsToInclude.Count == 0)
@@ -162,13 +193,12 @@ public class BulkLabUploadService : IBulkLabUploadService
         // Get all patients in the camp
         var patients = await _patientRepo.GetPatientsByCampAsync(campId, ct);
 
-        // For each lab form, generate a worksheet
+        // Generate worksheet per lab form
         foreach (var form in formsToInclude)
         {
             ct.ThrowIfCancellationRequested();
 
             var sheet = package.Workbook.Worksheets.Add(form.Name);
-
             var headers = new List<string> { "Patient Number", "Patient Full Name" };
 
             foreach (var section in form.Sections.OrderBy(s => s.Order))
@@ -192,8 +222,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             {
                 ct.ThrowIfCancellationRequested();
 
-                if (patient.User == null)
-                    continue;
+                if (patient.User == null) continue;
 
                 var fullName = string.Join(" ", new[]
                 {
@@ -205,7 +234,6 @@ public class BulkLabUploadService : IBulkLabUploadService
                 sheet.Cells[rowIndex, 1].Value = patient.PatientNumber;
                 sheet.Cells[rowIndex, 2].Value = fullName;
 
-                // Leave fields empty
                 for (int col = 3; col <= headers.Count; col++)
                     sheet.Cells[rowIndex, col].Value = string.Empty;
 

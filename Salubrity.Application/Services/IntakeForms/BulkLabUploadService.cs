@@ -120,7 +120,8 @@ public class BulkLabUploadService : IBulkLabUploadService
 
     public async Task<Stream> GenerateLabTemplateForCampAsync(Guid userId, Guid campId, CancellationToken ct = default)
     {
-        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
+
         var stream = new MemoryStream();
 
         using var package = new ExcelPackage(stream);

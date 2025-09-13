@@ -4,8 +4,13 @@ using OfficeOpenXml;
 using Salubrity.Application.DTOs.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.Patients;
+using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Shared.Exceptions;
+using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -15,27 +20,31 @@ public class BulkLabUploadService : IBulkLabUploadService
     private readonly IIntakeFormResponseService _formResponseService;
     private readonly IPatientRepository _patientRepo;
     private readonly IIntakeFormRepository _formRepo;
+    private readonly ISubcontractorRepository _subcontractorRepo;
+    private readonly IHealthCampServiceAssignmentRepository _assignmentRepo;
+    private readonly IPackageReferenceResolver _packageResolver;
 
     public BulkLabUploadService(
         IFormFieldMappingRepository mappingRepo,
         IIntakeFormResponseService formResponseService,
         IPatientRepository patientRepo,
-        IIntakeFormRepository formRepo
+        IIntakeFormRepository formRepo,
+        ISubcontractorRepository subcontractorRepo,
+        IHealthCampServiceAssignmentRepository assignmentRepo,
+        IPackageReferenceResolver packageResolver
     )
     {
         _mappingRepo = mappingRepo;
         _formResponseService = formResponseService;
         _patientRepo = patientRepo;
         _formRepo = formRepo;
+        _subcontractorRepo = subcontractorRepo;
+        _assignmentRepo = assignmentRepo;
+        _packageResolver = packageResolver;
     }
 
-    /// <summary>
-    /// Upload lab results from Excel file.
-    /// Maps patient rows and fields to the correct form version.
-    /// </summary>
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
-        // ✅ EPPlus v8 license setup
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
         var result = new BulkUploadResultDto();
@@ -57,7 +66,6 @@ public class BulkLabUploadService : IBulkLabUploadService
             var mappings = await _mappingRepo.GetFieldMappingsAsync(formVersion.Id, ct);
             if (!mappings.Any()) continue;
 
-            // Read patient rows
             for (int rowIndex = 2; rowIndex <= sheet.Dimension.End.Row; rowIndex++)
             {
                 try
@@ -70,7 +78,7 @@ public class BulkLabUploadService : IBulkLabUploadService
                                     ?? throw new NotFoundException($"Patient not found: {patientNumber}");
 
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
-                    int colIndex = 3; // first 2 columns are Patient Number & Full Name
+                    int colIndex = 3;
                     foreach (var key in mappings.Keys)
                     {
                         var value = sheet.Cells[rowIndex, colIndex].Text?.Trim();
@@ -110,46 +118,95 @@ public class BulkLabUploadService : IBulkLabUploadService
         return result;
     }
 
-    /// <summary>
-    /// Generate a single Excel workbook containing all lab forms with patient info.
-    /// </summary>
-    public async Task<Stream> GenerateAllLabTemplatesExcelAsync(CancellationToken ct = default)
+    public async Task<Stream> GenerateLabTemplateForCampAsync(Guid userId, Guid campId, CancellationToken ct = default)
     {
-        // ✅ EPPlus v8 license setup
-        ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
-
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
         var stream = new MemoryStream();
+
         using var package = new ExcelPackage(stream);
 
-        var labForms = await _formRepo.GetAllLabFormsAsync(ct);
-        var patients = await _patientRepo.GetAllPatientsAsync(ct);
+        var subcontractor = await _subcontractorRepo.GetByUserIdAsync(userId)
+            ?? throw new NotFoundException("You are not linked to any provider profile.");
 
-        foreach (var form in labForms)
+        var assignments = await _assignmentRepo.GetBySubcontractorIdAsync(subcontractor.Id, ct);
+
+        var scopedAssignments = assignments
+            .Where(a => a.HealthCampId == campId && a.HealthCamp != null && !a.HealthCamp.IsDeleted)
+            .ToList();
+
+        if (!scopedAssignments.Any())
+            throw new NotFoundException("You are not assigned to the selected health camp.");
+
+        var intakeFormIds = new HashSet<Guid>();
+
+        foreach (var assignment in scopedAssignments)
         {
+            ct.ThrowIfCancellationRequested();
+
+            var service = await _packageResolver.ResolveServiceAsync(assignment.AssignmentId, assignment.AssignmentType);
+            if (service?.IntakeFormId != null)
+                intakeFormIds.Add(service.IntakeFormId.Value);
+        }
+
+        if (!intakeFormIds.Any())
+            throw new NotFoundException("No intake forms assigned to your services in this camp.");
+
+        var labForms = await _formRepo.GetAllLabFormsAsync(ct);
+        var formsToInclude = labForms
+            .Where(f => intakeFormIds.Contains(f.Id))
+            .ToList();
+
+        if (!formsToInclude.Any())
+            throw new NotFoundException("No lab forms found for your assigned services.");
+
+        var patients = await _patientRepo.GetPatientsByCampAsync(campId, ct);
+
+        foreach (var form in formsToInclude)
+        {
+            ct.ThrowIfCancellationRequested();
+
             var sheet = package.Workbook.Worksheets.Add(form.Name);
 
-            // Headers: Patient Number, Full Name + Lab fields
             var headers = new List<string> { "Patient Number", "Patient Full Name" };
+
             foreach (var section in form.Sections.OrderBy(s => s.Order))
-                headers.AddRange(section.Fields.OrderBy(f => f.Order).Select(f => f.Label));
+            {
+                headers.AddRange(
+                    section.Fields
+                        .OrderBy(f => f.Order)
+                        .Select(f => f.Label)
+                );
+            }
 
             for (int col = 0; col < headers.Count; col++)
+            {
                 sheet.Cells[1, col + 1].Value = headers[col];
+            }
 
             sheet.View.FreezePanes(2, 1);
 
             int rowIndex = 2;
             foreach (var patient in patients)
             {
-                var fullName = string.Join(' ',
-                    new[] { patient.User.FirstName, patient.User.MiddleName, patient.User.LastName }
-                    .Where(n => !string.IsNullOrEmpty(n)));
+                ct.ThrowIfCancellationRequested();
+
+                if (patient.User == null)
+                    continue;
+
+                var fullName = string.Join(" ", new[]
+                {
+                patient.User.FirstName,
+                patient.User.MiddleName,
+                patient.User.LastName
+            }.Where(n => !string.IsNullOrWhiteSpace(n)));
 
                 sheet.Cells[rowIndex, 1].Value = patient.PatientNumber;
                 sheet.Cells[rowIndex, 2].Value = fullName;
 
                 for (int col = 3; col <= headers.Count; col++)
-                    sheet.Cells[rowIndex, col].Value = "";
+                {
+                    sheet.Cells[rowIndex, col].Value = string.Empty;
+                }
 
                 rowIndex++;
             }
@@ -161,4 +218,6 @@ public class BulkLabUploadService : IBulkLabUploadService
         stream.Position = 0;
         return stream;
     }
+
+
 }

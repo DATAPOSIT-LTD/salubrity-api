@@ -62,15 +62,17 @@ public class IntakeFormResponsesController : BaseController
     // Bulk Lab Results (Excel) Endpoints
     // ---------------------------------------------------------
 
-    /// <summary>
-    /// Download a single Excel workbook with all lab templates (one sheet per lab form)
-    /// </summary>
     [HttpGet("bulk-upload/lab-results/template")]
-    public async Task<IActionResult> DownloadLabResultsTemplate(CancellationToken ct = default)
+    public async Task<IActionResult> DownloadLabResultsTemplate(Guid campId, CancellationToken ct = default)
     {
-        var templateStream = await _bulkUploadService.GenerateAllLabTemplatesExcelAsync(ct);
-        return File(templateStream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "LabResults_Template_AllForms.xlsx");
+        Guid userId = GetCurrentUserId();
+        var templateStream = await _bulkUploadService.GenerateLabTemplateForCampAsync(userId, campId, ct);
+        return File(templateStream,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"LabResults_Template_{campId}.xlsx");
     }
+
+
 
     /// <summary>
     /// Upload a completed Excel with lab results

@@ -14,4 +14,11 @@ public class HealthCampServiceAssignmentRepository : IHealthCampServiceAssignmen
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == id, ct);
     }
+    public async Task<List<HealthCampServiceAssignment>> GetBySubcontractorIdAsync(Guid subcontractorId, CancellationToken ct = default)
+    {
+        return await _db.HealthCampServiceAssignments
+            .Where(x => x.SubcontractorId == subcontractorId)
+            .ToListAsync(ct);
+    }
+
 }

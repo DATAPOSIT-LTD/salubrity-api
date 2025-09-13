@@ -132,6 +132,13 @@ namespace Salubrity.Infrastructure.Repositories
             _db.Subcontractors.Update(subcontractor);
             await _db.SaveChangesAsync(ct);
         }
+        public async Task<Subcontractor?> GetByUserIdAsync(Guid userId)
+        {
+            return await _db.Subcontractors
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(s => s.UserId == userId);
+        }
+
 
     }
 }

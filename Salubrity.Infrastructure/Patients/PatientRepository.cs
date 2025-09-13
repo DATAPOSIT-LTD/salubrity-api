@@ -49,6 +49,18 @@ namespace Salubrity.Infrastructure.Repositories.Patients
                 .OrderBy(p => p.PatientNumber)
                 .ToListAsync(ct);
         }
+        public async Task<List<Patient>> GetPatientsByCampAsync(Guid campId, CancellationToken ct = default)
+        {
+            return await _db.HealthCampParticipants
+                .Where(p => p.HealthCampId == campId && !p.IsDeleted)
+                .Include(p => p.Patient)
+                    .ThenInclude(p => p.User)
+                .Select(p => p.Patient)
+                .Where(p => p != null && !p.IsDeleted)
+                .ToListAsync(ct)
+                .ContinueWith(t => t.Result!.Where(p => p != null).Cast<Patient>().ToList(), ct);
+        }
+
     }
 
 }

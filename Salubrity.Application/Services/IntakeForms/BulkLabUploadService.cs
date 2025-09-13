@@ -64,7 +64,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             }
 
             var mappings = await _mappingRepo.GetFieldMappingsAsync(formVersion.Id, ct);
-            if (!mappings.Any()) continue;
+            if (mappings.Count == 0) continue;
 
             for (int rowIndex = 2; rowIndex <= sheet.Dimension.End.Row; rowIndex++)
             {
@@ -135,7 +135,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             .Where(a => a.HealthCampId == campId && a.HealthCamp != null && !a.HealthCamp.IsDeleted)
             .ToList();
 
-        if (!scopedAssignments.Any())
+        if (scopedAssignments.Count == 0)
             throw new NotFoundException("You are not assigned to the selected health camp.");
 
         var intakeFormIds = new HashSet<Guid>();
@@ -149,7 +149,7 @@ public class BulkLabUploadService : IBulkLabUploadService
                 intakeFormIds.Add(service.IntakeFormId.Value);
         }
 
-        if (!intakeFormIds.Any())
+        if (intakeFormIds.Count == 0)
             throw new NotFoundException("No intake forms assigned to your services in this camp.");
 
         var labForms = await _formRepo.GetAllLabFormsAsync(ct);
@@ -157,7 +157,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             .Where(f => intakeFormIds.Contains(f.Id))
             .ToList();
 
-        if (!formsToInclude.Any())
+        if (formsToInclude.Count == 0)
             throw new NotFoundException("No lab forms found for your assigned services.");
 
         var patients = await _patientRepo.GetPatientsByCampAsync(campId, ct);

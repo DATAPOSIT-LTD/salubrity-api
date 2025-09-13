@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.Patients;
 using Salubrity.Infrastructure.Persistence;
 
 namespace Salubrity.Infrastructure.Repositories.Patients
@@ -41,5 +42,29 @@ namespace Salubrity.Infrastructure.Repositories.Patients
                 .OrderBy(p => p.CreatedAt)
                 .ToListAsync(ct);
         }
+        public async Task<long> GetNextSequenceForYearAsync(int year, CancellationToken ct)
+        {
+            var sequence = await _db.PatientNumberSequences
+                .SingleOrDefaultAsync(s => s.Year == year, ct);
+
+            if (sequence == null)
+            {
+                sequence = new PatientNumberSequence
+                {
+                    Year = year,
+                    LastValue = 1
+                };
+                _db.PatientNumberSequences.Add(sequence);
+            }
+            else
+            {
+                sequence.LastValue++;
+            }
+
+            await _db.SaveChangesAsync(ct);
+            return sequence.LastValue;
+        }
+
+
     }
 }

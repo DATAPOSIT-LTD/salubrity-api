@@ -122,6 +122,7 @@ namespace Salubrity.Application
             services.AddScoped<IOnboardingService, OnboardingService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IConciergeService, ConciergeService>();
+            services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
 
 
 

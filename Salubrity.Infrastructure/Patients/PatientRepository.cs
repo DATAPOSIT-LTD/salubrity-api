@@ -51,15 +51,35 @@ namespace Salubrity.Infrastructure.Repositories.Patients
         }
         public async Task<List<Patient>> GetPatientsByCampAsync(Guid campId, CancellationToken ct = default)
         {
-            return await _db.HealthCampParticipants
-                .Where(p => p.HealthCampId == campId && !p.IsDeleted)
-                .Include(p => p.Patient)
-                    .ThenInclude(p => p.User)
-                .Select(p => p.Patient)
-                .Where(p => p != null && !p.IsDeleted)
-                .ToListAsync(ct)
-                .ContinueWith(t => t.Result!.Where(p => p != null).Cast<Patient>().ToList(), ct);
+            var participants = await _db.HealthCampParticipants
+                .Where(cp => cp.HealthCampId == campId && !cp.IsDeleted)
+                .Include(cp => cp.Patient).ThenInclude(p => p.User)
+                .Include(cp => cp.User) // in case PatientId is null
+                .ToListAsync(ct);
+
+            var patients = new List<Patient>();
+
+            foreach (var p in participants)
+            {
+                if (p.Patient != null && !p.Patient.IsDeleted)
+                {
+                    patients.Add(p.Patient);
+                }
+                else if (p.User != null)
+                {
+                    // Create a lightweight Patient placeholder for template purposes
+                    patients.Add(new Patient
+                    {
+                        Id = Guid.Empty, // no real PatientId
+                        PatientNumber = null, // might not exist
+                        User = p.User
+                    });
+                }
+            }
+
+            return patients;
         }
+
 
     }
 

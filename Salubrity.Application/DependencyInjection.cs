@@ -41,6 +41,7 @@ using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
+using Salubrity.Application.Services.Patients;
 using Salubrity.Application.Services.Rbac;
 using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Application.Services.Subcontractors;
@@ -124,6 +125,7 @@ namespace Salubrity.Application
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IConciergeService, ConciergeService>();
             services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
+            services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();
 
 
 

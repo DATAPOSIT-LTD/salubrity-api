@@ -131,6 +131,7 @@ public static class DependencyInjection
 
         services.AddScoped<IHealthCampServiceAssignmentRepository, HealthCampServiceAssignmentRepository>();
         services.AddScoped<IFormFieldMappingRepository, FormFieldMappingRepository>();
+        services.AddScoped<IPatientNumberRepository, PatientNumberRepository>();
 
 
 

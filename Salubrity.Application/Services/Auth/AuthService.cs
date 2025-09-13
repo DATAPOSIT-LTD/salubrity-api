@@ -44,6 +44,8 @@ namespace Salubrity.Application.Services.Auth
         private readonly IHealthCampService _campService;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IOrganizationRepository _organizationRepository;
+        private readonly IPatientNumberGeneratorService _patientNumberGeneratorService;
+
 
 
 
@@ -63,7 +65,8 @@ namespace Salubrity.Application.Services.Auth
             INotificationService notificationService,
             IHealthCampService campService,
             IEmployeeRepository employeeRepository,
-            IOrganizationRepository organizationRepository
+            IOrganizationRepository organizationRepository,
+            IPatientNumberGeneratorService patientNumberGeneratorService
             )
         {
             _userRepository = userRepository;
@@ -82,107 +85,11 @@ namespace Salubrity.Application.Services.Auth
             _campService = campService;
             _employeeRepository = employeeRepository;
             _organizationRepository = organizationRepository;
+            _patientNumberGeneratorService = patientNumberGeneratorService;
         }
 
 
 
-        // public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
-        // {
-        //     if (!input.AcceptTerms)
-        //         throw new ValidationException(["You must accept the Terms & Conditions to register."]);
-
-        //     if (input.Password != input.ConfirmPassword)
-        //         throw new ValidationException(["Passwords do not match."]);
-
-        //     var normalizedEmail = input.Email.Trim().ToLowerInvariant();
-        //     var existingUser = await _userRepository.FindUserByEmailAsync(normalizedEmail);
-        //     if (existingUser is not null)
-        //         throw new ValidationException(["A user with this email already exists."]);
-
-        //     var role = await _roleRepository.GetByIdAsync(input.RoleId)
-        //         ?? throw new NotFoundException("Role", input.RoleId.ToString());
-
-        //     var hashed = _passwordHasher.HashPassword(input.Password);
-        //     var userId = Guid.NewGuid();
-
-        //     var user = new User
-        //     {
-        //         Id = userId,
-        //         FirstName = input.FirstName,
-        //         MiddleName = input.MiddleName,
-        //         LastName = input.LastName,
-        //         Email = normalizedEmail,
-        //         PasswordHash = hashed,
-        //         IsActive = true,
-        //         IsVerified = false,
-        //         CreatedAt = DateTime.UtcNow,
-        //         UserRoles = new List<UserRole>
-        //         {
-        //             new UserRole
-        //             {
-        //                 UserId = userId,
-        //                 RoleId = input.RoleId
-        //             }
-        //         }
-        //     };
-
-        //     await _userRepository.AddUserAsync(user);
-
-        //     // Create & link related entity based on role
-        //     switch (role.Name)
-        //     {
-        //         case "Subcontractor":
-        //             {
-        //                 var industry = await _industryRepository.GetByNameAsync("General")
-        //                     ?? throw new NotFoundException("Industry", "General");
-
-        //                 var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
-        //                     ?? throw new NotFoundException("SubcontractorStatus", "Active");
-
-        //                 var subcontractor = new Salubrity.Domain.Entities.Subcontractor.Subcontractor
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     UserId = user.Id,
-        //                     IndustryId = industry.Id,
-        //                     StatusId = status.Id,
-        //                     CreatedAt = DateTime.UtcNow,
-        //                     IsDeleted = false
-        //                 };
-
-        //                 await _subcontractorRepository.AddAsync(subcontractor);
-
-        //                 user.RelatedEntityType = "Subcontractor";
-        //                 user.RelatedEntityId = subcontractor.Id;
-        //                 await _userRepository.UpdateUserAsync(user);
-        //                 break;
-        //             }
-
-        //         case "Patient":
-        //             {
-        //                 var patient = new Patient
-        //                 {
-        //                     Id = Guid.NewGuid(),
-        //                     UserId = user.Id,
-        //                     CreatedAt = DateTime.UtcNow,
-        //                     IsDeleted = false
-        //                 };
-
-        //                 await _patientRepository.AddAsync(patient);
-
-        //                 user.RelatedEntityType = "Patient";
-        //                 user.RelatedEntityId = patient.Id;
-        //                 await _userRepository.UpdateUserAsync(user);
-        //                 break;
-        //             }
-        //     }
-
-        //     var expiresAt = DateTime.UtcNow.AddMinutes(30);
-        //     var roles = new[] { role.Name };
-        //     var token = _jwtService.GenerateAccessToken(user.Id, user.Email, roles);
-        //     var refreshToken = _jwtService.GenerateRefreshToken();
-
-        //     return new AuthResponseDto(token, refreshToken, expiresAt);
-        // }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
         {
@@ -289,6 +196,8 @@ namespace Salubrity.Application.Services.Auth
                             CreatedAt = DateTime.UtcNow,
                             IsDeleted = false
                         };
+                        var patientNumber = await _patientNumberGeneratorService.GenerateAsync();
+                        patient.PatientNumber = patientNumber;
                         await _patientRepository.AddAsync(patient);
 
                         user.RelatedEntityType = "Patient";

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.IntakeForms;
+using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Shared.Responses;
@@ -20,15 +21,18 @@ public class IntakeFormResponsesController : BaseController
     private readonly IIntakeFormResponseService _service;
     private readonly IServiceService _serviceService;
     private readonly IBulkLabUploadService _bulkUploadService;
+    private readonly IHealthCampService _campService;
 
     public IntakeFormResponsesController(
         IIntakeFormResponseService service,
         IServiceService serviceService,
-        IBulkLabUploadService bulkUploadService)
+        IBulkLabUploadService bulkUploadService,
+        IHealthCampService campService)
     {
         _service = service;
         _serviceService = serviceService;
         _bulkUploadService = bulkUploadService;
+        _campService = campService;
     }
 
     [HttpPost]
@@ -62,15 +66,27 @@ public class IntakeFormResponsesController : BaseController
     // Bulk Lab Results (Excel) Endpoints
     // ---------------------------------------------------------
 
+
     [HttpGet("bulk-upload/lab-results/template")]
     public async Task<IActionResult> DownloadLabResultsTemplate(Guid campId, CancellationToken ct = default)
     {
         Guid userId = GetCurrentUserId();
+
+        // Get camp details
+        var camp = await _campService.GetByIdAsync(campId);
+        if (camp == null)
+            return Failure("Health camp not found.");
+
         var templateStream = await _bulkUploadService.GenerateLabTemplateForCampAsync(userId, campId, ct);
+
+        // Sanitize camp name for file system
+        var safeCampName = string.Join("_", camp.Name.Split(Path.GetInvalidFileNameChars()));
+
         return File(templateStream,
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            $"LabResults_Template_{campId}.xlsx");
+            $"LabResults_Template_{safeCampName}.xlsx");
     }
+
 
 
 

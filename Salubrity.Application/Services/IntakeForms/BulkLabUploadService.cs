@@ -93,11 +93,18 @@ public class BulkLabUploadService : IBulkLabUploadService
                 .SelectMany(s => s.Fields)
                 .ToList();
 
-            // 3. Build header → fieldId dictionary
-            var headerToFieldId = availableFields
-                .ToDictionary(f => f.Label.Trim(), f => f.Id, StringComparer.OrdinalIgnoreCase);
+            // 3. Build header → fieldId dictionary with normalization
+            string Normalize(string s) =>
+                s?.Trim()
+                 .Replace("\u00A0", " ") // non-breaking space
+                 .Replace("–", "-")      // en-dash → hyphen
+                 .Replace("µ", "u")      // µ → u (common Excel diff)
+                 .ToLowerInvariant();
 
-            _logger.LogInformation("📄 Processing Sheet={SheetName}, Rows={RowCount}, Headers={HeaderCount}",
+            var headerToFieldId = availableFields
+                .ToDictionary(f => Normalize(f.Label), f => f.Id);
+
+            _logger.LogInformation("📄 Processing Sheet={SheetName}, Rows={RowCount}, DBHeaders={HeaderCount}",
                 sheet.Name, sheet.Dimension.End.Row, headerToFieldId.Count);
 
             // 4. Process each data row
@@ -115,18 +122,21 @@ public class BulkLabUploadService : IBulkLabUploadService
                     var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId, ct)
                          ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
 
-
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
 
-                    // Loop through columns starting from C (index 3)
-                    for (int colIndex = 3; colIndex <= sheet.Dimension.End.Column; colIndex++)
+                    // Loop through all columns (ignore unknown headers safely)
+                    for (int colIndex = 1; colIndex <= sheet.Dimension.End.Column; colIndex++)
                     {
-                        var header = sheet.Cells[1, colIndex].Text?.Trim();
+                        var headerRaw = sheet.Cells[1, colIndex].Text;
+                        var header = Normalize(headerRaw);
                         if (string.IsNullOrEmpty(header)) continue;
 
                         if (!headerToFieldId.TryGetValue(header, out var fieldId))
                         {
-                            _logger.LogWarning("⚠️ No IntakeFormField found for header '{Header}' on sheet {Sheet}", header, sheet.Name);
+                            // Ignore meta columns like Patient Number, Patient Full Name
+                            if (colIndex <= 2) continue;
+
+                            _logger.LogWarning("⚠️ No IntakeFormField found for header '{Header}' on sheet {Sheet}", headerRaw, sheet.Name);
                             continue;
                         }
 
@@ -149,7 +159,7 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var formDto = new CreateIntakeFormResponseDto
                     {
-                        PatientId = participantId,
+                        PatientId = participantId, // ✅ now correctly uses participantId
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses
                     };

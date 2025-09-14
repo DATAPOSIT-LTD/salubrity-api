@@ -34,6 +34,7 @@ public class BulkLabUploadService : IBulkLabUploadService
     private readonly IServiceCategoryRepository _categoryRepo;
     private readonly IServiceSubcategoryRepository _subcategoryRepo;
     private readonly IHealthCampParticipantRepository _healthCampParticipantRepository;
+    private readonly ICampQueueRepository _stationCheckInRepository;
 
     public BulkLabUploadService(
         IFormFieldMappingRepository mappingRepo,
@@ -48,7 +49,8 @@ public class BulkLabUploadService : IBulkLabUploadService
         IServiceSubcategoryRepository subcategoryRepo,
         ILogger<BulkLabUploadService> logger,
         IIntakeFormRepository intakeFormRepository,
-        IHealthCampParticipantRepository healthCampParticipantRepository
+        IHealthCampParticipantRepository healthCampParticipantRepository,
+        ICampQueueRepository stationCheckInRepository
     )
     {
         _mappingRepo = mappingRepo;
@@ -65,10 +67,12 @@ public class BulkLabUploadService : IBulkLabUploadService
         _logger = logger;
         _intakeFormRepository = intakeFormRepository;
         _healthCampParticipantRepository = healthCampParticipantRepository;
+        _stationCheckInRepository = stationCheckInRepository;
     }
 
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
+
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
         var result = new BulkUploadResultDto();
@@ -115,6 +119,13 @@ public class BulkLabUploadService : IBulkLabUploadService
                     var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId, ct)
                          ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
 
+                    // 🧠 Resolve HealthCampServiceAssignmentId from active check-in
+                    var checkIn = await _stationCheckInRepository.GetActiveForParticipantAsync(participantId, null, ct)
+                                  ?? throw new ValidationException([$"No active station check-in found for participant {participantId}."]);
+
+                    if (checkIn.HealthCampServiceAssignmentId == Guid.Empty)
+                        throw new ValidationException([$"Check-in for participant {participantId} has no linked service assignment."]);
+
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
 
                     // Loop through columns starting from C (index 3)
@@ -148,12 +159,13 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var formDto = new CreateIntakeFormResponseDto
                     {
-                        PatientId = participantId, // ✅ uses participantId
+                        PatientId = participantId,
                         IntakeFormVersionId = formVersion.Id,
-                        FieldResponses = fieldResponses
+                        FieldResponses = fieldResponses,
+                        HealthCampServiceAssignmentId = checkIn.HealthCampServiceAssignmentId // ✅ Now injected
                     };
 
-                    // 🔍 DEBUG LOG: Dump the object being sent
+                    // 🔍 DEBUG LOG
                     _logger.LogInformation("➡️ Submitting FormResponse for PatientNumber={PatientNumber}, DTO={@FormDto}",
                         patientNumber, formDto);
 
@@ -175,6 +187,7 @@ public class BulkLabUploadService : IBulkLabUploadService
 
         return result;
     }
+
 
 
     public async Task<Stream> GenerateLabTemplateForCampAsync(Guid userId, Guid campId, CancellationToken ct = default)

@@ -29,7 +29,6 @@ public class BulkLabUploadService : IBulkLabUploadService
     private readonly ILogger<BulkLabUploadService> _logger;
 
     private readonly IIntakeFormRepository _intakeFormRepository;
-    // NEW
     private readonly IServiceRepository _serviceRepo;
     private readonly IServiceCategoryRepository _categoryRepo;
     private readonly IServiceSubcategoryRepository _subcategoryRepo;
@@ -70,9 +69,9 @@ public class BulkLabUploadService : IBulkLabUploadService
         _stationCheckInRepository = stationCheckInRepository;
     }
 
+
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
-
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
         var result = new BulkUploadResultDto();
@@ -92,19 +91,17 @@ public class BulkLabUploadService : IBulkLabUploadService
                 continue;
             }
 
-            // 2. Flatten all fields in this version
-            var availableFields = formVersion.Sections
-                .SelectMany(s => s.Fields)
-                .ToList();
+            // 2. Flatten all fields
+            var availableFields = formVersion.Sections.SelectMany(s => s.Fields).ToList();
 
-            // 3. Build header → fieldId dictionary
+            // 3. Map header → fieldId
             var headerToFieldId = availableFields
                 .ToDictionary(f => f.Label.Trim(), f => f.Id, StringComparer.OrdinalIgnoreCase);
 
             _logger.LogInformation("📄 Processing Sheet={SheetName}, Rows={RowCount}, Headers={HeaderCount}",
                 sheet.Name, sheet.Dimension.End.Row, headerToFieldId.Count);
 
-            // 4. Process each data row
+            // 4. Process each row
             for (int rowIndex = 2; rowIndex <= sheet.Dimension.End.Row; rowIndex++)
             {
                 try
@@ -119,16 +116,24 @@ public class BulkLabUploadService : IBulkLabUploadService
                     var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId, ct)
                          ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
 
-                    // 🧠 Resolve HealthCampServiceAssignmentId from active check-in
+                    // 🧠 Resolve check-in → assignment
                     var checkIn = await _stationCheckInRepository.GetActiveForParticipantAsync(participantId, null, ct)
                                   ?? throw new ValidationException([$"No active station check-in found for participant {participantId}."]);
 
                     if (checkIn.HealthCampServiceAssignmentId == Guid.Empty)
                         throw new ValidationException([$"Check-in for participant {participantId} has no linked service assignment."]);
 
-                    var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
+                    var assignment = await _assignmentRepo.GetByIdAsync(checkIn.HealthCampServiceAssignmentId, ct)
+                        ?? throw new ValidationException([$"Invalid assignment: {checkIn.HealthCampServiceAssignmentId}"]);
 
-                    // Loop through columns starting from C (index 3)
+                    // Ensure assignment resolves to valid Service
+                    var resolvedService = await _packageResolver.ResolveServiceAsync(
+                        assignment.AssignmentId, assignment.AssignmentType);
+                    if (resolvedService == null)
+                        throw new ValidationException([$"Assignment {assignment.Id} points to missing service."]);
+
+                    // Build responses
+                    var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
                     for (int colIndex = 3; colIndex <= sheet.Dimension.End.Column; colIndex++)
                     {
                         var header = sheet.Cells[1, colIndex].Text?.Trim();
@@ -159,13 +164,12 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var formDto = new CreateIntakeFormResponseDto
                     {
-                        PatientId = participantId,
+                        PatientId = participantId, // actually ParticipantId
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses,
-                        HealthCampServiceAssignmentId = checkIn.HealthCampServiceAssignmentId // ✅ Now injected
+                        HealthCampServiceAssignmentId = assignment.Id // ✅ safe assignment row id
                     };
 
-                    // 🔍 DEBUG LOG
                     _logger.LogInformation("➡️ Submitting FormResponse for PatientNumber={PatientNumber}, DTO={@FormDto}",
                         patientNumber, formDto);
 

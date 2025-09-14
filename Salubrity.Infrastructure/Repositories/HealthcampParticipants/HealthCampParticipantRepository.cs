@@ -58,6 +58,25 @@ namespace Salubrity.Infrastructure.Repositories
             _context.Set<HealthCampParticipant>().Update(participant);
             await _context.SaveChangesAsync(ct);
         }
+
+        public async Task<Guid?> GetParticipantIdByPatientIdAsync(Guid patientId, CancellationToken ct = default)
+        {
+            // Step 1: get UserId from patient
+            var userId = await _context.Patients
+                .Where(p => p.Id == patientId && !p.IsDeleted)
+                .Select(p => p.UserId)
+                .FirstOrDefaultAsync(ct);
+
+            if (userId == Guid.Empty)
+                return null;
+
+            // Step 2: get participant by UserId
+            return await _context.HealthCampParticipants
+                .Where(p => p.UserId == userId && !p.IsDeleted)
+                .Select(p => p.Id)
+                .FirstOrDefaultAsync(ct);
+        }
+
     }
 
 

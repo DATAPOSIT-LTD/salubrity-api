@@ -13,6 +13,7 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Microsoft.Extensions.Logging;
+using Salubrity.Application.Common.Interfaces.Repositories;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -32,6 +33,7 @@ public class BulkLabUploadService : IBulkLabUploadService
     private readonly IServiceRepository _serviceRepo;
     private readonly IServiceCategoryRepository _categoryRepo;
     private readonly IServiceSubcategoryRepository _subcategoryRepo;
+    private readonly IHealthCampParticipantRepository _healthCampParticipantRepository;
 
     public BulkLabUploadService(
         IFormFieldMappingRepository mappingRepo,
@@ -45,7 +47,8 @@ public class BulkLabUploadService : IBulkLabUploadService
         IServiceCategoryRepository categoryRepo,
         IServiceSubcategoryRepository subcategoryRepo,
         ILogger<BulkLabUploadService> logger,
-        IIntakeFormRepository intakeFormRepository
+        IIntakeFormRepository intakeFormRepository,
+        IHealthCampParticipantRepository healthCampParticipantRepository
     )
     {
         _mappingRepo = mappingRepo;
@@ -61,6 +64,7 @@ public class BulkLabUploadService : IBulkLabUploadService
         _subcategoryRepo = subcategoryRepo;
         _logger = logger;
         _intakeFormRepository = intakeFormRepository;
+        _healthCampParticipantRepository = healthCampParticipantRepository;
     }
 
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
@@ -107,6 +111,10 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var patientId = await _patientRepo.GetPatientIdByPatientNumberAsync(patientNumber, ct)
                                     ?? throw new NotFoundException($"Patient not found: {patientNumber}");
+
+                    var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId, ct)
+                         ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
+
 
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
 

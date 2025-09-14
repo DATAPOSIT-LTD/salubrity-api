@@ -108,7 +108,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             _logger.LogInformation("🧾 Incoming reference Id (from client ServiceId field): {RefId}", incomingRefId);
 
             // Detect what the incomingRefId actually is and resolve to top-level ServiceId
-            if (await _serviceRepository.ExistsByIdAsync(incomingRefId))
+            if (await _serviceRepository.ExistsByIdAsync(incomingRefId, ct))
             {
                 submittedServiceType = PackageItemType.Service;
                 submittedServiceId = incomingRefId;

@@ -14,6 +14,7 @@ using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.Common.Interfaces.Repositories;
+using Salubrity.Domain.Entities.HealthCamps;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -116,21 +117,23 @@ public class BulkLabUploadService : IBulkLabUploadService
                     var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId, ct)
                          ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
 
-                    // 🧠 Resolve check-in → assignment
-                    var checkIn = await _stationCheckInRepository.GetActiveForParticipantAsync(participantId, null, ct)
-                                  ?? throw new ValidationException([$"No active station check-in found for participant {participantId}."]);
+                    // 🧠 Try to resolve check-in → assignment
+                    var checkIn = await _stationCheckInRepository.GetLatestForParticipantAsync(participantId, ct);
 
-                    if (checkIn.HealthCampServiceAssignmentId == Guid.Empty)
-                        throw new ValidationException([$"Check-in for participant {participantId} has no linked service assignment."]);
-
-                    var assignment = await _assignmentRepo.GetByIdAsync(checkIn.HealthCampServiceAssignmentId, ct)
-                        ?? throw new ValidationException([$"Invalid assignment: {checkIn.HealthCampServiceAssignmentId}"]);
-
-                    // Ensure assignment resolves to valid Service
-                    var resolvedService = await _packageResolver.ResolveServiceAsync(
-                        assignment.AssignmentId, assignment.AssignmentType);
-                    if (resolvedService == null)
-                        throw new ValidationException([$"Assignment {assignment.Id} points to missing service."]);
+                    HealthCampServiceAssignment? assignment = null;
+                    if (checkIn != null && checkIn.HealthCampServiceAssignmentId != Guid.Empty)
+                    {
+                        assignment = await _assignmentRepo.GetByIdAsync(checkIn.HealthCampServiceAssignmentId, ct);
+                        if (assignment != null)
+                        {
+                            var resolvedService = await _packageResolver.ResolveServiceAsync(
+                                assignment.AssignmentId, assignment.AssignmentType);
+                            if (resolvedService == null)
+                            {
+                                throw new ValidationException([$"Assignment {assignment.Id} points to missing service."]);
+                            }
+                        }
+                    }
 
                     // Build responses
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
@@ -167,7 +170,7 @@ public class BulkLabUploadService : IBulkLabUploadService
                         PatientId = participantId, // actually ParticipantId
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses,
-                        HealthCampServiceAssignmentId = assignment.Id // ✅ safe assignment row id
+                        HealthCampServiceAssignmentId = assignment?.Id // ✅ may be null if no check-in
                     };
 
                     _logger.LogInformation("➡️ Submitting FormResponse for PatientNumber={PatientNumber}, DTO={@FormDto}",
@@ -191,7 +194,6 @@ public class BulkLabUploadService : IBulkLabUploadService
 
         return result;
     }
-
 
 
     public async Task<Stream> GenerateLabTemplateForCampAsync(Guid userId, Guid campId, CancellationToken ct = default)

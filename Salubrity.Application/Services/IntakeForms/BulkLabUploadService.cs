@@ -12,6 +12,7 @@ using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
+using Microsoft.Extensions.Logging;
 
 namespace Salubrity.Application.Services.IntakeForms;
 
@@ -24,7 +25,9 @@ public class BulkLabUploadService : IBulkLabUploadService
     private readonly ISubcontractorRepository _subcontractorRepo;
     private readonly IHealthCampServiceAssignmentRepository _assignmentRepo;
     private readonly IPackageReferenceResolver _packageResolver;
+    private readonly ILogger<BulkLabUploadService> _logger;
 
+    private readonly IIntakeFormRepository _intakeFormRepository;
     // NEW
     private readonly IServiceRepository _serviceRepo;
     private readonly IServiceCategoryRepository _categoryRepo;
@@ -40,7 +43,9 @@ public class BulkLabUploadService : IBulkLabUploadService
         IPackageReferenceResolver packageResolver,
         IServiceRepository serviceRepo,
         IServiceCategoryRepository categoryRepo,
-        IServiceSubcategoryRepository subcategoryRepo
+        IServiceSubcategoryRepository subcategoryRepo,
+        ILogger<BulkLabUploadService> logger,
+        IIntakeFormRepository intakeFormRepository
     )
     {
         _mappingRepo = mappingRepo;
@@ -54,8 +59,9 @@ public class BulkLabUploadService : IBulkLabUploadService
         _serviceRepo = serviceRepo;
         _categoryRepo = categoryRepo;
         _subcategoryRepo = subcategoryRepo;
+        _logger = logger;
+        _intakeFormRepository = intakeFormRepository;
     }
-
 
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
@@ -66,7 +72,8 @@ public class BulkLabUploadService : IBulkLabUploadService
         using var package = new ExcelPackage(dto.ExcelFile.OpenReadStream());
         foreach (var sheet in package.Workbook.Worksheets)
         {
-            var formVersion = await _mappingRepo.GetFormVersionBySheetNameAsync(sheet.Name, ct);
+            // 1. Load form version including sections + fields
+            var formVersion = await _intakeFormRepository.GetVersionWithFieldsAsync(sheet.Name, ct);
             if (formVersion == null)
             {
                 result.Errors.Add(new BulkUploadError
@@ -77,9 +84,19 @@ public class BulkLabUploadService : IBulkLabUploadService
                 continue;
             }
 
-            var mappings = await _mappingRepo.GetFieldMappingsAsync(formVersion.Id, ct);
-            if (mappings.Count == 0) continue;
+            // 2. Flatten all fields in this version
+            var availableFields = formVersion.Sections
+                .SelectMany(s => s.Fields)
+                .ToList();
 
+            // 3. Build header → fieldId dictionary
+            var headerToFieldId = availableFields
+                .ToDictionary(f => f.Label.Trim(), f => f.Id, StringComparer.OrdinalIgnoreCase);
+
+            _logger.LogInformation("📄 Processing Sheet={SheetName}, Rows={RowCount}, Headers={HeaderCount}",
+                sheet.Name, sheet.Dimension.End.Row, headerToFieldId.Count);
+
+            // 4. Process each data row
             for (int rowIndex = 2; rowIndex <= sheet.Dimension.End.Row; rowIndex++)
             {
                 try
@@ -92,19 +109,34 @@ public class BulkLabUploadService : IBulkLabUploadService
                                     ?? throw new NotFoundException($"Patient not found: {patientNumber}");
 
                     var fieldResponses = new List<CreateIntakeFormFieldResponseDto>();
-                    int colIndex = 3;
-                    foreach (var key in mappings.Keys)
+
+                    // Loop through columns starting from C (index 3)
+                    for (int colIndex = 3; colIndex <= sheet.Dimension.End.Column; colIndex++)
                     {
+                        var header = sheet.Cells[1, colIndex].Text?.Trim();
+                        if (string.IsNullOrEmpty(header)) continue;
+
+                        if (!headerToFieldId.TryGetValue(header, out var fieldId))
+                        {
+                            _logger.LogWarning("⚠️ No IntakeFormField found for header '{Header}' on sheet {Sheet}", header, sheet.Name);
+                            continue;
+                        }
+
                         var value = sheet.Cells[rowIndex, colIndex].Text?.Trim();
                         if (!string.IsNullOrEmpty(value))
                         {
                             fieldResponses.Add(new CreateIntakeFormFieldResponseDto
                             {
-                                FieldId = mappings[key],
+                                FieldId = fieldId,
                                 Value = value
                             });
                         }
-                        colIndex++;
+                    }
+
+                    if (fieldResponses.Count == 0)
+                    {
+                        _logger.LogInformation("Row {Row} skipped: No responses for patient {PatientNumber}", rowIndex, patientNumber);
+                        continue;
                     }
 
                     var formDto = new CreateIntakeFormResponseDto
@@ -125,6 +157,7 @@ public class BulkLabUploadService : IBulkLabUploadService
                         Row = rowIndex,
                         Message = ex.Message
                     });
+                    _logger.LogError(ex, "❌ Failed processing row {Row} on sheet {Sheet}", rowIndex, sheet.Name);
                 }
             }
         }

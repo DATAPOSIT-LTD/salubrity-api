@@ -149,7 +149,7 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var formDto = new CreateIntakeFormResponseDto
                     {
-                        PatientId = patientId,
+                        PatientId = participantId,
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses
                     };

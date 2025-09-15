@@ -15,10 +15,19 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
     }
 
     public async Task<List<ServiceCategory>> GetAllAsync()
-        => await _db.ServiceCategories.AsNoTracking().ToListAsync();
+    {
+        return await _db.ServiceCategories
+            .Include(c => c.Service)
+            .AsNoTracking()
+            .ToListAsync();
+    }
 
     public async Task<ServiceCategory?> GetByIdAsync(Guid id)
-        => await _db.ServiceCategories.FindAsync(id);
+    {
+        return await _db.ServiceCategories
+            .Include(c => c.Service)
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+    }
 
     public async Task AddAsync(ServiceCategory entity)
     {
@@ -47,8 +56,10 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
     {
         return await _db.ServiceCategories
             .Include(c => c.Subcategories)
+            .Include(c => c.Service)
             .FirstOrDefaultAsync(c => c.Id == id && c.IsActive);
     }
+
     public async Task<bool> IsNameUniqueAsync(string name, CancellationToken ct = default)
     {
         return !await _db.ServiceCategories

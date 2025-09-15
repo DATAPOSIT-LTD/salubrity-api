@@ -101,14 +101,18 @@ public class IntakeFormRepository : IIntakeFormRepository
             .ToListAsync(ct);
     }
 
-    public async Task<IntakeFormVersion?> GetVersionWithFieldsAsync(string sheetName, CancellationToken ct)
+    public async Task<IntakeFormVersion?> GetActiveVersionWithFieldsByFormNameAsync(string formName, CancellationToken ct)
     {
         return await _context.IntakeFormVersions
+            .Include(v => v.IntakeForm)
             .Include(v => v.Sections)
                 .ThenInclude(s => s.Fields)
-            .Where(v => !v.IsDeleted && v.IntakeForm.Name == sheetName)
+            .Where(v => !v.IsDeleted
+                && v.IsActive
+                && v.IntakeForm.Name == formName)
             .OrderByDescending(v => v.VersionNumber)
             .FirstOrDefaultAsync(ct);
     }
+
 
 }

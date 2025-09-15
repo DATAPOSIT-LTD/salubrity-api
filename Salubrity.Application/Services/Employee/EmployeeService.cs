@@ -36,6 +36,7 @@ public class EmployeeService : IEmployeeService
     private readonly IPatientRepository _patientRepo;
     private readonly IUserRepository _userRepo;
     private readonly INotificationService _notificationService;
+    private readonly IPatientNumberGeneratorService _patientNumberGeneratorService;
 
     public EmployeeService(
      IEmployeeRepository repo,
@@ -48,7 +49,8 @@ public class EmployeeService : IEmployeeService
      IOrganizationRepository organizationRepo,
      IPatientRepository patientRepo,
      IUserRepository userRepo,
-     INotificationService notificationService
+     INotificationService notificationService,
+     IPatientNumberGeneratorService patientNumberGeneratorService
      )
     {
         _repo = repo;
@@ -62,6 +64,7 @@ public class EmployeeService : IEmployeeService
         _patientRepo = patientRepo;
         _userRepo = userRepo;
         _notificationService = notificationService;
+        _patientNumberGeneratorService = patientNumberGeneratorService;
     }
 
 
@@ -161,13 +164,15 @@ public class EmployeeService : IEmployeeService
         };
 
         // 4) Create Patient
+        var patientNumber = await _patientNumberGeneratorService.GenerateAsync(ct);
         var patient = new Patient
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             PrimaryOrganizationId = dto.OrganizationId,
             Notes = "Auto-created for employee",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PatientNumber = patientNumber
         };
 
         // 5) Delegate full transactional save to repository
@@ -286,11 +291,14 @@ public class EmployeeService : IEmployeeService
                 await _repo.CreateAsync(employee);
 
                 //  Baked-in: Create matching Patient record
+                var patientNumber = await _patientNumberGeneratorService.GenerateAsync();
+
                 var patient = new Patient
                 {
                     Id = Guid.NewGuid(),
                     UserId = userId,
                     PrimaryOrganizationId = organization.Id,
+                    PatientNumber = patientNumber,
                     Notes = "Auto-created from employee bulk upload"
                 };
 

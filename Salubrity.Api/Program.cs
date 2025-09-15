@@ -8,8 +8,12 @@ using Salubrity.Infrastructure;
 using Salubrity.Shared.Extensions;
 using Salubrity.Api.Middleware;
 using Serilog;
+using OfficeOpenXml;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 🔐 Set EPPlus license context to allow Excel generation
+ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
 #region Logging
 builder.Host.UseSerilog((context, services, config) =>

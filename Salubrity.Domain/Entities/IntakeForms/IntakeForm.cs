@@ -16,7 +16,7 @@ public class IntakeForm : BaseAuditableEntity
 
 
     public bool IsActive { get; set; } = true;
-
+    public bool IsLabForm { get; set; } = false;
 
     public ICollection<IntakeFormSection> Sections { get; set; } = [];
     public ICollection<IntakeFormField> Fields { get; set; } = [];

@@ -13,6 +13,7 @@ using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Menus;
 using Salubrity.Domain.Entities.Notifications;
 using Salubrity.Domain.Entities.Organizations;
+using Salubrity.Domain.Entities.Patients;
 using Salubrity.Domain.Entities.Rbac;
 using Salubrity.Domain.Entities.Reporting;
 using Salubrity.Domain.Entities.Subcontractor;
@@ -101,6 +102,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<NotificationRecipient> NotificationRecipients { get; set; }
         public DbSet<NotificationType> NotificationTypes { get; set; }
         public DbSet<ReportingMetricMapping> ReportingMetricMappings { get; set; }
+        public DbSet<FormFieldMapping> FormFieldMappings { get; set; }
+        public DbSet<PatientNumberSequence> PatientNumberSequences { get; set; }
 
         // ─────────────────────────────────────
         //  Model Configuration

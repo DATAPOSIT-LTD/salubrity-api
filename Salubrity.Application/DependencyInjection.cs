@@ -5,6 +5,7 @@ using Salubrity.Application.Interfaces;
 using Salubrity.Application.Interfaces.IntakeForms;
 using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Camps;
@@ -40,6 +41,7 @@ using Salubrity.Application.Services.Lookups;
 using Salubrity.Application.Services.Menus;
 using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
+using Salubrity.Application.Services.Patients;
 using Salubrity.Application.Services.Rbac;
 using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Application.Services.Subcontractors;
@@ -122,6 +124,8 @@ namespace Salubrity.Application
             services.AddScoped<IOnboardingService, OnboardingService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IConciergeService, ConciergeService>();
+            services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
+            services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();
 
 
 

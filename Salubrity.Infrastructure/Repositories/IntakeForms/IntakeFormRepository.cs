@@ -80,4 +80,35 @@ public class IntakeFormRepository : IIntakeFormRepository
                 .ThenInclude(ff => ff.Options)
             .FirstOrDefaultAsync(f => f.Id == formId);
     }
+    public async Task<bool> IsFormAssignedAnywhereAsync(Guid formId)
+    {
+        var isUsedByService = await _context.Services.AnyAsync(s => s.IntakeFormId == formId);
+        var isUsedByCategory = await _context.ServiceCategories.AnyAsync(c => c.IntakeFormId == formId);
+        var isUsedBySubcategory = await _context.ServiceSubcategories.AnyAsync(sc => sc.IntakeFormId == formId);
+
+        return isUsedByService || isUsedByCategory || isUsedBySubcategory;
+    }
+    /// <summary>
+    /// Fetch all forms that are marked as lab forms (IsLabForm = true), including sections and fields.
+    /// </summary>
+    public async Task<List<IntakeForm>> GetLabFormsByIdsAsync(HashSet<Guid> ids, CancellationToken ct)
+    {
+        return await _context.IntakeForms
+            .Where(f => f.IsLabForm && ids.Contains(f.Id))
+            .Include(f => f.Sections.OrderBy(s => s.Order))
+                .ThenInclude(s => s.Fields.OrderBy(fld => fld.Order))
+                    .ThenInclude(fld => fld.Options.OrderBy(opt => opt.Order))
+            .ToListAsync(ct);
+    }
+
+    public async Task<IntakeFormVersion?> GetVersionWithFieldsAsync(string sheetName, CancellationToken ct)
+    {
+        return await _context.IntakeFormVersions
+            .Include(v => v.Sections)
+                .ThenInclude(s => s.Fields)
+            .Where(v => !v.IsDeleted && v.IntakeForm.Name == sheetName)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(ct);
+    }
+
 }

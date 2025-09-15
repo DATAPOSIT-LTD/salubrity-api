@@ -130,6 +130,9 @@ public static class DependencyInjection
         services.AddScoped<IConciergeRepository, ConciergeRepository>();
 
         services.AddScoped<IHealthCampServiceAssignmentRepository, HealthCampServiceAssignmentRepository>();
+        services.AddScoped<IFormFieldMappingRepository, FormFieldMappingRepository>();
+        services.AddScoped<IPatientNumberRepository, PatientNumberRepository>();
+
 
 
         services.AddDbContext<AppDbContext>(options =>

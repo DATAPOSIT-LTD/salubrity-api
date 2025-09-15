@@ -23,5 +23,47 @@ namespace Salubrity.Infrastructure.Repositories.Patients
 
         public Task<Patient?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
             _db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
+
+        /// <summary>
+        /// Get PatientId by PatientNumber (external identifier)
+        /// </summary>
+        public async Task<Guid?> GetPatientIdByPatientNumberAsync(string patientNumber, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(patientNumber))
+                return null;
+
+            var patient = await _db.Patients
+                .Where(p => p.PatientNumber == patientNumber.Trim())
+                .Select(p => new { p.Id })
+                .FirstOrDefaultAsync(ct);
+
+            return patient?.Id;
+        }
+        /// <summary>
+        /// Fetch all patients with user details (names) for Excel lab templates.
+        /// </summary>
+        public async Task<List<Patient>> GetAllPatientsAsync(CancellationToken ct = default)
+        {
+            return await _db.Patients
+                .Include(p => p.User)   // Required to get FirstName, MiddleName, LastName
+                .OrderBy(p => p.PatientNumber)
+                .ToListAsync(ct);
+        }
+        public async Task<List<Patient>> GetPatientsByCampViaUserAsync(Guid campId, CancellationToken ct = default)
+        {
+            return await _db.HealthCampParticipants
+                .Where(p => p.HealthCampId == campId && !p.IsDeleted)
+                .Join(
+                    _db.Patients,
+                    camp => camp.UserId,
+                    patient => patient.UserId,
+                    (camp, patient) => patient
+                )
+                .Include(p => p.User) // ✅ ensures full name is hydrated
+                .AsNoTracking()
+                .ToListAsync(ct);
+        }
+
     }
+
 }

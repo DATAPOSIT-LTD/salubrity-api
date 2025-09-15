@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250913051345_AddIsLabFormToIntakeForms")]
+    partial class AddIsLabFormToIntakeForms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3016,22 +3019,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasIndex("StatusId");
 
                     b.ToTable("Organizations");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.Patients.PatientNumberSequence", b =>
-                {
-                    b.Property<int>("Year")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Year"));
-
-                    b.Property<long>("LastValue")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Year");
-
-                    b.ToTable("PatientNumberSequences");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Rbac.Permission", b =>

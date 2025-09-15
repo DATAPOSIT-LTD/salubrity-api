@@ -13,5 +13,7 @@ namespace Salubrity.Application.Interfaces.Repositories
         Task AssignSpecialtyAsync(Guid subcontractorId, Guid serviceId);
         Task SaveChangesAsync();
         Task UpdateSubAsync(Subcontractor sub, CancellationToken ct);
+        Task<Subcontractor?> GetByUserIdAsync(Guid userId);
+
     }
 }

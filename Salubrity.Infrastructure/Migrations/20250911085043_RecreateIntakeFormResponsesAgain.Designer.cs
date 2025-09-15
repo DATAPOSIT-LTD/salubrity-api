@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250911085043_RecreateIntakeFormResponsesAgain")]
+    partial class RecreateIntakeFormResponsesAgain
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1308,13 +1311,7 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("LegacyPatientNumber")
-                        .HasColumnType("text");
-
                     b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<string>("PatientNumber")
                         .HasColumnType("text");
 
                     b.Property<Guid?>("PrimaryOrganizationId")
@@ -1454,36 +1451,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.FormFieldMapping", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Alias")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("IntakeFormFieldId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("IntakeFormVersionId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IntakeFormFieldId");
-
-                    b.HasIndex("IntakeFormVersionId", "Alias")
-                        .IsUnique();
-
-                    b.ToTable("FormFieldMappings", (string)null);
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeForm", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1510,9 +1477,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsLabForm")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Name")
@@ -3018,22 +2982,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("Organizations");
                 });
 
-            modelBuilder.Entity("Salubrity.Domain.Entities.Patients.PatientNumberSequence", b =>
-                {
-                    b.Property<int>("Year")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Year"));
-
-                    b.Property<long>("LastValue")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Year");
-
-                    b.ToTable("PatientNumberSequences");
-                });
-
             modelBuilder.Entity("Salubrity.Domain.Entities.Rbac.Permission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4070,25 +4018,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Gender");
 
                     b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.FormFieldMapping", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormField", "IntakeFormField")
-                        .WithMany()
-                        .HasForeignKey("IntakeFormFieldId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormVersion", "IntakeFormVersion")
-                        .WithMany()
-                        .HasForeignKey("IntakeFormVersionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("IntakeFormField");
-
-                    b.Navigation("IntakeFormVersion");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormField", b =>

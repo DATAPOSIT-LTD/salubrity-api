@@ -20,4 +20,7 @@ public interface ICampQueueRepository
     Task<HealthCampStationCheckIn?> GetByIdAsync(Guid checkInId, CancellationToken ct = default);
 
     Task UpdateAsync(HealthCampStationCheckIn checkIn, CancellationToken ct = default);
+
+    Task<HealthCampStationCheckIn?> GetLatestForParticipantAsync(
+        Guid participantId, CancellationToken ct = default);
 }

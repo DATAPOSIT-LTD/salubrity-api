@@ -219,4 +219,14 @@ public class CampQueueRepository : ICampQueueRepository
     }
 
 
+    public async Task<HealthCampStationCheckIn?> GetLatestForParticipantAsync(
+        Guid participantId, CancellationToken ct = default)
+    {
+        return await _db.HealthCampStationCheckIns
+            .Where(c => c.HealthCampParticipantId == participantId)
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+    }
+
+
 }

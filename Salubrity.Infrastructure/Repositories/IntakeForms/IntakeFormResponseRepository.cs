@@ -4,6 +4,7 @@ using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Application.Interfaces;
 using Salubrity.Shared.Exceptions;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
+using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
 
@@ -38,16 +39,6 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             .AnyAsync(v => v.Id == versionId, ct);
     }
 
-    // public async Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default)
-    // {
-    //     return (await _db.IntakeFormFields
-    //         .AsNoTracking()
-    //         .Where(f => f.Form.Versions.Contains == versionId)
-    //         .Select(f => f.Id)
-    //         .ToListAsync(ct))
-    //         .ToHashSet();
-    // }
-
     public async Task<HashSet<Guid>> GetFieldIdsForVersionAsync(Guid versionId, CancellationToken ct = default)
     {
         return await _db.IntakeFormFields
@@ -69,19 +60,23 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return id;
     }
 
-
-    public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default)
+    public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(
+        Guid patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var query =
             from r in _db.IntakeFormResponses
-                .Include(r => r.FieldResponses).ThenInclude(fr => fr.Field).ThenInclude(f => f.Section)
+                .Include(r => r.FieldResponses)
+                    .ThenInclude(fr => fr.Field)
+                        .ThenInclude(f => f.Section)
                 .Include(r => r.Status)
-                .Include(r => r.Version).ThenInclude(v => v.IntakeForm)
-                .Include(r => r.Service)
-            join hca in _db.HealthCampServiceAssignments
-                on r.ServiceId equals hca.ServiceId
+                .Include(r => r.Version)
+                    .ThenInclude(v => v.IntakeForm)
+                .Include(r => r.ResolvedService)
+            join a in _db.HealthCampServiceAssignments
+                on r.SubmittedServiceId equals a.AssignmentId
             where r.PatientId == patientId
-                  && hca.HealthCampId == healthCampId
+                  && a.HealthCampId == healthCampId
+                  && a.AssignmentType == (int)PackageItemType.Service
             orderby r.CreatedAt descending
             select new IntakeFormResponseDetailDto
             {
@@ -89,7 +84,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 IntakeFormVersionId = r.IntakeFormVersionId,
                 SubmittedByUserId = r.SubmittedByUserId,
                 PatientId = r.PatientId,
-                ServiceId = r.ServiceId,
+                ServiceId = r.ResolvedServiceId, // 
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,
                 Status = new ResponseStatusDto
@@ -105,12 +100,12 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                     IntakeFormName = r.Version.IntakeForm.Name,
                     IntakeFormDescription = r.Version.IntakeForm.Description
                 },
-                Service = r.Service == null ? null : new MiniServiceDto
+                Service = r.ResolvedService == null ? null : new MiniServiceDto
                 {
-                    Id = r.Service.Id,
-                    Name = r.Service.Name,
-                    Description = r.Service.Description,
-                    ImageUrl = r.Service.ImageUrl
+                    Id = r.ResolvedService.Id,
+                    Name = r.ResolvedService.Name,
+                    Description = r.ResolvedService.Description,
+                    ImageUrl = r.ResolvedService.ImageUrl
                 },
                 FieldResponses = r.FieldResponses
                     .OrderBy(fr => fr.Field.Order)

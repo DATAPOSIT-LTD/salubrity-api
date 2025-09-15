@@ -2,7 +2,9 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Camps;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
 
@@ -11,7 +13,14 @@ namespace Salubrity.Infrastructure.Repositories.Camps;
 public class CampQueueRepository : ICampQueueRepository
 {
     private readonly AppDbContext _db;
-    public CampQueueRepository(AppDbContext db) => _db = db;
+    private readonly IPackageReferenceResolver _referenceResolver;
+
+    public CampQueueRepository(AppDbContext db, IPackageReferenceResolver referenceResolver)
+    {
+        _db = db;
+        _referenceResolver = referenceResolver;
+    }
+
 
     private async Task<Guid> GetParticipantIdAsync(Guid userId, Guid campId, CancellationToken ct)
     {
@@ -82,7 +91,7 @@ public class CampQueueRepository : ICampQueueRepository
         var participantId = await GetParticipantIdAsync(userId, campId, ct);
 
         var active = await _db.Set<HealthCampStationCheckIn>()
-            .Include(x => x.Assignment).ThenInclude(a => a.Service)
+            .Include(x => x.Assignment)
             .Where(x => x.HealthCampId == campId
                      && x.HealthCampParticipantId == participantId
                      && (x.Status == "Queued" || x.Status == "InService"))
@@ -91,20 +100,24 @@ public class CampQueueRepository : ICampQueueRepository
         if (active == null)
             return new CheckInStateDto { CampId = campId, Status = "None" };
 
+        var stationName = await _referenceResolver.GetNameAsync(
+            (PackageItemType)active.Assignment.AssignmentType,
+            active.Assignment.AssignmentId);
+
         return new CheckInStateDto
         {
             CampId = campId,
             ActiveAssignmentId = active.HealthCampServiceAssignmentId,
-            ActiveStationName = active.Assignment.Service.Name,
+            ActiveStationName = stationName,
             Status = active.Status
         };
     }
+
 
     public async Task<QueuePositionDto> GetMyPositionAsync(Guid userId, Guid campId, Guid assignmentId, CancellationToken ct = default)
     {
         var participantId = await GetParticipantIdAsync(userId, campId, ct);
 
-        // whole queue for that station, ordered by priority desc, created asc
         var q = _db.Set<HealthCampStationCheckIn>()
             .Where(x => x.HealthCampId == campId
                      && x.HealthCampServiceAssignmentId == assignmentId
@@ -117,12 +130,17 @@ public class CampQueueRepository : ICampQueueRepository
             .ToListAsync(ct);
 
         var yourIndex = queue.FindIndex(x => x.HealthCampParticipantId == participantId);
-        var stationName = await _db.Set<HealthCampServiceAssignment>()
-            .Where(a => a.Id == assignmentId)
-            .Select(a => a.Service.Name)
-            .FirstAsync(ct);
 
-        // Get active state (Queued/InService/Completed/None)
+        // 🔁 Fetch assignment and resolve name
+        var assignment = await _db.Set<HealthCampServiceAssignment>()
+            .Where(a => a.Id == assignmentId)
+            .Select(a => new { a.AssignmentId, a.AssignmentType })
+            .FirstOrDefaultAsync(ct);
+
+        var stationName = assignment != null
+            ? await _referenceResolver.GetNameAsync((PackageItemType)assignment.AssignmentType, assignment.AssignmentId)
+            : "[Unknown Station]";
+
         var meActive = await _db.Set<HealthCampStationCheckIn>()
             .Where(x => x.HealthCampId == campId
                      && x.HealthCampParticipantId == participantId

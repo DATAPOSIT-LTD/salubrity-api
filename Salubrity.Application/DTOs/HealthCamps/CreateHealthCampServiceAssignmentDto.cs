@@ -1,3 +1,5 @@
+using Salubrity.Domain.Entities.HealthcareServices;
+
 namespace Salubrity.Application.DTOs.HealthCamps;
 
 public class CreateHealthCampServiceAssignmentDto

@@ -14,6 +14,7 @@ using Salubrity.Domain.Entities.Menus;
 using Salubrity.Domain.Entities.Notifications;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Domain.Entities.Rbac;
+using Salubrity.Domain.Entities.Reporting;
 using Salubrity.Domain.Entities.Subcontractor;
 using System;
 using System.Linq.Expressions;
@@ -99,7 +100,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<NotificationRecipient> NotificationRecipients { get; set; }
         public DbSet<NotificationType> NotificationTypes { get; set; }
-
+        public DbSet<ReportingMetricMapping> ReportingMetricMappings { get; set; }
 
         // ─────────────────────────────────────
         //  Model Configuration

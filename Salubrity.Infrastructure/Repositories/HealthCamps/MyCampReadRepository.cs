@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Camps;
+using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
 // adjust to your EF DbContext namespace:
 using Salubrity.Infrastructure.Persistence;
@@ -12,10 +14,12 @@ namespace Salubrity.Infrastructure.Repositories.Camps;
 public class MyCampReadRepository : IMyCampReadRepository
 {
     private readonly AppDbContext _db; // or whatever your concrete DbContext is named
+    private readonly IPackageReferenceResolver _referenceResolver;
 
-    public MyCampReadRepository(AppDbContext db)
+    public MyCampReadRepository(AppDbContext db, IPackageReferenceResolver referenceResolver)
     {
         _db = db;
+        _referenceResolver = referenceResolver;
     }
 
     public async Task<PagedResult<MyCampListItemDto>> GetUpcomingForUserAsync(
@@ -79,7 +83,7 @@ public class MyCampReadRepository : IMyCampReadRepository
     }
 
     public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
-         Guid userId, Guid campId, CancellationToken ct = default)
+        Guid userId, Guid campId, CancellationToken ct = default)
     {
         // Ensure user is a participant of this camp (guards data leakage)
         var isParticipant = await _db.Set<HealthCampParticipant>()
@@ -88,29 +92,40 @@ public class MyCampReadRepository : IMyCampReadRepository
 
         if (!isParticipant) return Array.Empty<MyCampServiceDto>();
 
-        // Stations = assignments for this camp
-        var items = await _db.Set<HealthCampServiceAssignment>()
+        // Load all assignments
+        var assignments = await _db.Set<HealthCampServiceAssignment>()
             .AsNoTracking()
             .Where(a => a.HealthCampId == campId)
-            .Select(a => new MyCampServiceDto
-            {
-                ServiceId = a.ServiceId,
-                ServiceName = a.Service.Name,
-                Description = a.Service.Description,
-                CampAssignmentId = a.Id,
-
-
-                SubcontractorId = a.SubcontractorId,
-                ServedBy = a.Subcontractor.User.FullName,       // change if your field differs
-
-                ProfessionId = a.ProfessionId,
-                Profession = a.Role != null ? a.Role.Name : null,
-
-                StationName = a.Service.Name                   // no alias column yet
-            })
+            .Include(a => a.Subcontractor).ThenInclude(s => s.User)
+            .Include(a => a.Role)
             .ToListAsync(ct);
 
-        return items;
+        var result = new List<MyCampServiceDto>();
+
+        foreach (var a in assignments)
+        {
+            var name = await _referenceResolver.GetNameAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
+            string? description = await _referenceResolver.GetDescriptionAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
+
+            result.Add(new MyCampServiceDto
+            {
+                CampAssignmentId = a.Id,
+
+                ServiceId = a.AssignmentId,
+                ServiceName = name,
+                Description = description,
+                StationName = name,
+
+                SubcontractorId = a.SubcontractorId,
+                ServedBy = a.Subcontractor?.User?.FullName,
+
+                ProfessionId = a.ProfessionId,
+                Profession = a.Role?.Name
+            });
+        }
+
+        return result;
     }
+
 
 }

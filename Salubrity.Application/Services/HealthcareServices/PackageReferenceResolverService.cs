@@ -44,4 +44,16 @@ public class PackageReferenceResolverService : IPackageReferenceResolver
         };
     }
 
+    public async Task<string?> GetDescriptionAsync(PackageItemType type, Guid referenceId)
+    {
+        return type switch
+        {
+            PackageItemType.Service => (await _serviceRepo.GetByIdAsync(referenceId))?.Description,
+            PackageItemType.ServiceCategory => (await _categoryRepo.GetByIdAsync(referenceId))?.Description,
+            PackageItemType.ServiceSubcategory => (await _subcategoryRepo.GetByIdAsync(referenceId))?.Description,
+            _ => null
+        };
+    }
+
+
 }

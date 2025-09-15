@@ -56,20 +56,54 @@ public class PackageReferenceResolverService : IPackageReferenceResolver
     }
 
 
+    // public async Task<Service?> ResolveServiceAsync(Guid assignmentId, PackageItemType type)
+    // {
+    //     return type switch
+    //     {
+    //         PackageItemType.Service => await _serviceRepo.GetByIdAsync(assignmentId),
+
+    //         PackageItemType.ServiceCategory =>
+    //             (await _categoryRepo.GetByIdAsync(assignmentId))?.Service,
+
+    //         PackageItemType.ServiceSubcategory =>
+    //             (await _subcategoryRepo.GetByIdAsync(assignmentId))?.ServiceCategory?.Service,
+
+    //         _ => throw new ValidationException(["Invalid PackageItemType when resolving service."])
+    //     };
+    // }
     public async Task<Service?> ResolveServiceAsync(Guid assignmentId, PackageItemType type)
     {
-        return type switch
+        switch (type)
         {
-            PackageItemType.Service => await _serviceRepo.GetByIdAsync(assignmentId),
+            case PackageItemType.Service:
+                var service = await _serviceRepo.GetByIdWithCategoriesAsync(assignmentId);
+                if (service == null)
+                    return null;
 
-            PackageItemType.ServiceCategory =>
-                (await _categoryRepo.GetByIdAsync(assignmentId))?.Service,
+                // If the service itself has an IntakeForm → use it
+                if (service.IntakeFormId != null && service.IsActive)
+                    return service;
 
-            PackageItemType.ServiceSubcategory =>
-                (await _subcategoryRepo.GetByIdAsync(assignmentId))?.ServiceCategory?.Service,
+                // Otherwise, try categories
+                var activeCategoryWithForm = service.Categories
+                    .FirstOrDefault(c => c.IsActive && c.IntakeFormId != null);
 
-            _ => throw new ValidationException(["Invalid PackageItemType when resolving service."])
-        };
+                if (activeCategoryWithForm != null)
+                    return service; // still return the parent, but note: form comes from category
+
+                return service; // fallback (even if inactive)
+
+            case PackageItemType.ServiceCategory:
+                var category = await _categoryRepo.GetByIdAsync(assignmentId);
+                return category?.Service;
+
+            case PackageItemType.ServiceSubcategory:
+                var subcategory = await _subcategoryRepo.GetByIdAsync(assignmentId);
+                return subcategory?.ServiceCategory?.Service;
+
+            default:
+                throw new ValidationException(["Invalid PackageItemType when resolving service."]);
+        }
     }
 
 

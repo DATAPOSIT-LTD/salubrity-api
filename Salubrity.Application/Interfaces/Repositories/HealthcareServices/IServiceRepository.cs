@@ -225,5 +225,6 @@ namespace Salubrity.Application.Interfaces.Repositories.HealthcareServices
 		/// </summary>
 		[Obsolete("Use ReplaceCategoryTreeAsync instead", false)]
 		Task ReplaceCategoriesTreeAsync(Service service, IEnumerable<ServiceCategory> newCategories, CancellationToken ct = default);
+		Task<Service?> GetByIdWithCategoriesAsync(Guid id);
 	}
 }

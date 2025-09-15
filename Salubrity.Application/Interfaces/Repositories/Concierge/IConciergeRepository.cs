@@ -5,6 +5,6 @@ namespace Salubrity.Application.Interfaces.Repositories.Concierge
     public interface IConciergeRepository
     {
         Task<List<CampServiceStationInfoDto>> GetCampServiceStationsAsync(Guid campId, CancellationToken ct);
-
+        Task<List<CampQueuePriorityDto>> GetCampQueuePrioritiesAsync(Guid campId, CancellationToken ct);
     }
 }

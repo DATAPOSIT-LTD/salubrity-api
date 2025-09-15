@@ -70,7 +70,6 @@ public class BulkLabUploadService : IBulkLabUploadService
         _stationCheckInRepository = stationCheckInRepository;
     }
 
-
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
@@ -80,10 +79,13 @@ public class BulkLabUploadService : IBulkLabUploadService
         using var package = new ExcelPackage(dto.ExcelFile.OpenReadStream());
         foreach (var sheet in package.Workbook.Worksheets)
         {
+            _logger.LogInformation("🗂 Starting processing of sheet: {SheetName}", sheet.Name);
+
             // 1. Load form version including sections + fields
             var formVersion = await _intakeFormRepository.GetVersionWithFieldsAsync(sheet.Name, ct);
             if (formVersion == null)
             {
+                _logger.LogError("❌ No IntakeFormVersion found for sheet: {SheetName}", sheet.Name);
                 result.Errors.Add(new BulkUploadError
                 {
                     Row = 0,
@@ -99,40 +101,63 @@ public class BulkLabUploadService : IBulkLabUploadService
             var headerToFieldId = availableFields
                 .ToDictionary(f => f.Label.Trim(), f => f.Id, StringComparer.OrdinalIgnoreCase);
 
-            _logger.LogInformation("📄 Processing Sheet={SheetName}, Rows={RowCount}, Headers={HeaderCount}",
+            _logger.LogInformation("📄 Sheet={SheetName}, Rows={RowCount}, Headers={HeaderCount}",
                 sheet.Name, sheet.Dimension.End.Row, headerToFieldId.Count);
 
             // 4. Process each row
             for (int rowIndex = 2; rowIndex <= sheet.Dimension.End.Row; rowIndex++)
             {
+                string? patientNumber = null;
+                Guid? patientId = null;
+                Guid? participantId = null;
+                Guid? checkInId = null;
+                Guid? assignmentId = null;
+
                 try
                 {
-                    var patientNumber = sheet.Cells[rowIndex, 1].Text?.Trim();
+                    patientNumber = sheet.Cells[rowIndex, 1].Text?.Trim();
                     if (string.IsNullOrEmpty(patientNumber))
                         throw new NotFoundException("Missing patient number");
 
-                    var patientId = await _patientRepo.GetPatientIdByPatientNumberAsync(patientNumber, ct)
-                                    ?? throw new NotFoundException($"Patient not found: {patientNumber}");
+                    _logger.LogInformation("👤 Row={RowIndex}, PatientNumber={PatientNumber}", rowIndex, patientNumber);
 
-                    var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId, ct)
-                         ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
+                    patientId = await _patientRepo.GetPatientIdByPatientNumberAsync(patientNumber, ct)
+                                 ?? throw new NotFoundException($"Patient not found: {patientNumber}");
 
-                    // 🧠 Try to resolve check-in → assignment
-                    var checkIn = await _stationCheckInRepository.GetLatestForParticipantAsync(participantId, ct);
+                    participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patientId.Value, ct)
+                                    ?? throw new NotFoundException($"Participant not found for patient {patientNumber}");
 
+                    var checkIn = await _stationCheckInRepository.GetLatestForParticipantAsync(participantId.Value, ct);
                     HealthCampServiceAssignment? assignment = null;
+
                     if (checkIn != null && checkIn.HealthCampServiceAssignmentId != Guid.Empty)
                     {
+                        checkInId = checkIn.Id;
                         assignment = await _assignmentRepo.GetByIdAsync(checkIn.HealthCampServiceAssignmentId, ct);
+
                         if (assignment != null)
                         {
+                            assignmentId = assignment.Id;
+                            _logger.LogInformation("🔗 Resolved assignment: AssignmentId={AssignmentId}, Type={AssignmentType}, FromCheckIn={CheckInId}",
+                                assignment.AssignmentId, assignment.AssignmentType, checkInId);
+
                             var resolvedService = await _packageResolver.ResolveServiceAsync(
                                 assignment.AssignmentId, assignment.AssignmentType);
+
                             if (resolvedService == null)
                             {
+                                _logger.LogError("❌ Could not resolve service from assignment. AssignmentId={AssignmentId}, Type={AssignmentType}, Participant={ParticipantId}, Patient={PatientNumber}",
+                                    assignment.AssignmentId, assignment.AssignmentType, participantId, patientNumber);
+
                                 throw new ValidationException([$"Assignment {assignment.Id} points to missing service."]);
                             }
+
+                            _logger.LogInformation("✅ Resolved Service: {ServiceName} (ID={ServiceId})", resolvedService.Name, resolvedService.Id);
                         }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("⚠️ No valid check-in or assignment for participant: {ParticipantId}, Patient: {PatientNumber}", participantId, patientNumber);
                     }
 
                     // Build responses
@@ -144,7 +169,7 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                         if (!headerToFieldId.TryGetValue(header, out var fieldId))
                         {
-                            _logger.LogWarning("⚠️ No IntakeFormField found for header '{Header}' on sheet {Sheet}", header, sheet.Name);
+                            _logger.LogWarning("⚠️ No matching field for header: '{Header}' on sheet {Sheet}", header, sheet.Name);
                             continue;
                         }
 
@@ -161,20 +186,20 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     if (fieldResponses.Count == 0)
                     {
-                        _logger.LogInformation("Row {Row} skipped: No responses for patient {PatientNumber}", rowIndex, patientNumber);
+                        _logger.LogInformation("🚫 Row {RowIndex} skipped: No responses for patient {PatientNumber}", rowIndex, patientNumber);
                         continue;
                     }
 
                     var formDto = new CreateIntakeFormResponseDto
                     {
-                        PatientId = participantId, // actually ParticipantId
+                        PatientId = participantId!.Value,
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses,
-                        HealthCampServiceAssignmentId = assignment?.Id // ✅ may be null if no check-in
+                        HealthCampServiceAssignmentId = assignment?.Id
                     };
 
-                    _logger.LogInformation("➡️ Submitting FormResponse for PatientNumber={PatientNumber}, DTO={@FormDto}",
-                        patientNumber, formDto);
+                    _logger.LogInformation("📤 Submitting FormResponse for Patient={PatientNumber}, FormId={FormId}, ParticipantId={ParticipantId}, AssignmentId={AssignmentId}",
+                        patientNumber, formVersion.Id, participantId, assignment?.Id);
 
                     await _formResponseService.SubmitResponseAsync(formDto, dto.SubmittedByUserId, ct);
                     result.SuccessCount++;
@@ -182,18 +207,22 @@ public class BulkLabUploadService : IBulkLabUploadService
                 catch (Exception ex)
                 {
                     result.FailureCount++;
+
                     result.Errors.Add(new BulkUploadError
                     {
                         Row = rowIndex,
                         Message = ex.Message
                     });
-                    _logger.LogError(ex, "❌ Failed processing row {Row} on sheet {Sheet}", rowIndex, sheet.Name);
+
+                    _logger.LogError(ex, "❌ Failed processing Row={RowIndex}, Patient={PatientNumber}, ParticipantId={ParticipantId}, AssignmentId={AssignmentId}, CheckInId={CheckInId}",
+                        rowIndex, patientNumber ?? "?", participantId?.ToString() ?? "?", assignmentId?.ToString() ?? "?", checkInId?.ToString() ?? "?");
                 }
             }
         }
 
         return result;
     }
+
 
 
     public async Task<Stream> GenerateLabTemplateForCampAsync(Guid userId, Guid campId, CancellationToken ct = default)

@@ -9,8 +9,10 @@ namespace Salubrity.Application.Services.Concierge
         private readonly IConciergeRepository _repo;
         public ConciergeService(IConciergeRepository repo) => _repo = repo;
 
-        // Get all service stations queue info for a camp
         public Task<List<CampServiceStationInfoDto>> GetCampServiceStationsAsync(Guid campId, CancellationToken ct)
         => _repo.GetCampServiceStationsAsync(campId, ct);
+
+        public Task<List<CampQueuePriorityDto>> GetCampQueuePrioritiesAsync(Guid campId, CancellationToken ct)
+            => _repo.GetCampQueuePrioritiesAsync(campId, ct);
     }
 }

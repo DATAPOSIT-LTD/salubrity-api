@@ -67,7 +67,7 @@ public class CampController : BaseController
     }
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
-    [Authorize(Roles = "Subcontractor,Admin")]
+    [Authorize(Roles = "Subcontractor, Doctor, Concierge, Admin")]
     [HttpGet("my/upcoming")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyUpcomingCampsAsync(

@@ -116,6 +116,24 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
             return result;
         }
 
+        public async Task<List<CampQueuePriorityDto>> GetCampQueuePrioritiesAsync(Guid campId, CancellationToken ct)
+        {
+            var checkIns = await _db.HealthCampStationCheckIns
+                .Include(ci => ci.Participant).ThenInclude(p => p.User)
+                .Include(ci => ci.Assignment).ThenInclude(a => a.Service)
+                .Where(ci => ci.HealthCampId == campId && ci.Status == "Queued")
+                .ToListAsync(ct);
 
+            var result = checkIns.Select(ci => new CampQueuePriorityDto
+            {
+                ParticipantId = ci.Participant.Id,
+                //PatientId = ci.Participant.PatientId ?? Guid.Empty,
+                PatientName = ci.Participant.User.FullName,
+                CurrentStation = ci.Assignment.Service.Name,
+                Priority = ci.Priority
+            }).ToList();
+
+            return result;
+        }
     }
 }

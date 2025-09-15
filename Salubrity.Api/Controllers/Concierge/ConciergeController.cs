@@ -29,5 +29,13 @@ namespace Salubrity.Api.Controllers.Concierge
             var stations = await _service.GetCampServiceStationsAsync(campId, ct);
             return Success(stations);
         }
+
+        [HttpGet("{campId:guid}/queue-priorities")]
+        [ProducesResponseType(typeof(ApiResponse<List<CampQueuePriorityDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetCampQueuePriorities(Guid campId, CancellationToken ct)
+        {
+            var priorities = await _service.GetCampQueuePrioritiesAsync(campId, ct);
+            return Success(priorities);
+        }
     }
 }

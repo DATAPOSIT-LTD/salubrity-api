@@ -191,8 +191,8 @@ public class CampController : BaseController
     }
 
 
-    [Authorize(Roles = "Subcontractor,Admin")]
-    [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$)}")]
+    [Authorize(Roles = "Concierge,Subcontractor,Admin")]
+    [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$|^ongoing$)}")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampWithRolesDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCampsByStatus(
     string status,
@@ -273,7 +273,7 @@ public class CampController : BaseController
     [HttpPut("{campId:guid}/participants/{participantId:guid}/billing-status")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateParticipantBillingStatus( Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct)
+    public async Task<IActionResult> UpdateParticipantBillingStatus(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct)
     {
         await _service.UpdateParticipantBillingStatusAsync(campId, participantId, dto, ct);
         return Success("Participant billing status updated.");

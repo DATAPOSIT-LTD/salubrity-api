@@ -445,6 +445,31 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
 
+    public async Task<List<HealthCamp>> GetAllOngoingCampsAsync(CancellationToken ct = default)
+    {
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+
+        return await _context.HealthCamps
+            .Where(c =>
+                !c.IsDeleted &&
+                (c.CloseDate == null || c.CloseDate > nowUtc) && c.HealthCampStatus.Name == "Ongoing" &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                ))
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+
 
     public async Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default)
     {

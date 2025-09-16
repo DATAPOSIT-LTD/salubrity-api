@@ -456,6 +456,15 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
+    public async Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId)
+    {
+        var camps = subcontractorId is null
+            ? await _repo.GetAllOngoingCampsAsync()
+            : await _repo.GetMyUpcomingCampsAsync(subcontractorId.Value);
+
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
     public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId)
     {
         var camps = subcontractorId is null

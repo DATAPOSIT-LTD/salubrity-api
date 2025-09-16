@@ -50,11 +50,11 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
             .Select(formGroup => new HealthAssessmentResponseDto
             {
                 FormName = formGroup.Key,
-                Sections = formGroup.Select(sec => new AssessmentSectionResponseDto
+                Sections = [.. formGroup.Select(sec => new AssessmentSectionResponseDto
                 {
                     SectionName = sec.Key.SectionName,
                     SectionOrder = sec.Key.SectionOrder,
-                    Fields = sec
+                    Fields = [.. sec
                         .Select(item => new FieldResponseDto
                         {
                             FieldLabel = item.FieldLabel,
@@ -62,9 +62,8 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
                             Value = item.Value,
                             SelectedOption = item.SelectedOption
                         })
-                        .OrderBy(f => f.FieldOrder)
-                        .ToList()
-                }).ToList()
+                        .OrderBy(f => f.FieldOrder)]
+                })]
             }).ToList();
 
         return result;

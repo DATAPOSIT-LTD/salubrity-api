@@ -8,5 +8,6 @@ public interface IPackageReferenceResolver
     Task<string?> GetDescriptionAsync(PackageItemType type, Guid referenceId);
     Task<Service?> ResolveServiceAsync(Guid assignmentId, PackageItemType type);
     Task<Guid> ResolveServiceIdAsync(Guid referenceId);
+    Task<(Guid? ParentId, PackageItemType? ParentType)> GetParentAsync(Guid referenceId);
 
 }

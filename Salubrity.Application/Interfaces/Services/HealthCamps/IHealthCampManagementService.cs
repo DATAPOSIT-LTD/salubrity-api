@@ -7,7 +7,7 @@ public interface IHealthCampManagementService
     /// <summary>
     /// Returns a list of service stations for the given health camp.
     /// </summary>
-    Task<List<ServiceStationSummaryDto>> GetServiceStationsAsync(Guid healthCampId);
+    Task<List<ServiceStationSummaryDto>> GetServiceStationsAsync(Guid healthCampId, bool group);
 
     /// <summary>
     /// Returns a list of patients participating in the given health camp.

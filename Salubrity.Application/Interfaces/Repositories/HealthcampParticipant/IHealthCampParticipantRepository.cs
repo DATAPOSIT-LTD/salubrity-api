@@ -13,6 +13,7 @@ namespace Salubrity.Application.Common.Interfaces.Repositories
         Task<HealthCampParticipant?> GetParticipantAsync(Guid campId, Guid participantId, CancellationToken ct = default);
         Task UpdateParticipantAsync(HealthCampParticipant participant, CancellationToken ct = default);
         Task<Guid?> GetParticipantIdByPatientIdAsync(Guid patientId, CancellationToken ct = default);
-
+        Task<HealthCampParticipant?> GetParticipantWithBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default);
+        Task<HealthCampParticipant?> GetParticipantWithBillingStatusByIdAsync(Guid participantId, CancellationToken ct = default);
     }
 }

@@ -45,6 +45,7 @@ namespace Salubrity.Application.Services.Auth
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IOrganizationRepository _organizationRepository;
         private readonly IPatientNumberGeneratorService _patientNumberGeneratorService;
+        private readonly IHealthCampParticipantRepository _healthCampParticipantRepository; 
 
 
 
@@ -66,7 +67,8 @@ namespace Salubrity.Application.Services.Auth
             IHealthCampService campService,
             IEmployeeRepository employeeRepository,
             IOrganizationRepository organizationRepository,
-            IPatientNumberGeneratorService patientNumberGeneratorService
+            IPatientNumberGeneratorService patientNumberGeneratorService,
+            IHealthCampParticipantRepository healthCampParticipantRepository
             )
         {
             _userRepository = userRepository;
@@ -86,6 +88,7 @@ namespace Salubrity.Application.Services.Auth
             _employeeRepository = employeeRepository;
             _organizationRepository = organizationRepository;
             _patientNumberGeneratorService = patientNumberGeneratorService;
+            _healthCampParticipantRepository = healthCampParticipantRepository;
         }
 
 
@@ -418,6 +421,13 @@ namespace Salubrity.Application.Services.Auth
                 isOnboardingComplete = await _onboardingService.CheckAndUpdateOnboardingStatusAsync(user.Id);
             }
 
+            string? billingStatus = null;
+            if (user.RelatedEntityType == "HealthCampParticipant" && user.RelatedEntityId.HasValue)
+            {
+                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(user.RelatedEntityId.Value);
+                billingStatus = participant?.BillingStatus?.Name;
+            }
+
             return new MeResponseDto
             {
                 Id = user.Id,
@@ -428,7 +438,8 @@ namespace Salubrity.Application.Services.Auth
                 Menus = roots,
                 RelatedEntityType = user.RelatedEntityType,
                 RelatedEntityId = user.RelatedEntityId,
-                OnboardingComplete = isOnboardingComplete
+                OnboardingComplete = isOnboardingComplete,
+                BillingStatus = billingStatus
             };
         }
     }

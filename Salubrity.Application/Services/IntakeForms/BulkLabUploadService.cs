@@ -210,6 +210,8 @@ public class BulkLabUploadService : IBulkLabUploadService
                         }
 
                         var value = sheet.Cells[rowIndex, colIndex].Text?.Trim();
+                        _logger.LogWarning("⚠️ Header - Value: '{Header}' on sheet {Value}", header, value);
+
                         if (!string.IsNullOrEmpty(value))
                         {
                             fieldResponses.Add(new CreateIntakeFormFieldResponseDto

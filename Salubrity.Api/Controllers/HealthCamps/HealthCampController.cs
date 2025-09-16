@@ -76,9 +76,11 @@ public class CampController : BaseController
     {
         var userId = GetCurrentUserId();
         var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+        var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
+        var isDoctor = await _userService.IsInRoleAsync(userId, "isDoctor");
 
         // Admins have no subcontractorId → pass null to service
-        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        var subcontractorId = (isAdmin || isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
         return Success(result);

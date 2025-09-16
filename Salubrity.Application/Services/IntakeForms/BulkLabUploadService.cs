@@ -230,6 +230,9 @@ public class BulkLabUploadService : IBulkLabUploadService
 
                     var service = await _categoryRepo.GetByNameAsync(sheet.Name);
 
+                    if (service == null)
+                        continue;
+
                     if (fieldResponses.Count == 0)
                     {
                         _logger.LogInformation("🚫 Row {RowIndex} skipped: No valid service for {sheet.Name}", rowIndex, patientNumber);

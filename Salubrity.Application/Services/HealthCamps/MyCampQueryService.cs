@@ -18,6 +18,10 @@ public class MyCampQueryService : IMyCampQueryService
         => _repo.GetUpcomingForUserAsync(userId, page, pageSize, search, ct);
 
     public Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
- Guid userId, Guid campId, CancellationToken ct = default)
- => _repo.GetServicesForUserCampAsync(userId, campId, ct);
+       Guid userId,
+       Guid campId,
+       bool group = false,
+       CancellationToken ct = default)
+       => _repo.GetServicesForUserCampAsync(userId, campId, group, ct);
+
 }

@@ -40,11 +40,11 @@ public class MyCampsController : BaseController
 
     [HttpGet("{campId:guid}/service-stations")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<MyCampServiceDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampServices(Guid campId, CancellationToken ct = default)
+    public async Task<IActionResult> GetCampServices(Guid campId, [FromQuery] bool group = false, CancellationToken ct = default)
     {
         var userId = GetCurrentUserId();
-
-        var items = await _service.GetServicesForUserCampAsync(userId, campId, ct);
+        var items = await _service.GetServicesForUserCampAsync(userId, campId, group, ct);
         return Success(items);
     }
+
 }

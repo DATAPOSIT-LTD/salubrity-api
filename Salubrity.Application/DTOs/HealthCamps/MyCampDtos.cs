@@ -32,6 +32,7 @@ public class MyCampServiceDto
     public bool IsCompleted { get; set; }             // for the current participant
     public int? Order { get; set; }
     public string? IconUrl { get; set; }              // if you store one on assignment/service
+    public List<MyCampServiceDto> Children { get; set; } = new();
 }
 public class PagedResult<T>
 {

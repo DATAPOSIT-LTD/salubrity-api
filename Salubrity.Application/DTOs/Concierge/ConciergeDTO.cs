@@ -22,4 +22,19 @@
         public string? CurrentStation { get; set; }
         public int Priority { get; set; }
     }
+
+    public class QueuedParticipantDto
+    {
+        public string PatientName { get; set; } = default!;
+        public string QueueTime { get; set; } = default!;
+    }
+
+    public class CampServiceStationWithQueueDto
+    {
+        public Guid AssignmentId { get; set; }
+        public string ServiceStation { get; set; } = default!;
+        public int QueueLength { get; set; }
+        public string AssignedSubcontractor { get; set; } = default!;
+        public List<QueuedParticipantDto> Queue { get; set; } = [];
+    }
 }

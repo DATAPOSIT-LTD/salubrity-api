@@ -67,7 +67,7 @@ public class CampController : BaseController
     }
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
-    [Authorize(Roles = "Subcontractor, Doctor, Concierge, Admin")]
+    [Authorize(Roles = "Subcontractor,Doctor,Concierge,Admin")]
     [HttpGet("my/upcoming")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyUpcomingCampsAsync(
@@ -84,7 +84,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    [Authorize(Roles = "Subcontractor,Admin")]
+    [Authorize(Roles = "Concierge,Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCompleteCampsAsync(
@@ -99,7 +99,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    [Authorize(Roles = "Subcontractor,Admin")]
+    [Authorize(Roles = "Concierge,Subcontractor,Admin")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCanceledCampsAsync(

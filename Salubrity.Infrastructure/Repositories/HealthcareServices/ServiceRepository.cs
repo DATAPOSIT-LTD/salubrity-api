@@ -442,5 +442,11 @@ namespace Salubrity.Infrastructure.Repositories.HealthcareServices
                 }
             }
         }
+        public async Task<Service?> GetByIdWithCategoriesAsync(Guid id)
+        {
+            return await _db.Services
+                .Include(s => s.Categories)
+                .FirstOrDefaultAsync(s => s.Id == id);
+        }
     }
 }

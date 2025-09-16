@@ -22,6 +22,7 @@ public interface IHealthCampRepository
 
     // Admin-wide
     Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default);
+    Task<List<HealthCamp>> GetAllOngoingCampsAsync(CancellationToken ct = default);
     Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default);
     Task<List<HealthCamp>> GetAllCanceledCampsAsync(CancellationToken ct = default);
 

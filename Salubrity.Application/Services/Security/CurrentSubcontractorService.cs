@@ -55,6 +55,12 @@ public class CurrentSubcontractorService : ICurrentSubcontractorService
         if (!await _roles.HasRoleAsync(userId, "Subcontractor", ct))
             return null;
 
+        if (await _roles.HasRoleAsync(userId, "Concierge", ct))
+            return Guid.Empty;
+
+        if (await _roles.HasRoleAsync(userId, "Doctor", ct))
+            return Guid.Empty;
+
         return await _subs.GetActiveIdByUserIdAsync(userId, ct);
     }
 }

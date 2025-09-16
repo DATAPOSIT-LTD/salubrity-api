@@ -67,7 +67,7 @@ public class CampController : BaseController
     }
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
-    [Authorize(Roles = "Subcontractor, Doctor, Concierge, Admin")]
+    [Authorize(Roles = "Subcontractor,Doctor,Concierge,Admin")]
     [HttpGet("my/upcoming")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyUpcomingCampsAsync(
@@ -84,7 +84,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    [Authorize(Roles = "Subcontractor,Admin")]
+    [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCompleteCampsAsync(
@@ -99,7 +99,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    [Authorize(Roles = "Subcontractor,Admin")]
+    [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCanceledCampsAsync(
@@ -111,6 +111,21 @@ public class CampController : BaseController
         var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyCanceledCampsAsync(subcontractorId);
+        return Success(result);
+    }
+
+    [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
+    [HttpGet("my/ongoing")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyOgoingCampsAsync(
+     [FromServices] ICurrentSubcontractorService current,
+     CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
+        var subcontractorId = isConcierge ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
+        var result = await _service.GetMyOngoingCampsAsync(subcontractorId);
         return Success(result);
     }
 
@@ -191,8 +206,8 @@ public class CampController : BaseController
     }
 
 
-    [Authorize(Roles = "Subcontractor,Admin")]
-    [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$)}")]
+    [Authorize(Roles = "Concierge,Subcontractor,Admin")]
+    [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$|^ongoing$)}")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampWithRolesDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCampsByStatus(
     string status,
@@ -273,7 +288,7 @@ public class CampController : BaseController
     [HttpPut("{campId:guid}/participant/{participantId:guid}/billing-status")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UpdateParticipantBillingStatus( Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct)
+    public async Task<IActionResult> UpdateParticipantBillingStatus(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct)
     {
         await _service.UpdateParticipantBillingStatusAsync(campId, participantId, dto, ct);
         return Success("Participant billing status updated.");

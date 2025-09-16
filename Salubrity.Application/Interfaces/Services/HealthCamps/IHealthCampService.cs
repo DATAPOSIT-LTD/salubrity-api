@@ -47,5 +47,5 @@ public interface IHealthCampService
     Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default);
     Task UpdateParticipantBillingStatusAsync(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct = default);
     Task<ParticipantBillingStatusDto> GetParticipantBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default);
-
+    Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId);
 }

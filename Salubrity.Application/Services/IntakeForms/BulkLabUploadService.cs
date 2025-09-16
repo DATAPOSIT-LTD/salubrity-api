@@ -72,6 +72,41 @@ public class BulkLabUploadService : IBulkLabUploadService
 
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
+
+        //         public class CreateBulkLabUploadDto
+        // {
+        //     public IFormFile ExcelFile { get; set; } = null!;
+        //     public Guid IntakeFormVersionId { get; set; }
+        //     public Guid SubmittedByUserId { get; set; }
+        // }
+
+        /**
+        {
+    "intakeFormId": "a6fdecc9-1b30-43d2-8852-f4c21e7c1201",
+    "intakeFormVersionId": "28a9908c-5859-4416-ada3-9077b84a1d25",
+    "patientId": "749fad67-0ab7-4cf4-bc38-aa83e0c413f9",
+    "serviceId": "b50a6ef7-a9c2-4c86-ad7e-5ede161e4f2d",
+    "responseStatusId": "c40c5a53-55bd-4c58-81dd-fafc54db0ac7",
+    "fieldResponses": [
+        {
+            "fieldId": "114b2d4e-4f75-4d0e-90f7-049ba92b468d",
+            "value": "1"
+        },
+        {
+            "fieldId": "0e2cb7c4-c8fa-4de5-be26-b0f2c23ee13e",
+            "value": "5"
+        },
+        {
+            "fieldId": "a50c0ee9-3329-4473-9175-21001f4f0b82",
+            "value": "1"
+        },
+        {
+            "fieldId": "651f3cc4-10fb-4d3a-9b76-baaabb671255",
+            "value": "No additional notes for now"
+        }
+    ]
+}
+        */
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
         var result = new BulkUploadResultDto();
@@ -82,7 +117,8 @@ public class BulkLabUploadService : IBulkLabUploadService
             _logger.LogInformation("🗂 Starting processing of sheet: {SheetName}", sheet.Name);
 
             // 1. Load form version including sections + fields
-            var formVersion = await _intakeFormRepository.GetVersionWithFieldsAsync(sheet.Name, ct);
+            var formVersion = await _intakeFormRepository.GetActiveVersionWithFieldsByFormNameAsync(sheet.Name, ct);
+
             if (formVersion == null)
             {
                 _logger.LogError("❌ No IntakeFormVersion found for sheet: {SheetName}", sheet.Name);
@@ -174,6 +210,8 @@ public class BulkLabUploadService : IBulkLabUploadService
                         }
 
                         var value = sheet.Cells[rowIndex, colIndex].Text?.Trim();
+                        _logger.LogWarning("⚠️ Header - Value: '{Header}' on sheet {Value}", header, value);
+
                         if (!string.IsNullOrEmpty(value))
                         {
                             fieldResponses.Add(new CreateIntakeFormFieldResponseDto
@@ -190,12 +228,26 @@ public class BulkLabUploadService : IBulkLabUploadService
                         continue;
                     }
 
+                    var service = await _categoryRepo.GetByNameAsync(sheet.Name);
+
+                    if (service == null)
+                        continue;
+
+                    if (fieldResponses.Count == 0)
+                    {
+                        _logger.LogInformation("🚫 Row {RowIndex} skipped: No valid service for {sheet.Name}", rowIndex, patientNumber);
+                        continue;
+                    }
+
                     var formDto = new CreateIntakeFormResponseDto
                     {
                         PatientId = participantId!.Value,
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses,
-                        HealthCampServiceAssignmentId = assignment?.Id
+                        ResponseStatusId = Guid.Parse("c40c5a53-55bd-4c58-81dd-fafc54db0ac7"),
+                        // HealthCampServiceAssignmentId = assignment?.Id
+                        ServiceId = service.Id
+
                     };
 
                     _logger.LogInformation("📤 Submitting FormResponse for Patient={PatientNumber}, FormId={FormId}, ParticipantId={ParticipantId}, AssignmentId={AssignmentId}",

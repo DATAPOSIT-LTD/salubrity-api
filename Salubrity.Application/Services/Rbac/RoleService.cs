@@ -21,7 +21,10 @@ public class RoleService : IRoleService
         var roles = await _repository.GetAllRolesAsync();
 
         var result = roles
-            .Where(r => !string.Equals(r.Name, "Admin", StringComparison.OrdinalIgnoreCase))
+            .Where(r =>
+                string.Equals(r.Name, "Patient", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.Name, "Subcontractor", StringComparison.OrdinalIgnoreCase)
+            )
             .OrderBy(r => r.Name)
             .Select(r => new RoleDto
             {
@@ -38,6 +41,7 @@ public class RoleService : IRoleService
 
 
 
+
     public async Task<ApiResponse<RoleDto>> GetByIdAsync(Guid id)
     {
         var role = (await _repository.GetAllRolesAsync())
@@ -51,7 +55,7 @@ public class RoleService : IRoleService
             Id = role.Id,
             Name = role.Name,
             Description = role.Description,
-           
+
         };
 
         return ApiResponse<RoleDto>.CreateSuccess(dto);
@@ -64,7 +68,7 @@ public class RoleService : IRoleService
             Id = Guid.NewGuid(),
             Name = input.Name,
             Description = input.Description,
-           
+
         };
 
         await _repository.AddRoleAsync(role);
@@ -74,7 +78,7 @@ public class RoleService : IRoleService
             Id = role.Id,
             Name = role.Name,
             Description = role.Description,
-          
+
         };
 
         return ApiResponse<RoleDto>.CreateSuccess(dto, "Role created successfully.");

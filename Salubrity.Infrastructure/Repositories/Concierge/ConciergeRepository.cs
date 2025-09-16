@@ -122,6 +122,7 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
             var checkIns = await _db.HealthCampStationCheckIns
                 .Include(ci => ci.Participant).ThenInclude(p => p.User)
                 //.Include(ci => ci.Assignment).ThenInclude(a => a.Service)
+                .Include(ci => ci.Assignment).ThenInclude(a => a.AssignmentType)
                 .Where(ci => ci.HealthCampId == campId && ci.Status == "Queued")
                 .ToListAsync(ct);
 
@@ -131,6 +132,7 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
                 //PatientId = ci.Participant.PatientId ?? Guid.Empty,
                 PatientName = ci.Participant.User.FullName,
                 //CurrentStation = ci.Assignment.Service.Name,
+                CurrentStation = ci.Assignment.AssignmentName,
                 Priority = ci.Priority
             }).ToList();
 

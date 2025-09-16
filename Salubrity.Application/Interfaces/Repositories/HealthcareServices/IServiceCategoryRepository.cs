@@ -12,4 +12,5 @@ public interface IServiceCategoryRepository
     Task<bool> ExistsByIdAsync(Guid id);
     Task<ServiceCategory?> GetByIdWithSubcategoriesAsync(Guid categoryId);
     Task<bool> IsNameUniqueAsync(string name, CancellationToken ct = default);
+    Task<ServiceCategory?> GetByNameAsync(string name);
 }

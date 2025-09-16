@@ -216,6 +216,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             checkIn.FinishedAt = now;
             checkIn.StartedAt ??= now;
 
+            // _
+
             _logger.LogInformation("✅ Marking station check-in as completed: CheckInId={CheckInId}, FinishedAt={FinishedAt}", checkIn.Id, now);
             await _stationCheckInRepository.UpdateAsync(checkIn, ct);
         }

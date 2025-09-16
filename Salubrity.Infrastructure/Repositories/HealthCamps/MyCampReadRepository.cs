@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Camps;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -15,11 +17,15 @@ public class MyCampReadRepository : IMyCampReadRepository
 {
     private readonly AppDbContext _db; // or whatever your concrete DbContext is named
     private readonly IPackageReferenceResolver _referenceResolver;
+    private readonly IIntakeFormResponseRepository _intakeFormResponsesRepo;
+    private readonly IHealthCampParticipantRepository _healthCampParticipantRepository;
 
-    public MyCampReadRepository(AppDbContext db, IPackageReferenceResolver referenceResolver)
+    public MyCampReadRepository(AppDbContext db, IPackageReferenceResolver referenceResolver, IIntakeFormResponseRepository intakeFormResponsesRepo, IHealthCampParticipantRepository healthCampParticipantRepository)
     {
         _db = db;
         _referenceResolver = referenceResolver;
+        _intakeFormResponsesRepo = intakeFormResponsesRepo;
+        _healthCampParticipantRepository = healthCampParticipantRepository;
     }
 
     public async Task<PagedResult<MyCampListItemDto>> GetUpcomingForUserAsync(
@@ -90,15 +96,26 @@ public class MyCampReadRepository : IMyCampReadRepository
             .AsNoTracking()
             .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
 
+
+
+
         if (!isParticipant) return Array.Empty<MyCampServiceDto>();
 
+        var participant = await _db.HealthCampParticipants.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken: ct);
+
+        if (participant == null)
+            return Array.Empty<MyCampServiceDto>();
+
+        var patientId = await _healthCampParticipantRepository.GetPatientIdByParticipantIdAsync(participant.Id, ct);
+        if (patientId == null)
+            return Array.Empty<MyCampServiceDto>();
         // Load all assignments
         var assignments = await _db.Set<HealthCampServiceAssignment>()
-            .AsNoTracking()
-            .Where(a => a.HealthCampId == campId)
-            .Include(a => a.Subcontractor).ThenInclude(s => s.User)
-            .Include(a => a.Role)
-            .ToListAsync(ct);
+        .AsNoTracking()
+        .Where(a => a.HealthCampId == campId)
+        .Include(a => a.Subcontractor).ThenInclude(s => s.User)
+        .Include(a => a.Role)
+        .ToListAsync(ct);
 
         var result = new List<MyCampServiceDto>();
 
@@ -107,6 +124,15 @@ public class MyCampReadRepository : IMyCampReadRepository
             var name = await _referenceResolver.GetNameAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
             string? description = await _referenceResolver.GetDescriptionAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
 
+            var res = await _intakeFormResponsesRepo.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
+            var isCompleted = false;
+            foreach (var r in res)
+            {
+                if (r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted")
+                {
+                    isCompleted = true;
+                }
+            }
             result.Add(new MyCampServiceDto
             {
                 CampAssignmentId = a.Id,
@@ -120,7 +146,8 @@ public class MyCampReadRepository : IMyCampReadRepository
                 ServedBy = a.Subcontractor?.User?.FullName,
 
                 ProfessionId = a.ProfessionId,
-                Profession = a.Role?.Name
+                Profession = a.Role?.Name,
+                IsCompleted = isCompleted
             });
         }
 

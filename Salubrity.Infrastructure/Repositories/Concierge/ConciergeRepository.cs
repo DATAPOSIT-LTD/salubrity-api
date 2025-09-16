@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Concierge;
 using Salubrity.Application.Interfaces.Repositories.Concierge;
+using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Infrastructure.Persistence;
 
@@ -120,7 +121,7 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
         {
             var checkIns = await _db.HealthCampStationCheckIns
                 .Include(ci => ci.Participant).ThenInclude(p => p.User)
-                .Include(ci => ci.Assignment).ThenInclude(a => a.Service)
+                //.Include(ci => ci.Assignment).ThenInclude(a => a.Service)
                 .Where(ci => ci.HealthCampId == campId && ci.Status == "Queued")
                 .ToListAsync(ct);
 
@@ -129,11 +130,65 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
                 ParticipantId = ci.Participant.Id,
                 //PatientId = ci.Participant.PatientId ?? Guid.Empty,
                 PatientName = ci.Participant.User.FullName,
-                CurrentStation = ci.Assignment.Service.Name,
+                //CurrentStation = ci.Assignment.Service.Name,
                 Priority = ci.Priority
             }).ToList();
 
             return result;
+        }
+
+        public async Task<List<CampServiceStationWithQueueDto>> GetCampServiceStationsWithQueueAsync(Guid campId, CancellationToken ct)
+        {
+            var serviceAssignments = await _db.Set<HealthCampServiceAssignment>()
+                .Where(a => a.HealthCampId == campId)
+                .Include(a => a.AssignmentId)
+                .Include(a => a.Subcontractor)
+                    .ThenInclude(s => s.User)
+                .Select(a => new
+                {
+                    a.Id,
+                    ServiceName = a.AssignmentName,
+                    SubcontractorName = a.Subcontractor.User.FirstName + " " + a.Subcontractor.User.LastName
+                })
+                .ToListAsync(ct);
+
+            var result = new List<CampServiceStationWithQueueDto>();
+            var now = DateTime.UtcNow;
+
+            foreach (var assignment in serviceAssignments)
+            {
+                var queue = await _db.Set<HealthCampStationCheckIn>()
+                    .Where(c => c.HealthCampServiceAssignmentId == assignment.Id && c.Status == "Queued")
+                    .Include(c => c.Participant)
+                        .ThenInclude(p => p.User)
+                    .OrderBy(c => c.CreatedAt)
+                    .Select(c => new QueuedParticipantDto
+                    {
+                        PatientName = c.Participant.User.FirstName + " " + c.Participant.User.LastName,
+                        QueueTime = FormatTimeSpan(now - c.CreatedAt)
+                    })
+                    .ToListAsync(ct);
+
+                result.Add(new CampServiceStationWithQueueDto
+                {
+                    AssignmentId = assignment.Id,
+                    ServiceStation = assignment.ServiceName,
+                    AssignedSubcontractor = assignment.SubcontractorName,
+                    QueueLength = queue.Count,
+                    Queue = queue
+                });
+            }
+
+            return result;
+        }
+
+        private static string FormatTimeSpan(TimeSpan timeSpan)
+        {
+            if (timeSpan.TotalMinutes >= 60)
+            {
+                return $"{(int)timeSpan.TotalHours}h {(int)timeSpan.Minutes % 60}m";
+            }
+            return $"{(int)timeSpan.TotalMinutes}m";
         }
     }
 }

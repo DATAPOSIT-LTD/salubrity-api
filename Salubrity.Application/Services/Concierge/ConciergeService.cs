@@ -14,5 +14,8 @@ namespace Salubrity.Application.Services.Concierge
 
         public Task<List<CampQueuePriorityDto>> GetCampQueuePrioritiesAsync(Guid campId, CancellationToken ct)
             => _repo.GetCampQueuePrioritiesAsync(campId, ct);
+
+        public Task<List<CampServiceStationWithQueueDto>> GetCampServiceStationsWithQueueAsync(Guid campId, CancellationToken ct)
+        => _repo.GetCampServiceStationsWithQueueAsync(campId, ct);
     }
 }

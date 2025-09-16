@@ -659,4 +659,24 @@ public class HealthCampService : IHealthCampService
         participant.BillingStatusId = dto.BillingStatusId;
         await _campParticipantRepository.UpdateParticipantAsync(participant, ct);
     }
+
+    public async Task<ParticipantBillingStatusDto> GetParticipantBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default)
+    {
+        var participant = await _campParticipantRepository.GetParticipantWithBillingStatusAsync(campId, participantId, ct);
+        if (participant is null)
+        {
+            throw new NotFoundException("Participant not found in this camp.");
+        }
+
+        if (participant.BillingStatus is null)
+        {
+            throw new NotFoundException("Billing status not found for this participant.");
+        }
+
+        return new ParticipantBillingStatusDto
+        {
+            Id = participant.BillingStatus.Id,
+            Name = participant.BillingStatus.Name
+        };
+    }
 }

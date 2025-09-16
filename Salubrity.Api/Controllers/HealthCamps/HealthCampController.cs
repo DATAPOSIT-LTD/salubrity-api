@@ -270,12 +270,21 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    [HttpPut("{campId:guid}/participants/{participantId:guid}/billing-status")]
+    [HttpPut("{campId:guid}/participant/{participantId:guid}/billing-status")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateParticipantBillingStatus( Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct)
     {
         await _service.UpdateParticipantBillingStatusAsync(campId, participantId, dto, ct);
         return Success("Participant billing status updated.");
+    }
+
+    [HttpGet("{campId:guid}/participant/{participantId:guid}/billing-status")]
+    [ProducesResponseType(typeof(ApiResponse<ParticipantBillingStatusDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetParticipantBillingStatus(Guid campId, Guid participantId, CancellationToken ct)
+    {
+        var result = await _service.GetParticipantBillingStatusAsync(campId, participantId, ct);
+        return Success(result);
     }
 }

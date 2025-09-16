@@ -77,6 +77,19 @@ namespace Salubrity.Infrastructure.Repositories
                 .FirstOrDefaultAsync(ct);
         }
 
+        public async Task<HealthCampParticipant?> GetParticipantWithBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default)
+        {
+            return await _context.HealthCampParticipants
+                .Include(p => p.BillingStatus)
+                .FirstOrDefaultAsync(p => p.HealthCampId == campId && p.Id == participantId, ct);
+        }
+
+        public async Task<HealthCampParticipant?> GetParticipantWithBillingStatusByIdAsync(Guid participantId, CancellationToken ct = default)
+        {
+            return await _context.HealthCampParticipants
+                .Include(p => p.BillingStatus)
+                .FirstOrDefaultAsync(p => p.Id == participantId, ct);
+        }
     }
 
 

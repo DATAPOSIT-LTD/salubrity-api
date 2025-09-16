@@ -29,6 +29,13 @@ public class ServiceCategoryRepository : IServiceCategoryRepository
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
     }
 
+    public async Task<ServiceCategory?> GetByNameAsync(string name)
+    {
+        return await _db.ServiceCategories
+            .Include(c => c.Service)
+            .FirstOrDefaultAsync(c => c.Name == name && !c.IsDeleted);
+    }
+
     public async Task AddAsync(ServiceCategory entity)
     {
         await _db.ServiceCategories.AddAsync(entity);

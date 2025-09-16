@@ -118,6 +118,7 @@ public class BulkLabUploadService : IBulkLabUploadService
 
             // 1. Load form version including sections + fields
             var formVersion = await _intakeFormRepository.GetActiveVersionWithFieldsByFormNameAsync(sheet.Name, ct);
+
             if (formVersion == null)
             {
                 _logger.LogError("❌ No IntakeFormVersion found for sheet: {SheetName}", sheet.Name);
@@ -225,12 +226,22 @@ public class BulkLabUploadService : IBulkLabUploadService
                         continue;
                     }
 
+                    var service = await _categoryRepo.GetByNameAsync(sheet.Name);
+
+                    if (fieldResponses.Count == 0)
+                    {
+                        _logger.LogInformation("🚫 Row {RowIndex} skipped: No valid service for {sheet.Name}", rowIndex, patientNumber);
+                        continue;
+                    }
+
                     var formDto = new CreateIntakeFormResponseDto
                     {
                         PatientId = participantId!.Value,
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses,
-                        HealthCampServiceAssignmentId = assignment?.Id
+                        // HealthCampServiceAssignmentId = assignment?.Id
+                        ServiceId = service.Id
+
                     };
 
                     _logger.LogInformation("📤 Submitting FormResponse for Patient={PatientNumber}, FormId={FormId}, ParticipantId={ParticipantId}, AssignmentId={AssignmentId}",

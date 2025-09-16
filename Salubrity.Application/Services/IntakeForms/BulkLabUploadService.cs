@@ -239,6 +239,7 @@ public class BulkLabUploadService : IBulkLabUploadService
                         PatientId = participantId!.Value,
                         IntakeFormVersionId = formVersion.Id,
                         FieldResponses = fieldResponses,
+                        ResponseStatusId = Guid.Parse("c40c5a53-55bd-4c58-81dd-fafc54db0ac7"),
                         // HealthCampServiceAssignmentId = assignment?.Id
                         ServiceId = service.Id
 

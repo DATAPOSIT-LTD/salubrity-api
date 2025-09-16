@@ -84,7 +84,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             _logger.LogInformation("🗂 Starting processing of sheet: {SheetName}", sheet.Name);
 
             // 1. Load form version including sections + fields
-            var formVersion = await _intakeFormRepository.GetActiveVersionWithFieldsByFormNameAsync(sheet.Name, ct);
+            var formVersion = await _intakeFormRepository.GetActiveVersionWithFieldsByServiceNameAsync(sheet.Name, ct);
 
             if (formVersion == null)
             {

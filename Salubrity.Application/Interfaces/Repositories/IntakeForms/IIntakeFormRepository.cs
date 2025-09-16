@@ -19,7 +19,7 @@ public interface IIntakeFormRepository
     /// <summary>
     /// Get intake form version (by sheet name) with all sections + fields
     /// </summary>
-    Task<IntakeFormVersion?> GetActiveVersionWithFieldsByFormNameAsync(string sheetName, CancellationToken ct);
+    Task<IntakeFormVersion?> GetActiveVersionWithFieldsByServiceNameAsync(string serviceName, CancellationToken ct);
 
     /// <summary>
     /// Checks if an intake form is assigned to any service, category, or subcategory

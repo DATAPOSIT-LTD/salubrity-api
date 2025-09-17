@@ -8,6 +8,13 @@ namespace Salubrity.Application.DTOs.Clinical
     {
         public Guid PatientId { get; set; }
         public Guid HealthCampId { get; set; }
+
+        // New fields
+        public string? PertinentHistoryFindings { get; set; }
+        public string? PertinentClinicalFindings { get; set; }
+        public string? DiagnosticImpression { get; set; }
+        public string? Conclusion { get; set; }
+
         public Guid FollowUpRecommendationId { get; set; }
         public Guid RecommendationTypeId { get; set; }
         public string? Instructions { get; set; }
@@ -24,6 +31,13 @@ namespace Salubrity.Application.DTOs.Clinical
         public Guid PatientId { get; set; }
         public Guid DoctorId { get; set; }
         public Guid HealthCampId { get; set; }
+
+        // New fields
+        public string? PertinentHistoryFindings { get; set; }
+        public string? PertinentClinicalFindings { get; set; }
+        public string? DiagnosticImpression { get; set; }
+        public string? Conclusion { get; set; }
+
         public BaseLookupResponse FollowUpRecommendation { get; set; } = default!;
         public BaseLookupResponse RecommendationType { get; set; } = default!;
         public string? Instructions { get; set; }

@@ -48,8 +48,8 @@ namespace Salubrity.Infrastructure.Repositories.Clinical
 
         public async Task DeleteAsync(Guid id, CancellationToken ct = default)
         {
-            var entity = await _context.DoctorRecommendations.FindAsync([id], ct);
-            if (entity != null)
+            var entity = await _context.DoctorRecommendations.FindAsync(new object?[] { id }, ct);
+            if (entity != null && !entity.IsDeleted)
             {
                 entity.IsDeleted = true;
                 entity.DeletedAt = DateTime.UtcNow;

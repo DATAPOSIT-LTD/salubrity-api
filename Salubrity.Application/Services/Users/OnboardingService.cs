@@ -85,10 +85,10 @@ namespace Salubrity.Application.Services.Users
             return await _onboardingStatusRepository.GetByUserIdAsync(userId, ct);
         }
 
-        private bool CheckProfileCompletion(User user)
+        private static bool CheckProfileCompletion(User user)
         {
             return !string.IsNullOrWhiteSpace(user.FirstName) &&
-                   !string.IsNullOrWhiteSpace(user.LastName) && // middle name not required
+                   //!string.IsNullOrWhiteSpace(user.LastName) && // middle name not required
                    !string.IsNullOrWhiteSpace(user.Email) &&
                    !string.IsNullOrWhiteSpace(user.Phone) &&
                    !string.IsNullOrWhiteSpace(user.NationalId) &&

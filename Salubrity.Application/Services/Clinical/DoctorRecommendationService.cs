@@ -39,6 +39,13 @@ namespace Salubrity.Application.Services.Clinical
                 PatientId = dto.PatientId,
                 HealthCampId = dto.HealthCampId,
                 DoctorId = doctorId,
+
+                // new fields
+                PertinentHistoryFindings = dto.PertinentHistoryFindings,
+                PertinentClinicalFindings = dto.PertinentClinicalFindings,
+                DiagnosticImpression = dto.DiagnosticImpression,
+                Conclusion = dto.Conclusion,
+
                 FollowUpRecommendationId = dto.FollowUpRecommendationId,
                 RecommendationTypeId = dto.RecommendationTypeId,
                 Instructions = dto.Instructions
@@ -52,6 +59,12 @@ namespace Salubrity.Application.Services.Clinical
         {
             var existing = await _repo.GetByIdAsync(dto.Id, ct);
             if (existing == null) throw new NotFoundException("DoctorRecommendation not found");
+
+            // update new fields
+            existing.PertinentHistoryFindings = dto.PertinentHistoryFindings;
+            existing.PertinentClinicalFindings = dto.PertinentClinicalFindings;
+            existing.DiagnosticImpression = dto.DiagnosticImpression;
+            existing.Conclusion = dto.Conclusion;
 
             existing.FollowUpRecommendationId = dto.FollowUpRecommendationId;
             existing.RecommendationTypeId = dto.RecommendationTypeId;
@@ -73,6 +86,13 @@ namespace Salubrity.Application.Services.Clinical
                 PatientId = entity.PatientId,
                 DoctorId = entity.DoctorId,
                 HealthCampId = entity.HealthCampId,
+
+                // map new fields
+                PertinentHistoryFindings = entity.PertinentHistoryFindings,
+                PertinentClinicalFindings = entity.PertinentClinicalFindings,
+                DiagnosticImpression = entity.DiagnosticImpression,
+                Conclusion = entity.Conclusion,
+
                 FollowUpRecommendation = new BaseLookupResponse
                 {
                     Id = entity.FollowUpRecommendation.Id,

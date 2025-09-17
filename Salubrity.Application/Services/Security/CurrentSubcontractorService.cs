@@ -1,11 +1,6 @@
-// File: Salubrity.Application/Security/CurrentSubcontractorService.cs
-
+// Salubrity.Application/Security/CurrentSubcontractorService.cs
 using Microsoft.Extensions.Logging;
-using Salubrity.Application.Interfaces.Repositories.Users;
-using Salubrity.Application.Interfaces.Security;
 using Salubrity.Shared.Exceptions;
-
-namespace Salubrity.Application.Security;
 
 public class CurrentSubcontractorService : ICurrentSubcontractorService
 {
@@ -25,6 +20,54 @@ public class CurrentSubcontractorService : ICurrentSubcontractorService
         _subs = subs;
         _logger = logger;
     }
+
+    // public async Task<Guid> GetRequiredSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
+    // {
+    //     if (!await _users.IsActiveAsync(userId, ct))
+    //         throw new UnauthorizedException("User not found or inactive.");
+
+    //     // Admin override
+    //     if (await _roles.HasRoleAsync(userId, "Admin", ct))
+    //         return Guid.Empty;
+
+    //     if (!await _roles.HasRoleAsync(userId, "Subcontractor", ct))
+    //         throw new UnauthorizedException("Requires Subcontractor role.");
+
+    //     var subId = await _subs.GetActiveIdByUserIdAsync(userId, ct);
+    //     if (subId is null)
+    //         throw new UnauthorizedException("No active subcontractor profile for this user.");
+
+    //     return subId.Value;
+    // }
+
+    // public async Task<Guid> GetSubcontractorIdOrThrowAsync(Guid userId, CancellationToken ct = default)
+    // {
+    //     var subId = await TryGetSubcontractorIdAsync(userId, ct);
+    //     if (subId == null)
+    //         throw new UnauthorizedException("Access denied: not a subcontractor or admin.");
+    //     return subId.Value;
+    // }
+
+    // public async Task<Guid?> TryGetSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
+    // {
+    //     //ACTIVATE THIS IF I FORGET IT COMMENTED LIKE THIS
+    //     // if (!await _users.IsActiveAsync(userId, ct))
+    //     //     return null;
+
+    //     if (await _roles.HasRoleAsync(userId, "Admin", ct))
+    //         return Guid.Empty;
+
+    //     if (!await _roles.HasRoleAsync(userId, "Subcontractor", ct))
+    //         return null;
+
+    //     if (await _roles.HasRoleAsync(userId, "Concierge", ct))
+    //         return Guid.Empty;
+
+    //     if (await _roles.HasRoleAsync(userId, "Doctor", ct))
+    //         return Guid.Empty;
+
+    //     return await _subs.GetActiveIdByUserIdAsync(userId, ct);
+    // }
 
     public async Task<Guid> GetRequiredSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
     {

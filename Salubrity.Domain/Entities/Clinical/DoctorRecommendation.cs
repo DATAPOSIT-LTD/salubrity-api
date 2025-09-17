@@ -10,11 +10,11 @@ namespace Salubrity.Domain.Entities.Clinical
         public Guid DoctorId { get; set; }
         public Guid HealthCampId { get; set; }
 
-        // 🔹 FollowUpRecommendation lookup
+        // FollowUpRecommendation lookup
         public Guid FollowUpRecommendationId { get; set; }
         public FollowUpRecommendation FollowUpRecommendation { get; set; } = default!;
 
-        // 🔹 RecommendationType lookup
+        // RecommendationType lookup
         public Guid RecommendationTypeId { get; set; }
         public RecommendationType RecommendationType { get; set; } = default!;
 

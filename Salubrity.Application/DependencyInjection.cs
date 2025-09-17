@@ -9,6 +9,7 @@ using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Services;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Application.Interfaces.Services.Camps;
+using Salubrity.Application.Interfaces.Services.Clinical;
 using Salubrity.Application.Interfaces.Services.Concierge;
 using Salubrity.Application.Interfaces.Services.Employee;
 using Salubrity.Application.Interfaces.Services.HealthAssessments;
@@ -29,6 +30,7 @@ using Salubrity.Application.Interfaces.Storage;
 using Salubrity.Application.Mappings;
 using Salubrity.Application.Services.Auth;
 using Salubrity.Application.Services.Camps;
+using Salubrity.Application.Services.Clinical;
 using Salubrity.Application.Services.Concierge;
 using Salubrity.Application.Services.EmployeeServices;
 using Salubrity.Application.Services.Forms;
@@ -113,6 +115,9 @@ namespace Salubrity.Application
             services.AddScoped<ICurrentSubcontractorService, CurrentSubcontractorService>();
             services.AddScoped<IFileStorage, LocalFileStorage>();
             services.AddScoped<GenericLookupService<BillingStatus>>();
+            services.AddScoped<GenericLookupService<FollowUpRecommendation>>();
+            services.AddScoped<GenericLookupService<RecommendationType>>();
+
 
             // Auth services
             services.AddScoped<IAuthService, AuthService>();
@@ -126,6 +131,7 @@ namespace Salubrity.Application
             services.AddScoped<IConciergeService, ConciergeService>();
             services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
             services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();
+            services.AddScoped<IDoctorRecommendationService, DoctorRecommendationService>();
 
 
 

@@ -46,8 +46,9 @@ public class CurrentSubcontractorService : ICurrentSubcontractorService
 
     public async Task<Guid?> TryGetSubcontractorIdAsync(Guid userId, CancellationToken ct = default)
     {
-        if (!await _users.IsActiveAsync(userId, ct))
-            return null;
+        //ACTIVATE THIS IF I FORGET IT COMMENTED LIKE THIS
+        // if (!await _users.IsActiveAsync(userId, ct))
+        //     return null;
 
         if (await _roles.HasRoleAsync(userId, "Admin", ct))
             return Guid.Empty;

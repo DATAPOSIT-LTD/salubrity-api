@@ -88,13 +88,79 @@ public class MyCampReadRepository : IMyCampReadRepository
         };
     }
 
+    // public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
+    //     Guid userId, Guid campId, CancellationToken ct = default)
+    // {
+    //     // Ensure user is a participant of this camp (guards data leakage)
+    //     var isParticipant = await _db.Set<HealthCampParticipant>()
+    //         .AsNoTracking()
+    //         .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
+
+
+
+
+    //     if (!isParticipant) return Array.Empty<MyCampServiceDto>();
+
+    //     var participant = await _db.HealthCampParticipants.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken: ct);
+
+    //     if (participant == null)
+    //         return Array.Empty<MyCampServiceDto>();
+
+    //     var patientId = await _healthCampParticipantRepository.GetPatientIdByParticipantIdAsync(participant.Id, ct);
+    //     if (patientId == null)
+    //         return Array.Empty<MyCampServiceDto>();
+    //     // Load all assignments
+    //     var assignments = await _db.Set<HealthCampServiceAssignment>()
+    //     .AsNoTracking()
+    //     .Where(a => a.HealthCampId == campId)
+    //     .Include(a => a.Subcontractor).ThenInclude(s => s.User)
+    //     .Include(a => a.Role)
+    //     .ToListAsync(ct);
+
+    //     var result = new List<MyCampServiceDto>();
+
+    //     foreach (var a in assignments)
+    //     {
+    //         var name = await _referenceResolver.GetNameAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
+    //         string? description = await _referenceResolver.GetDescriptionAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
+
+    //         var res = await _intakeFormResponsesRepo.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
+    //         var isCompleted = false;
+    //         foreach (var r in res)
+    //         {
+    //             if (r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted")
+    //             {
+    //                 isCompleted = true;
+    //             }
+    //         }
+    //         result.Add(new MyCampServiceDto
+    //         {
+    //             CampAssignmentId = a.Id,
+
+    //             ServiceId = a.AssignmentId,
+    //             ServiceName = name,
+    //             Description = description,
+    //             StationName = name,
+
+    //             SubcontractorId = a.SubcontractorId,
+    //             ServedBy = a.Subcontractor?.User?.FullName,
+
+    //             ProfessionId = a.ProfessionId,
+    //             Profession = a.Role?.Name,
+    //             IsCompleted = isCompleted
+    //         });
+    //     }
+
+    //     return result;
+    // }
+
     public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
-     Guid userId,
-     Guid campId,
-     bool group = false,
-     CancellationToken ct = default)
+        Guid userId,
+        Guid campId,
+        bool group = false,
+        CancellationToken ct = default)
     {
-        // Ensure user is a participant of this camp (guards data leakage)
+        // Step 1: Ensure user is a participant
         var isParticipant = await _db.Set<HealthCampParticipant>()
             .AsNoTracking()
             .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
@@ -103,22 +169,27 @@ public class MyCampReadRepository : IMyCampReadRepository
 
         var participant = await _db.HealthCampParticipants
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken: ct);
+            .FirstOrDefaultAsync(p => p.UserId == userId, ct);
 
         if (participant == null)
             return Array.Empty<MyCampServiceDto>();
 
-        var patientId = await _healthCampParticipantRepository.GetPatientIdByParticipantIdAsync(participant.Id, ct);
+        var patientId = await _healthCampParticipantRepository
+            .GetPatientIdByParticipantIdAsync(participant.Id, ct);
+
         if (patientId == null)
             return Array.Empty<MyCampServiceDto>();
 
-        // Load all assignments
+        // Step 2: Load assignments
         var assignments = await _db.Set<HealthCampServiceAssignment>()
             .AsNoTracking()
             .Where(a => a.HealthCampId == campId)
             .Include(a => a.Subcontractor).ThenInclude(s => s.User)
             .Include(a => a.Role)
             .ToListAsync(ct);
+
+        var responses = await _intakeFormResponsesRepo
+            .GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
 
         var result = new List<MyCampServiceDto>();
 
@@ -128,8 +199,8 @@ public class MyCampReadRepository : IMyCampReadRepository
             var name = await _referenceResolver.GetNameAsync(type, a.AssignmentId);
             var description = await _referenceResolver.GetDescriptionAsync(type, a.AssignmentId);
 
-            var responses = await _intakeFormResponsesRepo.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
-            var isCompleted = responses.Any(r => r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted");
+            var isCompleted = responses.Any(r =>
+                r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted");
 
             result.Add(new MyCampServiceDto
             {
@@ -150,27 +221,31 @@ public class MyCampReadRepository : IMyCampReadRepository
         if (!group)
             return result;
 
-        // 🔹 Build nested tree
-        var lookup = result.ToDictionary(x => x.ServiceId, x => x);
+        // Step 3: Safe grouping by ServiceId
         var groupedList = new List<MyCampServiceDto>();
+        var serviceBuckets = result
+            .GroupBy(r => r.ServiceId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
-        foreach (var item in result)
+        foreach (var groupItem in serviceBuckets)
         {
-            var (parentId, _) = await _referenceResolver.GetParentAsync(item.ServiceId);
+            var primary = groupItem.Value.First();
+            primary.Children = groupItem.Value.Skip(1).ToList();
 
-            if (parentId != null && lookup.ContainsKey(parentId.Value))
+            var (parentId, _) = await _referenceResolver.GetParentAsync(primary.ServiceId);
+
+            if (parentId != null && serviceBuckets.ContainsKey(parentId.Value))
             {
-                lookup[parentId.Value].Children.Add(item);
+                var parentPrimary = serviceBuckets[parentId.Value].First();
+                parentPrimary.Children.Add(primary);
             }
             else
             {
-                groupedList.Add(item); // top-level
+                groupedList.Add(primary);
             }
         }
 
         return groupedList;
     }
-
-
 
 }

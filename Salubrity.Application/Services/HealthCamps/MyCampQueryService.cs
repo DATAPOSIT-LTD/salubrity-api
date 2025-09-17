@@ -22,6 +22,7 @@ public class MyCampQueryService : IMyCampQueryService
        Guid campId,
        bool group = false,
        CancellationToken ct = default)
-       => _repo.GetServicesForUserCampAsync(userId, campId, group, ct);
+       => _repo.GetServicesForUserCampAsync(userId, campId, ct: ct);
+
 
 }

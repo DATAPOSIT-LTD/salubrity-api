@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
-using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Camps;
-using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -17,15 +15,11 @@ public class MyCampReadRepository : IMyCampReadRepository
 {
     private readonly AppDbContext _db; // or whatever your concrete DbContext is named
     private readonly IPackageReferenceResolver _referenceResolver;
-    private readonly IIntakeFormResponseRepository _intakeFormResponsesRepo;
-    private readonly IHealthCampParticipantRepository _healthCampParticipantRepository;
 
-    public MyCampReadRepository(AppDbContext db, IPackageReferenceResolver referenceResolver, IIntakeFormResponseRepository intakeFormResponsesRepo, IHealthCampParticipantRepository healthCampParticipantRepository)
+    public MyCampReadRepository(AppDbContext db, IPackageReferenceResolver referenceResolver)
     {
         _db = db;
         _referenceResolver = referenceResolver;
-        _intakeFormResponsesRepo = intakeFormResponsesRepo;
-        _healthCampParticipantRepository = healthCampParticipantRepository;
     }
 
     public async Task<PagedResult<MyCampListItemDto>> GetUpcomingForUserAsync(
@@ -88,99 +82,17 @@ public class MyCampReadRepository : IMyCampReadRepository
         };
     }
 
-    // public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
-    //     Guid userId, Guid campId, CancellationToken ct = default)
-    // {
-    //     // Ensure user is a participant of this camp (guards data leakage)
-    //     var isParticipant = await _db.Set<HealthCampParticipant>()
-    //         .AsNoTracking()
-    //         .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
-
-
-
-
-    //     if (!isParticipant) return Array.Empty<MyCampServiceDto>();
-
-    //     var participant = await _db.HealthCampParticipants.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == userId, cancellationToken: ct);
-
-    //     if (participant == null)
-    //         return Array.Empty<MyCampServiceDto>();
-
-    //     var patientId = await _healthCampParticipantRepository.GetPatientIdByParticipantIdAsync(participant.Id, ct);
-    //     if (patientId == null)
-    //         return Array.Empty<MyCampServiceDto>();
-    //     // Load all assignments
-    //     var assignments = await _db.Set<HealthCampServiceAssignment>()
-    //     .AsNoTracking()
-    //     .Where(a => a.HealthCampId == campId)
-    //     .Include(a => a.Subcontractor).ThenInclude(s => s.User)
-    //     .Include(a => a.Role)
-    //     .ToListAsync(ct);
-
-    //     var result = new List<MyCampServiceDto>();
-
-    //     foreach (var a in assignments)
-    //     {
-    //         var name = await _referenceResolver.GetNameAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
-    //         string? description = await _referenceResolver.GetDescriptionAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
-
-    //         var res = await _intakeFormResponsesRepo.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
-    //         var isCompleted = false;
-    //         foreach (var r in res)
-    //         {
-    //             if (r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted")
-    //             {
-    //                 isCompleted = true;
-    //             }
-    //         }
-    //         result.Add(new MyCampServiceDto
-    //         {
-    //             CampAssignmentId = a.Id,
-
-    //             ServiceId = a.AssignmentId,
-    //             ServiceName = name,
-    //             Description = description,
-    //             StationName = name,
-
-    //             SubcontractorId = a.SubcontractorId,
-    //             ServedBy = a.Subcontractor?.User?.FullName,
-
-    //             ProfessionId = a.ProfessionId,
-    //             Profession = a.Role?.Name,
-    //             IsCompleted = isCompleted
-    //         });
-    //     }
-
-    //     return result;
-    // }
-
     public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
-        Guid userId,
-        Guid campId,
-        bool group = false,
-        CancellationToken ct = default)
+        Guid userId, Guid campId, CancellationToken ct = default)
     {
-        // Step 1: Ensure user is a participant
+        // Ensure user is a participant of this camp (guards data leakage)
         var isParticipant = await _db.Set<HealthCampParticipant>()
             .AsNoTracking()
             .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
 
         if (!isParticipant) return Array.Empty<MyCampServiceDto>();
 
-        var participant = await _db.HealthCampParticipants
-            .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId, ct);
-
-        if (participant == null)
-            return Array.Empty<MyCampServiceDto>();
-
-        var patientId = await _healthCampParticipantRepository
-            .GetPatientIdByParticipantIdAsync(participant.Id, ct);
-
-        if (patientId == null)
-            return Array.Empty<MyCampServiceDto>();
-
-        // Step 2: Load assignments
+        // Load all assignments
         var assignments = await _db.Set<HealthCampServiceAssignment>()
             .AsNoTracking()
             .Where(a => a.HealthCampId == campId)
@@ -188,64 +100,32 @@ public class MyCampReadRepository : IMyCampReadRepository
             .Include(a => a.Role)
             .ToListAsync(ct);
 
-        var responses = await _intakeFormResponsesRepo
-            .GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
-
         var result = new List<MyCampServiceDto>();
 
         foreach (var a in assignments)
         {
-            var type = (PackageItemType)a.AssignmentType;
-            var name = await _referenceResolver.GetNameAsync(type, a.AssignmentId);
-            var description = await _referenceResolver.GetDescriptionAsync(type, a.AssignmentId);
-
-            var isCompleted = responses.Any(r =>
-                r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted");
+            var name = await _referenceResolver.GetNameAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
+            string? description = await _referenceResolver.GetDescriptionAsync((PackageItemType)a.AssignmentType, a.AssignmentId);
 
             result.Add(new MyCampServiceDto
             {
                 CampAssignmentId = a.Id,
+
                 ServiceId = a.AssignmentId,
                 ServiceName = name,
                 Description = description,
                 StationName = name,
+
                 SubcontractorId = a.SubcontractorId,
                 ServedBy = a.Subcontractor?.User?.FullName,
+
                 ProfessionId = a.ProfessionId,
-                Profession = a.Role?.Name,
-                IsCompleted = isCompleted,
-                Children = new List<MyCampServiceDto>()
+                Profession = a.Role?.Name
             });
         }
 
-        if (!group)
-            return result;
-
-        // Step 3: Safe grouping by ServiceId
-        var groupedList = new List<MyCampServiceDto>();
-        var serviceBuckets = result
-            .GroupBy(r => r.ServiceId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        foreach (var groupItem in serviceBuckets)
-        {
-            var primary = groupItem.Value.First();
-            primary.Children = groupItem.Value.Skip(1).ToList();
-
-            var (parentId, _) = await _referenceResolver.GetParentAsync(primary.ServiceId);
-
-            if (parentId != null && serviceBuckets.ContainsKey(parentId.Value))
-            {
-                var parentPrimary = serviceBuckets[parentId.Value].First();
-                parentPrimary.Children.Add(primary);
-            }
-            else
-            {
-                groupedList.Add(primary);
-            }
-        }
-
-        return groupedList;
+        return result;
     }
+
 
 }

@@ -6,6 +6,7 @@ using Salubrity.Infrastructure.Persistence;
 
 namespace Salubrity.Infrastructure.Repositories.Users
 {
+
     public class UserRepository : IUserRepository
     {
         private readonly AppDbContext _context;
@@ -76,5 +77,15 @@ namespace Salubrity.Infrastructure.Repositories.Users
                 .Include(u => u.UserRoles)
                 .ToListAsync(ct);
         }
+        public async Task DeleteUserAsync(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync();
+            }
+        }
+
     }
 }

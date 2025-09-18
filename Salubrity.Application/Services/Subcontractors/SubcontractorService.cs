@@ -122,7 +122,6 @@ namespace Salubrity.Application.Services.Subcontractor
 
         //     return _mapper.Map<SubcontractorDto>(subcontractor);
         // }
-
         public async Task<SubcontractorDto> CreateAsync(CreateSubcontractorDto dto)
         {
             if (dto.StatusId is null)
@@ -141,88 +140,54 @@ namespace Salubrity.Application.Services.Subcontractor
             var email = dto.User.Email?.Trim().ToLowerInvariant();
             var phone = dto.User.Phone?.Trim();
 
-            // 🔎 Look for existing user by email or phone
+            // 🔎 Look for existing user by email OR phone
             var existingUser = await _userRepository.FindUserByEmailAsync(email)
                 ?? (!string.IsNullOrWhiteSpace(phone) ? await _userRepository.FindUserByPhoneAsync(phone) : null);
 
-            User user;
             if (existingUser is not null)
             {
-                // ✅ Update existing user
-                existingUser.FirstName = dto.User.FirstName?.Trim();
-                existingUser.MiddleName = dto.User.MiddleName?.Trim();
-                existingUser.LastName = dto.User.LastName?.Trim();
-                existingUser.Phone = phone;
-                existingUser.GenderId = dto.User.GenderId;
-                existingUser.DateOfBirth = dto.User.DateOfBirth.ToUtcSafe();
-                existingUser.UpdatedAt = DateTime.UtcNow;
-
-                await _userRepository.UpdateUserAsync(existingUser);
-
-                // Ensure subcontractor role
-                var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
-                    ?? throw new NotFoundException("Subcontractor role not found");
-
-                if (!existingUser.UserRoles.Any(ur => ur.RoleId == subcontractorRole.Id))
-                {
-                    existingUser.UserRoles.Add(new UserRole
-                    {
-                        RoleId = subcontractorRole.Id,
-                        UserId = existingUser.Id
-                    });
-
-                    await _userRepository.UpdateUserAsync(existingUser);
-                }
-
-                user = existingUser;
+                // ⚡ Delete old user before creating a new one
+                await _userRepository.DeleteUserAsync(existingUser.Id);
             }
-            else
+
+            // 🔑 Always create new user
+            var userId = Guid.NewGuid();
+            var rawPassword = _passwordGenerator.Generate();
+
+            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
+                ?? throw new NotFoundException("Subcontractor role not found");
+
+            var user = new User
             {
-                // New user
-                var userId = Guid.NewGuid();
-                var rawPassword = _passwordGenerator.Generate();
-
-                var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
-                    ?? throw new NotFoundException("Subcontractor role not found");
-
-                user = new User
-                {
-                    Id = userId,
-                    FirstName = dto.User.FirstName?.Trim(),
-                    MiddleName = dto.User.MiddleName?.Trim(),
-                    LastName = dto.User.LastName?.Trim(),
-                    Email = email,
-                    Phone = phone,
-                    GenderId = dto.User.GenderId,
-                    DateOfBirth = dto.User.DateOfBirth.ToUtcSafe(),
-                    PasswordHash = _passwordHasher.HashPassword(rawPassword),
-                    IsActive = true,
-                    IsVerified = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UserRoles =
-                    [
-                        new UserRole
-                {
-                    RoleId = subcontractorRole.Id,
-                    UserId = userId
-                }
-                    ]
-                };
-
-                await _userRepository.AddUserAsync(user);
-            }
-
-            //  Do not attach User navigation, only set FK
-            var existingSubcontractor = await _repo.GetByUserIdAsync(user.Id);
-            if (existingSubcontractor is not null)
+                Id = userId,
+                FirstName = dto.User.FirstName?.Trim(),
+                MiddleName = dto.User.MiddleName?.Trim(),
+                LastName = dto.User.LastName?.Trim(),
+                Email = email,
+                Phone = phone,
+                GenderId = dto.User.GenderId,
+                DateOfBirth = dto.User.DateOfBirth.ToUtcSafe(),
+                PasswordHash = _passwordHasher.HashPassword(rawPassword),
+                IsActive = true,
+                IsVerified = false,
+                CreatedAt = DateTime.UtcNow,
+                UserRoles =
+                [
+                    new UserRole
             {
-                throw new ValidationException(["This user is already registered as a subcontractor."]);
+                RoleId = subcontractorRole.Id,
+                UserId = userId
             }
+                ]
+            };
 
+            await _userRepository.AddUserAsync(user);
+
+            // 🎯 Create Subcontractor linked to new user
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                UserId = user.Id,   //  only FK, avoids duplicate insert
+                UserId = user.Id,
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,
@@ -244,6 +209,7 @@ namespace Salubrity.Application.Services.Subcontractor
 
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }
+
 
 
 

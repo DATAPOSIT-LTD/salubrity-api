@@ -446,7 +446,7 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete,
                 BillingStatus = billingStatus,
-                EmployeeId = emp.Id
+                EmployeeId = null
             };
         }
     }

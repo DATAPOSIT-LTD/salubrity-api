@@ -426,11 +426,11 @@ namespace Salubrity.Application.Services.Auth
             }
 
             string? billingStatus = null;
-            // if (user.RelatedEntityType == "Patient" && user.RelatedEntityId.HasValue)
-            // {
-            var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(user.RelatedEntityId.Value);
-            billingStatus = participant?.BillingStatus?.Name;
-            // }
+            if (user.RelatedEntityType == "Patient" && user.RelatedEntityId.HasValue)
+            {
+                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(user.RelatedEntityId.Value);
+                billingStatus = participant?.BillingStatus?.Name;
+            }
 
 
             return new MeResponseDto

@@ -672,14 +672,9 @@ public class HealthCampService : IHealthCampService
     public async Task<ParticipantBillingStatusDto> GetParticipantBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default)
     {
         var participant = await _campParticipantRepository.GetParticipantWithBillingStatusAsync(campId, participantId, ct);
-        if (participant is null)
+        if (participant is null || participant.BillingStatus is null)
         {
-            throw new NotFoundException("Participant not found in this camp.");
-        }
-
-        if (participant.BillingStatus is null)
-        {
-            throw new NotFoundException("Billing status not found for this participant.");
+            throw new NotFoundException("Participant or billing status not found.");
         }
 
         return new ParticipantBillingStatusDto

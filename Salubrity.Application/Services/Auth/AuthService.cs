@@ -368,15 +368,12 @@ namespace Salubrity.Application.Services.Auth
             var roles = new List<string>();
             var permissions = new HashSet<string>();
             var menus = new List<MenuResponseDto>();
-
-            var emp = new Employee();
+            Employee? emp = null;
             if (user.OrganizationId != null)
             {
-
-                var orgId = user.OrganizationId;
                 emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.OrganizationId.Value);
-
             }
+
 
             foreach (var roleId in roleIds)
             {

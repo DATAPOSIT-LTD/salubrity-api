@@ -39,6 +39,7 @@ namespace Salubrity.Infrastructure.Repositories.Users
             return await _context.Users
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
+                .Include(u => u.Organization)
                 .FirstOrDefaultAsync(u => u.Id == userId);
         }
 

@@ -369,10 +369,9 @@ namespace Salubrity.Application.Services.Auth
             var permissions = new HashSet<string>();
             var menus = new List<MenuResponseDto>();
             Employee? emp = null;
-            if (user.OrganizationId != null)
-            {
-                emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.OrganizationId.Value);
-            }
+
+            emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.Organization.Id);
+
 
 
             foreach (var roleId in roleIds)

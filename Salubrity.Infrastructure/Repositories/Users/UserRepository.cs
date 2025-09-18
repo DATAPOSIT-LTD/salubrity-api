@@ -1,4 +1,3 @@
-using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Infrastructure.Security;
@@ -26,6 +25,14 @@ namespace Salubrity.Infrastructure.Repositories.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
+        public async Task<User?> FindUserByPhoneAsync(string phone) // ✅ NEW METHOD
+        {
+            return await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Phone != null && u.Phone.Trim() == phone.Trim());
+        }
+
         public async Task<User?> FindUserByIdAsync(Guid userId)
         {
             return await _context.Users
@@ -42,9 +49,7 @@ namespace Salubrity.Infrastructure.Repositories.Users
 
         public async Task AddUserAsync(User user)
         {
-           
-            _context.Users.Add(user);          
-
+            _context.Users.Add(user);
             await _context.SaveChangesAsync();
         }
 

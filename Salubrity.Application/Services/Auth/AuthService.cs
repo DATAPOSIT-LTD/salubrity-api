@@ -369,7 +369,7 @@ namespace Salubrity.Application.Services.Auth
             var permissions = new HashSet<string>();
             var menus = new List<MenuResponseDto>();
 
-            Employee? emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.Organization.Id);
+            // Employee? emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.Organization.Id);
 
 
 
@@ -445,7 +445,7 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete,
                 BillingStatus = billingStatus,
-                EmployeeId = emp.Id
+                EmployeeId = null
             };
         }
     }

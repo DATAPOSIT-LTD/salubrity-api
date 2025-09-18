@@ -57,7 +57,7 @@ public class HealthCampManagementService : IHealthCampManagementService
 
             ClientName = organization.BusinessName,
             Venue = venue,
-            ExpectedPatients = 68, // TODO: Replace with actual source if available
+            ExpectedPatients = camp.ExpectedParticipants ?? 0, // TODO: Replace with actual source if available
             SubcontractorCount = camp.ServiceAssignments.Count,
             SubcontractorsReady = camp.ServiceAssignments.Count > 0,
 

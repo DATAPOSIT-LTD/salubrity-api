@@ -178,7 +178,7 @@ namespace Salubrity.Application.Services.Subcontractor
             }
             else
             {
-                // 🔑 New user
+                // New user
                 var userId = Guid.NewGuid();
                 var rawPassword = _passwordGenerator.Generate();
 
@@ -212,7 +212,7 @@ namespace Salubrity.Application.Services.Subcontractor
                 await _userRepository.AddUserAsync(user);
             }
 
-            // ❌ Do not attach User navigation, only set FK
+            //  Do not attach User navigation, only set FK
             var existingSubcontractor = await _repo.GetByUserIdAsync(user.Id);
             if (existingSubcontractor is not null)
             {
@@ -222,7 +222,7 @@ namespace Salubrity.Application.Services.Subcontractor
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                UserId = user.Id,   // 👈 only FK, avoids duplicate insert
+                UserId = user.Id,   //  only FK, avoids duplicate insert
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,

@@ -16,9 +16,9 @@
 
     public class CampQueuePriorityDto
     {
+        public Guid CheckInId { get; set; }
         public Guid ParticipantId { get; set; }
-        public string PatientName { get; set; } = default!;
-        //public Guid PatientId { get; set; }
+        public string PatientName { get; set; } = string.Empty;
         public string? CurrentStation { get; set; }
         public int Priority { get; set; }
     }

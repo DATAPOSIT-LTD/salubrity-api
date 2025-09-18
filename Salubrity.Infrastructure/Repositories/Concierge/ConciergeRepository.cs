@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Concierge;
+using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Concierge;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
@@ -121,20 +122,51 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
         {
             var checkIns = await _db.HealthCampStationCheckIns
                 .Include(ci => ci.Participant).ThenInclude(p => p.User)
-                //.Include(ci => ci.Assignment).ThenInclude(a => a.Service)
-                .Include(ci => ci.Assignment).ThenInclude(a => a.AssignmentType)
-                .Where(ci => ci.HealthCampId == campId && ci.Status == "Queued")
+                .Include(ci => ci.Assignment)
+                .Where(ci => ci.HealthCampId == campId && (ci.Status == CampQueueStatus.Queued || ci.Status == CampQueueStatus.InService))
+                .OrderByDescending(ci => ci.Priority)
+                .ThenBy(ci => ci.CreatedAt)
                 .ToListAsync(ct);
 
-            var result = checkIns.Select(ci => new CampQueuePriorityDto
+            var result = new List<CampQueuePriorityDto>();
+
+            foreach (var ci in checkIns)
             {
-                ParticipantId = ci.Participant.Id,
-                //PatientId = ci.Participant.PatientId ?? Guid.Empty,
-                PatientName = ci.Participant.User.FullName,
-                //CurrentStation = ci.Assignment.Service.Name,
-                CurrentStation = ci.Assignment.AssignmentName,
-                Priority = ci.Priority
-            }).ToList();
+                string stationName = "[Unknown Service]";
+                if (ci.Assignment != null)
+                {
+                    if (ci.Assignment.AssignmentType == PackageItemType.Service)
+                    {
+                        stationName = await _db.Set<Service>()
+                                          .Where(s => s.Id == ci.Assignment.AssignmentId)
+                                          .Select(s => s.Name)
+                                          .FirstOrDefaultAsync(ct) ?? "[Unknown Service]";
+                    }
+                    else if (ci.Assignment.AssignmentType == PackageItemType.ServiceCategory)
+                    {
+                        stationName = await _db.Set<ServiceCategory>()
+                                          .Where(c => c.Id == ci.Assignment.AssignmentId)
+                                          .Select(c => c.Name)
+                                          .FirstOrDefaultAsync(ct) ?? "[Unknown Category]";
+                    }
+                    else if (ci.Assignment.AssignmentType == PackageItemType.ServiceSubcategory)
+                    {
+                        stationName = await _db.Set<ServiceSubcategory>()
+                                          .Where(sc => sc.Id == ci.Assignment.AssignmentId)
+                                          .Select(sc => sc.Name)
+                                          .FirstOrDefaultAsync(ct) ?? "[Unknown Subcategory]";
+                    }
+                }
+
+                result.Add(new CampQueuePriorityDto
+                {
+                    CheckInId = ci.Id,
+                    ParticipantId = ci.Participant.Id,
+                    PatientName = ci.Participant.User.FullName,
+                    CurrentStation = stationName,
+                    Priority = ci.Priority
+                });
+            }
 
             return result;
         }
@@ -143,14 +175,16 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
         {
             var serviceAssignments = await _db.Set<HealthCampServiceAssignment>()
                 .Where(a => a.HealthCampId == campId)
-                .Include(a => a.AssignmentId)
                 .Include(a => a.Subcontractor)
-                    .ThenInclude(s => s.User)
+                    .ThenInclude(s => s!.User)
                 .Select(a => new
                 {
                     a.Id,
-                    ServiceName = a.AssignmentName,
-                    SubcontractorName = a.Subcontractor.User.FirstName + " " + a.Subcontractor.User.LastName
+                    a.AssignmentId,
+                    a.AssignmentType,
+                    SubcontractorName = a.Subcontractor != null && a.Subcontractor.User != null
+                        ? a.Subcontractor.User.FirstName + " " + a.Subcontractor.User.LastName
+                        : "[Unassigned]"
                 })
                 .ToListAsync(ct);
 
@@ -159,6 +193,29 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
 
             foreach (var assignment in serviceAssignments)
             {
+                string stationName = "[Unknown Service]";
+                if (assignment.AssignmentType == PackageItemType.Service)
+                {
+                    stationName = await _db.Set<Service>()
+                                      .Where(s => s.Id == assignment.AssignmentId)
+                                      .Select(s => s.Name)
+                                      .FirstOrDefaultAsync(ct) ?? "[Unknown Service]";
+                }
+                else if (assignment.AssignmentType == PackageItemType.ServiceCategory)
+                {
+                    stationName = await _db.Set<ServiceCategory>()
+                                      .Where(c => c.Id == assignment.AssignmentId)
+                                      .Select(c => c.Name)
+                                      .FirstOrDefaultAsync(ct) ?? "[Unknown Category]";
+                }
+                else if (assignment.AssignmentType == PackageItemType.ServiceSubcategory)
+                {
+                    stationName = await _db.Set<ServiceSubcategory>()
+                                      .Where(sc => sc.Id == assignment.AssignmentId)
+                                      .Select(sc => sc.Name)
+                                      .FirstOrDefaultAsync(ct) ?? "[Unknown Subcategory]";
+                }
+
                 var queue = await _db.Set<HealthCampStationCheckIn>()
                     .Where(c => c.HealthCampServiceAssignmentId == assignment.Id && c.Status == "Queued")
                     .Include(c => c.Participant)
@@ -166,7 +223,9 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
                     .OrderBy(c => c.CreatedAt)
                     .Select(c => new QueuedParticipantDto
                     {
-                        PatientName = c.Participant.User.FirstName + " " + c.Participant.User.LastName,
+                        PatientName = c.Participant != null && c.Participant.User != null
+                            ? c.Participant.User.FirstName + " " + c.Participant.User.LastName
+                            : "[Unknown Patient]",
                         QueueTime = FormatTimeSpan(now - c.CreatedAt)
                     })
                     .ToListAsync(ct);
@@ -174,7 +233,7 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
                 result.Add(new CampServiceStationWithQueueDto
                 {
                     AssignmentId = assignment.Id,
-                    ServiceStation = assignment.ServiceName,
+                    ServiceStation = stationName,
                     AssignedSubcontractor = assignment.SubcontractorName,
                     QueueLength = queue.Count,
                     Queue = queue

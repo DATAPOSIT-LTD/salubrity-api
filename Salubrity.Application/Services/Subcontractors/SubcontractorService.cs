@@ -140,17 +140,26 @@ namespace Salubrity.Application.Services.Subcontractor
             var email = dto.User.Email?.Trim().ToLowerInvariant();
             var phone = dto.User.Phone?.Trim();
 
-            // 🔎 Look for existing user by email OR phone
-            var existingUser = await _userRepository.FindUserByEmailAsync(email)
-                ?? (!string.IsNullOrWhiteSpace(phone) ? await _userRepository.FindUserByPhoneAsync(phone) : null);
-
-            if (existingUser is not null)
+            // ⚡ Delete ANY user that conflicts on email OR phone
+            if (!string.IsNullOrWhiteSpace(email))
             {
-                // ⚡ Delete old user before creating a new one
-                await _userRepository.DeleteUserAsync(existingUser.Id);
+                var userByEmail = await _userRepository.FindUserByEmailAsync(email);
+                if (userByEmail is not null)
+                {
+                    await _userRepository.DeleteUserAsync(userByEmail.Id);
+                }
             }
 
-            // 🔑 Always create new user
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var userByPhone = await _userRepository.FindUserByPhoneAsync(phone);
+                if (userByPhone is not null)
+                {
+                    await _userRepository.DeleteUserAsync(userByPhone.Id);
+                }
+            }
+
+            // 🔑 Always create fresh user
             var userId = Guid.NewGuid();
             var rawPassword = _passwordGenerator.Generate();
 
@@ -183,11 +192,11 @@ namespace Salubrity.Application.Services.Subcontractor
 
             await _userRepository.AddUserAsync(user);
 
-            // 🎯 Create Subcontractor linked to new user
+            // 🎯 Create subcontractor for this user
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                UserId = user.Id,
+                UserId = user.Id, // ✅ only FK
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,

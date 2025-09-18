@@ -23,6 +23,8 @@ public class RoleService : IRoleService
         var result = roles
             .Where(r =>
                 string.Equals(r.Name, "Patient", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.Name, "Concierge", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.Name, "Doctor", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(r.Name, "Subcontractor", StringComparison.OrdinalIgnoreCase)
             )
             .OrderBy(r => r.Name)

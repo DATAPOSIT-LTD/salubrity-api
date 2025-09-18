@@ -449,7 +449,11 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityType = user.RelatedEntityType,
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete,
-                BillingStatus = billingStatus,
+                BillingStatus = new BillingStatus
+                {
+                    CanProceed = billingStatus == "Billed" || billingStatus == "Proceed without billing",
+                    Status = billingStatus
+                },
                 EmployeeId = null
             };
         }

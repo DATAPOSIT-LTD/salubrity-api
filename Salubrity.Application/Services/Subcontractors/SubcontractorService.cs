@@ -138,27 +138,28 @@ namespace Salubrity.Application.Services.Subcontractor
             if (industry == null)
                 throw new NotFoundException("Industry not found");
 
-            // 🔎 Look for existing user by email OR phone
-            var existingUser = await _userRepository.FindUserByEmailAsync(dto.User.Email.Trim().ToLowerInvariant())
-                ?? (string.IsNullOrWhiteSpace(dto.User.Phone)
-                    ? null
-                    : await _userRepository.FindUserByPhoneAsync(dto.User.Phone.Trim()));
+            var email = dto.User.Email?.Trim().ToLowerInvariant();
+            var phone = dto.User.Phone?.Trim();
+
+            // 🔎 Look for existing user by email or phone
+            var existingUser = await _userRepository.FindUserByEmailAsync(email)
+                ?? (!string.IsNullOrWhiteSpace(phone) ? await _userRepository.FindUserByPhoneAsync(phone) : null);
 
             User user;
             if (existingUser is not null)
             {
-                // ✅ Update existing user fields
+                // ✅ Update existing user
                 existingUser.FirstName = dto.User.FirstName?.Trim();
                 existingUser.MiddleName = dto.User.MiddleName?.Trim();
                 existingUser.LastName = dto.User.LastName?.Trim();
-                existingUser.Phone = dto.User.Phone?.Trim();
+                existingUser.Phone = phone;
                 existingUser.GenderId = dto.User.GenderId;
                 existingUser.DateOfBirth = dto.User.DateOfBirth.ToUtcSafe();
                 existingUser.UpdatedAt = DateTime.UtcNow;
 
-                await _userRepository.UpdateUserAsync(existingUser); // persist updates
+                await _userRepository.UpdateUserAsync(existingUser);
 
-                // 🔒 Ensure Subcontractor role exists
+                // Ensure subcontractor role
                 var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
                     ?? throw new NotFoundException("Subcontractor role not found");
 
@@ -177,7 +178,7 @@ namespace Salubrity.Application.Services.Subcontractor
             }
             else
             {
-                // 🔑 Generate new user
+                // 🔑 New user
                 var userId = Guid.NewGuid();
                 var rawPassword = _passwordGenerator.Generate();
 
@@ -190,8 +191,8 @@ namespace Salubrity.Application.Services.Subcontractor
                     FirstName = dto.User.FirstName?.Trim(),
                     MiddleName = dto.User.MiddleName?.Trim(),
                     LastName = dto.User.LastName?.Trim(),
-                    Email = dto.User.Email.Trim().ToLowerInvariant(),
-                    Phone = dto.User.Phone?.Trim(),
+                    Email = email,
+                    Phone = phone,
                     GenderId = dto.User.GenderId,
                     DateOfBirth = dto.User.DateOfBirth.ToUtcSafe(),
                     PasswordHash = _passwordHasher.HashPassword(rawPassword),
@@ -211,19 +212,17 @@ namespace Salubrity.Application.Services.Subcontractor
                 await _userRepository.AddUserAsync(user);
             }
 
-            // ❌ don’t add User navigation, only use FK
-            // ❌ also prevent duplicates
+            // ❌ Do not attach User navigation, only set FK
             var existingSubcontractor = await _repo.GetByUserIdAsync(user.Id);
             if (existingSubcontractor is not null)
             {
                 throw new ValidationException(["This user is already registered as a subcontractor."]);
             }
 
-            // 🎯 Create Subcontractor linked to this user
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                UserId = user.Id,   // only FK
+                UserId = user.Id,   // 👈 only FK, avoids duplicate insert
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,
@@ -245,6 +244,7 @@ namespace Salubrity.Application.Services.Subcontractor
 
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }
+
 
 
         public async Task<List<SubcontractorDto>> GetAllAsync()

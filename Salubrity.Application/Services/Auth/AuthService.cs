@@ -449,7 +449,7 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityType = user.RelatedEntityType,
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete,
-                BillingStatus = new BillingStatus
+                BillingStatus = new BillingStatusDto
                 {
                     CanProceed = billingStatus == "Billed" || billingStatus == "Proceed without billing",
                     Status = billingStatus

@@ -13,11 +13,11 @@ public class MeResponseDto
     public string? RelatedEntityType { get; set; }
     public Guid? RelatedEntityId { get; set; }
     public bool OnboardingComplete { get; set; }
-    public BillingStatus? BillingStatus { get; set; }
+    public BillingStatusDto? BillingStatus { get; set; }
     public Guid? EmployeeId { get; set; }
 }
 
-public class BillingStatus
+public class BillingStatusDto
 {
     public bool CanProceed { get; set; }
     public string? Status { get; set; }

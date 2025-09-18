@@ -156,6 +156,23 @@ namespace Salubrity.Application.Services.Subcontractor
                 existingUser.DateOfBirth = dto.User.DateOfBirth.ToUtcSafe();
                 existingUser.UpdatedAt = DateTime.UtcNow;
 
+                await _userRepository.UpdateUserAsync(existingUser); // 👈 persist updates
+
+                // 🔒 Ensure Subcontractor role exists
+                var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
+                    ?? throw new NotFoundException("Subcontractor role not found");
+
+                if (!existingUser.UserRoles.Any(ur => ur.RoleId == subcontractorRole.Id))
+                {
+                    existingUser.UserRoles.Add(new UserRole
+                    {
+                        RoleId = subcontractorRole.Id,
+                        UserId = existingUser.Id
+                    });
+
+                    await _userRepository.UpdateUserAsync(existingUser);
+                }
+
                 user = existingUser;
             }
             else
@@ -190,13 +207,15 @@ namespace Salubrity.Application.Services.Subcontractor
                 }
                     ]
                 };
+
+                await _userRepository.AddUserAsync(user);
             }
 
             // 🎯 Create Subcontractor linked to this user
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                User = user,
+                UserId = user.Id,   // 👈 use FK instead of adding User object again
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,

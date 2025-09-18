@@ -11,81 +11,139 @@ namespace Salubrity.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "IntakeFormResponses",
-                columns: table => new
-                {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    IntakeFormVersionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SubmittedByUserId = table.Column<Guid>(type: "uuid", nullable: false),
-                    PatientId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SubmittedServiceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SubmittedServiceType = table.Column<int>(type: "integer", nullable: false),
-                    ResolvedServiceId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ResponseStatusId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    UpdatedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    DeletedBy = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_IntakeFormResponses", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_IntakeFormResponses_IntakeFormVersions_IntakeFormVersionId",
-                        column: x => x.IntakeFormVersionId,
-                        principalTable: "IntakeFormVersions",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_IntakeFormResponses_Patients_PatientId",
-                        column: x => x.PatientId,
-                        principalTable: "Patients",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_IntakeFormResponses_Services_ResolvedServiceId",
-                        column: x => x.ResolvedServiceId,
-                        principalTable: "Services",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_IntakeFormResponses_IntakeFormResponseStatuses_ResponseStatusId",
-                        column: x => x.ResponseStatusId,
-                        principalTable: "IntakeFormResponseStatuses",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            // 1. Create the table if it does not exist
+            migrationBuilder.Sql(@"
+                CREATE TABLE IF NOT EXISTS ""IntakeFormResponses"" (
+                    ""Id"" uuid NOT NULL PRIMARY KEY,
+                    ""IntakeFormVersionId"" uuid NOT NULL,
+                    ""SubmittedByUserId"" uuid NOT NULL,
+                    ""PatientId"" uuid NOT NULL,
+                    ""SubmittedServiceId"" uuid NOT NULL,
+                    ""SubmittedServiceType"" integer NOT NULL,
+                    ""ResolvedServiceId"" uuid NOT NULL,
+                    ""ResponseStatusId"" uuid NOT NULL,
+                    ""CreatedAt"" timestamp with time zone NOT NULL,
+                    ""UpdatedAt"" timestamp with time zone NULL,
+                    ""DeletedAt"" timestamp with time zone NULL,
+                    ""IsDeleted"" boolean NOT NULL,
+                    ""CreatedBy"" uuid NULL,
+                    ""UpdatedBy"" uuid NULL,
+                    ""DeletedBy"" uuid NULL
+                );
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_IntakeFormResponses_IntakeFormVersionId",
-                table: "IntakeFormResponses",
-                column: "IntakeFormVersionId");
+            // 2. Add missing columns
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='IntakeFormResponses' AND column_name='SubmittedByUserId') THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD COLUMN ""SubmittedByUserId"" uuid NOT NULL DEFAULT gen_random_uuid();
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='IntakeFormResponses' AND column_name='SubmittedServiceId') THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD COLUMN ""SubmittedServiceId"" uuid NOT NULL DEFAULT gen_random_uuid();
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='IntakeFormResponses' AND column_name='SubmittedServiceType') THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD COLUMN ""SubmittedServiceType"" integer NOT NULL DEFAULT 0;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='IntakeFormResponses' AND column_name='ResolvedServiceId') THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD COLUMN ""ResolvedServiceId"" uuid NOT NULL DEFAULT gen_random_uuid();
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                                   WHERE table_name='IntakeFormResponses' AND column_name='ResponseStatusId') THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD COLUMN ""ResponseStatusId"" uuid NOT NULL DEFAULT gen_random_uuid();
+                    END IF;
+                END$$;
+            ");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_IntakeFormResponses_PatientId",
-                table: "IntakeFormResponses",
-                column: "PatientId");
+            // 3. Add indexes if missing
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'ix_intakeformresponses_intakeformversionid'
+                          AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX ""IX_IntakeFormResponses_IntakeFormVersionId"" 
+                        ON ""IntakeFormResponses""(""IntakeFormVersionId"");
+                    END IF;
 
-            migrationBuilder.CreateIndex(
-                name: "IX_IntakeFormResponses_ResolvedServiceId",
-                table: "IntakeFormResponses",
-                column: "ResolvedServiceId");
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'ix_intakeformresponses_patientid'
+                          AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX ""IX_IntakeFormResponses_PatientId"" 
+                        ON ""IntakeFormResponses""(""PatientId"");
+                    END IF;
 
-            migrationBuilder.CreateIndex(
-                name: "IX_IntakeFormResponses_ResponseStatusId",
-                table: "IntakeFormResponses",
-                column: "ResponseStatusId");
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'ix_intakeformresponses_resolvedserviceid'
+                          AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX ""IX_IntakeFormResponses_ResolvedServiceId"" 
+                        ON ""IntakeFormResponses""(""ResolvedServiceId"");
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        WHERE c.relname = 'ix_intakeformresponses_responsestatusid'
+                          AND n.nspname = 'public'
+                    ) THEN
+                        CREATE INDEX ""IX_IntakeFormResponses_ResponseStatusId"" 
+                        ON ""IntakeFormResponses""(""ResponseStatusId"");
+                    END IF;
+                END$$;
+            ");
+
+            // 4. Add foreign keys if missing
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'fk_intakeformresponses_intakeformversions_intakeformversionid'
+                    ) THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD CONSTRAINT ""FK_IntakeFormResponses_IntakeFormVersions_IntakeFormVersionId""
+                        FOREIGN KEY (""IntakeFormVersionId"") REFERENCES ""IntakeFormVersions""(""Id"") ON DELETE CASCADE;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'fk_intakeformresponses_patients_patientid'
+                    ) THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD CONSTRAINT ""FK_IntakeFormResponses_Patients_PatientId""
+                        FOREIGN KEY (""PatientId"") REFERENCES ""Patients""(""Id"") ON DELETE CASCADE;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'fk_intakeformresponses_services_resolvedserviceid'
+                    ) THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD CONSTRAINT ""FK_IntakeFormResponses_Services_ResolvedServiceId""
+                        FOREIGN KEY (""ResolvedServiceId"") REFERENCES ""Services""(""Id"") ON DELETE CASCADE;
+                    END IF;
+
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint WHERE conname = 'fk_intakeformresponses_intakeformresponsestatuses_responsestatusid'
+                    ) THEN
+                        ALTER TABLE ""IntakeFormResponses"" ADD CONSTRAINT ""FK_IntakeFormResponses_IntakeFormResponseStatuses_ResponseStatusId""
+                        FOREIGN KEY (""ResponseStatusId"") REFERENCES ""IntakeFormResponseStatuses""(""Id"") ON DELETE CASCADE;
+                    END IF;
+                END$$;
+            ");
         }
-
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-               migrationBuilder.DropTable(name: "IntakeFormResponses");
+            migrationBuilder.DropTable(name: "IntakeFormResponses");
         }
     }
 }

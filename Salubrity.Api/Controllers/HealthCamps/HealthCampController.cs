@@ -125,7 +125,8 @@ public class CampController : BaseController
     {
         var userId = GetCurrentUserId();
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
-        var subcontractorId = isConcierge ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
+        var subcontractorId = (isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyOngoingCampsAsync(subcontractorId);
         return Success(result);

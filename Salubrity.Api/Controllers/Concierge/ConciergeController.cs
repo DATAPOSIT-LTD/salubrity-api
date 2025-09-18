@@ -43,7 +43,7 @@ namespace Salubrity.Api.Controllers.Concierge
         public async Task<IActionResult> GetCampServiceStationsWithQueue(Guid campId, CancellationToken ct)
         {
             var result = await _service.GetCampServiceStationsWithQueueAsync(campId, ct);
-            return Ok(result);
+            return Success(result);
         }
     }
 }

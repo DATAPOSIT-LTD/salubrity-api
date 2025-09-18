@@ -50,6 +50,7 @@ namespace Salubrity.Application.Services.Auth
 
 
 
+
         public AuthService(
             IUserRepository userRepository,
             IJwtService jwtService,
@@ -426,9 +427,13 @@ namespace Salubrity.Application.Services.Auth
             }
 
             string? billingStatus = null;
-            if (user.RelatedEntityType == "Patient" && user.RelatedEntityId.HasValue)
+
+            var patient = await _patientRepository.GetByUserIdAsync(userId);
+
+            if (patient != null)
             {
-                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(user.RelatedEntityId.Value);
+                var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patient.Id);
+                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(participantId.Value);
                 billingStatus = participant?.BillingStatus?.Name;
             }
 

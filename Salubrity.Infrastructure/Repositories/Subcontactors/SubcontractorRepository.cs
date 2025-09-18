@@ -138,7 +138,13 @@ namespace Salubrity.Infrastructure.Repositories
                 .Include(s => s.User)
                 .FirstOrDefaultAsync(s => s.UserId == userId);
         }
-
+        public async Task<Subcontractor?> GetByUserIdAsync(Guid userId, CancellationToken ct = default)
+        {
+            return await _db.Subcontractors
+                .Include(s => s.User)
+                .Include(s => s.Specialties)
+                .FirstOrDefaultAsync(s => s.UserId == userId, ct);
+        }
 
     }
 }

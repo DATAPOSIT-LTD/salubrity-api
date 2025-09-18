@@ -156,7 +156,7 @@ namespace Salubrity.Application.Services.Subcontractor
                 existingUser.DateOfBirth = dto.User.DateOfBirth.ToUtcSafe();
                 existingUser.UpdatedAt = DateTime.UtcNow;
 
-                await _userRepository.UpdateUserAsync(existingUser); // 👈 persist updates
+                await _userRepository.UpdateUserAsync(existingUser); // persist updates
 
                 // 🔒 Ensure Subcontractor role exists
                 var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
@@ -211,11 +211,19 @@ namespace Salubrity.Application.Services.Subcontractor
                 await _userRepository.AddUserAsync(user);
             }
 
+            // ❌ don’t add User navigation, only use FK
+            // ❌ also prevent duplicates
+            var existingSubcontractor = await _repo.GetByUserIdAsync(user.Id);
+            if (existingSubcontractor is not null)
+            {
+                throw new ValidationException(["This user is already registered as a subcontractor."]);
+            }
+
             // 🎯 Create Subcontractor linked to this user
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                UserId = user.Id,   // 👈 use FK instead of adding User object again
+                UserId = user.Id,   // only FK
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,
@@ -237,6 +245,7 @@ namespace Salubrity.Application.Services.Subcontractor
 
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }
+
 
         public async Task<List<SubcontractorDto>> GetAllAsync()
         {

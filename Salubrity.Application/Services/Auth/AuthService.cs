@@ -370,8 +370,7 @@ namespace Salubrity.Application.Services.Auth
             var menus = new List<MenuResponseDto>();
 
             // Employee? emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.Organization.Id);
-
-
+            var existingEmployee = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.OrganizationId.Value);
 
             foreach (var roleId in roleIds)
             {
@@ -432,21 +431,36 @@ namespace Salubrity.Application.Services.Auth
                 billingStatus = participant?.BillingStatus?.Name;
             }
 
-
-            return new MeResponseDto
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FullName = $"{user.FirstName} {user.LastName}",
-                Roles = roles,
-                Permissions = [.. permissions],
-                Menus = roots,
-                RelatedEntityType = user.RelatedEntityType,
-                RelatedEntityId = user.RelatedEntityId,
-                OnboardingComplete = isOnboardingComplete,
-                BillingStatus = billingStatus,
-                EmployeeId = null
-            };
+            if (existingEmployee != null)
+                return new MeResponseDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FullName = $"{user.FirstName} {user.LastName}",
+                    Roles = roles,
+                    Permissions = [.. permissions],
+                    Menus = roots,
+                    RelatedEntityType = user.RelatedEntityType,
+                    RelatedEntityId = user.RelatedEntityId,
+                    OnboardingComplete = isOnboardingComplete,
+                    BillingStatus = billingStatus,
+                    EmployeeId = existingEmployee.Id
+                };
+            else
+                return new MeResponseDto
+                {
+                    Id = user.Id,
+                    Email = user.Email,
+                    FullName = $"{user.FirstName} {user.LastName}",
+                    Roles = roles,
+                    Permissions = [.. permissions],
+                    Menus = roots,
+                    RelatedEntityType = user.RelatedEntityType,
+                    RelatedEntityId = user.RelatedEntityId,
+                    OnboardingComplete = isOnboardingComplete,
+                    BillingStatus = billingStatus,
+                    EmployeeId = null
+                };
         }
     }
 }

@@ -14,4 +14,5 @@ public class MeResponseDto
     public Guid? RelatedEntityId { get; set; }
     public bool OnboardingComplete { get; set; }
     public string? BillingStatus { get; set; }
+    public Guid? EmployeeId { get; set; }
 }

@@ -45,7 +45,7 @@ namespace Salubrity.Application.Services.Auth
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IOrganizationRepository _organizationRepository;
         private readonly IPatientNumberGeneratorService _patientNumberGeneratorService;
-        private readonly IHealthCampParticipantRepository _healthCampParticipantRepository; 
+        private readonly IHealthCampParticipantRepository _healthCampParticipantRepository;
 
 
 
@@ -369,6 +369,15 @@ namespace Salubrity.Application.Services.Auth
             var permissions = new HashSet<string>();
             var menus = new List<MenuResponseDto>();
 
+            var emp = new Employee();
+            if (user.OrganizationId != null)
+            {
+
+                var orgId = user.OrganizationId;
+                emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.OrganizationId.Value);
+
+            }
+
             foreach (var roleId in roleIds)
             {
                 var role = await _roleRepository.GetByIdAsync(roleId);
@@ -428,6 +437,7 @@ namespace Salubrity.Application.Services.Auth
                 billingStatus = participant?.BillingStatus?.Name;
             }
 
+
             return new MeResponseDto
             {
                 Id = user.Id,
@@ -439,7 +449,8 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityType = user.RelatedEntityType,
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete,
-                BillingStatus = billingStatus
+                BillingStatus = billingStatus,
+                EmployeeId = emp.Id
             };
         }
     }

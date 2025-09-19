@@ -1,4 +1,4 @@
-public class QueuedParticipantDto
+public class MyQueuedParticipantDto
 {
     public Guid CheckInId { get; set; }
     public Guid ParticipantId { get; set; }

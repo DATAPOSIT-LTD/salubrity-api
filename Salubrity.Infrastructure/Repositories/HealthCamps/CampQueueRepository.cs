@@ -228,7 +228,7 @@ public class CampQueueRepository : ICampQueueRepository
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(ct);
     }
-    public async Task<List<QueuedParticipantDto>> GetQueuedParticipantsAsync(
+    public async Task<List<MyQueuedParticipantDto>> GetQueuedParticipantsAsync(
         Guid userId,
         Guid campId,
         Guid? subcontractorId,
@@ -250,7 +250,7 @@ public class CampQueueRepository : ICampQueueRepository
                 ci.Status == "Queued")
             .OrderByDescending(ci => ci.Priority)
             .ThenBy(ci => ci.CreatedAt)
-            .Select(ci => new QueuedParticipantDto
+            .Select(ci => new MyQueuedParticipantDto
             {
                 CheckInId = ci.Id,
                 ParticipantId = ci.HealthCampParticipantId,

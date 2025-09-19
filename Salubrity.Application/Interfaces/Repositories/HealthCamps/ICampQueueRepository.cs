@@ -24,7 +24,7 @@ public interface ICampQueueRepository
     Task<HealthCampStationCheckIn?> GetLatestForParticipantAsync(
         Guid participantId, CancellationToken ct = default);
 
-    Task<List<QueuedParticipantDto>> GetQueuedParticipantsAsync(
+    Task<List<MyQueuedParticipantDto>> GetQueuedParticipantsAsync(
 Guid userId,
 Guid campId,
 Guid? subcontractorId,

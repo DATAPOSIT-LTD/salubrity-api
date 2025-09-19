@@ -11,6 +11,6 @@ public interface ICampQueueService
     Task<QueuePositionDto> GetMyPositionAsync(Guid userId, Guid campId, Guid assignmentId, CancellationToken ct = default);
     Task StartServiceAsync(Guid staffUserId, Guid checkInId, CancellationToken ct = default);
     Task CompleteServiceAsync(Guid staffUserId, Guid checkInId, CancellationToken ct = default);
-    Task<List<QueuedParticipantDto>> GetMyQueueAsync(Guid userId, Guid campId, Guid? subcontractorId, CancellationToken ct = default);
+    Task<List<MyQueuedParticipantDto>> GetMyQueueAsync(Guid userId, Guid campId, Guid? subcontractorId, CancellationToken ct = default);
 
 }

@@ -87,6 +87,28 @@ namespace Salubrity.Infrastructure.Repositories.Users
                 await _context.SaveChangesAsync();
             }
         }
+        public async Task<int> BackfillSubcontractorLinksAsync(CancellationToken ct = default)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""Users"" u
+                SET ""RelatedEntityId"" = s.""Id"",
+                    ""RelatedEntityType"" = 'Subcontractor'
+                FROM ""Subcontractors"" s
+                WHERE s.""UserId"" = u.""Id""
+                  AND (u.""RelatedEntityId"" IS NULL OR u.""RelatedEntityType"" IS NULL);
+            ", ct);
+        }
 
+        public async Task<int> BackfillPatientLinksAsync(CancellationToken ct = default)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""Users"" u
+                SET ""RelatedEntityId"" = p.""Id"",
+                    ""RelatedEntityType"" = 'Patient'
+                FROM ""Patients"" p
+                WHERE p.""UserId"" = u.""Id""
+                  AND (u.""RelatedEntityId"" IS NULL OR u.""RelatedEntityType"" IS NULL);
+            ", ct);
+        }
     }
 }

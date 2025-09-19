@@ -9,6 +9,7 @@ using Salubrity.Shared.Extensions;
 using Salubrity.Api.Middleware;
 using Serilog;
 using OfficeOpenXml;
+using Salubrity.Application.Services.Jobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +29,7 @@ builder.Services.AddApplicationLayer();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSharedServices(builder.Configuration);
 builder.Services.AddJwtAuth(builder.Configuration);
+builder.Services.AddHostedService<RelatedEntityBackfillJob>();
 #endregion
 
 #region API & Swagger

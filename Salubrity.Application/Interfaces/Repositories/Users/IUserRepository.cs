@@ -14,5 +14,8 @@ namespace Salubrity.Application.Interfaces.Repositories.Users
         Task<IEnumerable<User>> GetAllAsync(CancellationToken ct = default);
         Task DeleteUserAsync(Guid userId);
 
+        Task<int> BackfillSubcontractorLinksAsync(CancellationToken ct = default);
+        Task<int> BackfillPatientLinksAsync(CancellationToken ct = default);
+
     }
 }

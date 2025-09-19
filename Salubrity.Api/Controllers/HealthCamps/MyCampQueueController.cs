@@ -59,7 +59,7 @@ public class MyCampQueueController : BaseController
 
     [Authorize(Roles = "Subcontractor,Concierge,Admin")]
     [HttpGet("{campId:guid}/my-queue")]
-    [ProducesResponseType(typeof(ApiResponse<List<QueuedParticipantDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<MyQueuedParticipantDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyQueue(
     Guid campId,
     [FromServices] ICurrentSubcontractorService current,

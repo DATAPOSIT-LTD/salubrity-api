@@ -120,17 +120,22 @@ public class CampController : BaseController
     [HttpGet("my/ongoing")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyOgoingCampsAsync(
-     [FromServices] ICurrentSubcontractorService current,
-     CancellationToken ct)
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
         var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
-        var subcontractorId = (isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+
+        var subcontractorId = (isConcierge || isDoctor || isAdmin)
+            ? (Guid?)null
+            : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyOngoingCampsAsync(subcontractorId);
         return Success(result);
     }
+
 
     // [Authorize(Roles = "Admin")]
     [HttpPost("{campId:guid}/participants")]

@@ -12,7 +12,6 @@ namespace Salubrity.Api.Controllers.Camps;
 
 [ApiController]
 [ApiVersion("1.0")]
-[Authorize(Roles = "Patient")] // adjust as needed
 [Route("api/v{version:apiVersion}/camps/my")]
 [Produces("application/json")]
 [Tags("My Camp Queue")]
@@ -23,6 +22,7 @@ public class MyCampQueueController : BaseController
 
     private Guid GetUserId() => GetCurrentUserId();
 
+    [Authorize(Roles = "Patient")]
     [HttpPost("{campId:guid}/service-stations/{assignmentId:guid}/check-in")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> CheckIn(Guid campId, Guid assignmentId, [FromBody] CheckInRequestDto? body, CancellationToken ct)

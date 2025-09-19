@@ -228,6 +228,42 @@ public class CampQueueRepository : ICampQueueRepository
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(ct);
     }
+    public async Task<List<QueuedParticipantDto>> GetQueuedParticipantsAsync(
+        Guid userId,
+        Guid campId,
+        Guid? subcontractorId,
+        CancellationToken ct = default)
+    {
+        var assignmentIds = await _db.HealthCampServiceAssignments
+            .Where(a => a.HealthCampId == campId &&
+                        (subcontractorId == null || a.SubcontractorId == subcontractorId))
+            .Select(a => a.Id)
+            .ToListAsync(ct);
+
+        if (!assignmentIds.Any())
+            return [];
+
+        var queue = await _db.HealthCampStationCheckIns
+            .Where(ci =>
+                ci.HealthCampId == campId &&
+                assignmentIds.Contains(ci.HealthCampServiceAssignmentId) &&
+                ci.Status == "Queued")
+            .OrderByDescending(ci => ci.Priority)
+            .ThenBy(ci => ci.CreatedAt)
+            .Select(ci => new QueuedParticipantDto
+            {
+                CheckInId = ci.Id,
+                ParticipantId = ci.HealthCampParticipantId,
+                Status = ci.Status,
+                Priority = ci.Priority,
+                CreatedAt = ci.CreatedAt,
+                ParticipantName = ci.Participant.User.FirstName + " " + ci.Participant.User.LastName
+            })
+            .ToListAsync(ct);
+
+        return queue;
+    }
+
 
 
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Services.Camps;
+using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Shared.Responses;
 using System.Security.Claims;
 
@@ -55,4 +56,29 @@ public class MyCampQueueController : BaseController
         var pos = await _service.GetMyPositionAsync(GetUserId(), campId, assignmentId, ct);
         return Success(pos);
     }
+
+    [Authorize(Roles = "Subcontractor,Concierge,Admin")]
+    [HttpGet("{campId:guid}/my-queue")]
+    [ProducesResponseType(typeof(ApiResponse<List<QueuedParticipantDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyQueue(
+    Guid campId,
+    [FromServices] ICurrentSubcontractorService current,
+    [FromServices] IUserService userService,
+    CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+
+        // Check if user is Admin or Concierge
+        var isAdmin = await userService.IsInRoleAsync(userId, "Admin");
+        var isConcierge = await userService.IsInRoleAsync(userId, "Concierge");
+
+        // Subcontractor ID if required
+        var subcontractorId = (isAdmin || isConcierge)
+            ? (Guid?)null
+            : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
+        var queue = await _service.GetMyQueueAsync(userId, campId, subcontractorId, ct);
+        return Success(queue);
+    }
+
 }

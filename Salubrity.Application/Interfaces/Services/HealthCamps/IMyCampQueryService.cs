@@ -13,4 +13,7 @@ public interface IMyCampQueryService
         bool group = false,
         CancellationToken ct = default);
 
+
+
+
 }

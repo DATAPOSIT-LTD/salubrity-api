@@ -25,4 +25,6 @@ public class MyCampQueryService : IMyCampQueryService
        => _repo.GetServicesForUserCampAsync(userId, campId, group, ct: ct);
 
 
+
+
 }

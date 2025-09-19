@@ -27,4 +27,9 @@ public class CampQueueService : ICampQueueService
 
     public Task CompleteServiceAsync(Guid staffUserId, Guid checkInId, CancellationToken ct = default)
         => _repo.CompleteServiceAsync(staffUserId, checkInId, ct);
+
+    public async Task<List<QueuedParticipantDto>> GetMyQueueAsync(Guid userId, Guid campId, Guid? subcontractorId, CancellationToken ct = default)
+    {
+        return await _repo.GetQueuedParticipantsAsync(userId, campId, subcontractorId, ct);
+    }
 }

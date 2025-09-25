@@ -24,6 +24,7 @@ using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Repositories.Rbac;
+using Salubrity.Application.Interfaces.Repositories.Reporting;
 using Salubrity.Application.Interfaces.Repositories.Subcontactors;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Security;
@@ -57,6 +58,7 @@ using Salubrity.Infrastructure.Repositories.Organizations;
 using Salubrity.Infrastructure.Repositories.Patients;
 using Salubrity.Infrastructure.Repositories.Patients;
 using Salubrity.Infrastructure.Repositories.Rbac;
+using Salubrity.Infrastructure.Repositories.Reporting;
 using Salubrity.Infrastructure.Repositories.Subcontactors;
 using Salubrity.Infrastructure.Repositories.Users;
 using Salubrity.Infrastructure.Security;
@@ -127,12 +129,12 @@ public static class DependencyInjection
         services.AddScoped<IOnboardingStatusRepository, OnboardingStatusRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
 
+
         services.AddScoped<IConciergeRepository, ConciergeRepository>();
 
         services.AddScoped<IHealthCampServiceAssignmentRepository, HealthCampServiceAssignmentRepository>();
         services.AddScoped<IFormFieldMappingRepository, FormFieldMappingRepository>();
         services.AddScoped<IPatientNumberRepository, PatientNumberRepository>();
-
 
 
         services.AddDbContext<AppDbContext>(options =>

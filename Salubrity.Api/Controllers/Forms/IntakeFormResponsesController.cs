@@ -110,4 +110,15 @@ public class IntakeFormResponsesController : BaseController
         var result = await _bulkUploadService.UploadExcelAsync(bulkDto, ct);
         return Success(result);
     }
+
+    [HttpGet("camps/{campId:guid}/export")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ExportCampResponsesToExcel(Guid campId, CancellationToken ct)
+    {
+        var exportData = await _service.ExportCampResponsesToExcelAsync(campId, ct);
+
+        return File(exportData.Content, exportData.ContentType, exportData.FileName);
+    }
 }

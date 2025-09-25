@@ -1,10 +1,6 @@
 #nullable enable
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using ClosedXML.Excel;
 using Microsoft.Extensions.Logging;
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
@@ -14,11 +10,17 @@ using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Salubrity.Application.Services.Forms;
 
@@ -32,6 +34,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly IServiceSubcategoryRepository _serviceSubcategoryRepository;
     private readonly IHealthCampServiceAssignmentRepository _assignmentRepository;
     private readonly ILogger<IntakeFormResponseService> _logger;
+    private readonly IHealthCampService _campService;
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -41,7 +44,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IServiceRepository serviceRepository,
         IServiceCategoryRepository serviceCategoryRepository,
         IServiceSubcategoryRepository serviceSubcategoryRepository,
-        ILogger<IntakeFormResponseService> logger
+        ILogger<IntakeFormResponseService> logger,
+        IHealthCampService campService
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -52,6 +56,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _serviceCategoryRepository = serviceCategoryRepository;
         _serviceSubcategoryRepository = serviceSubcategoryRepository;
         _logger = logger;
+        _campService = campService;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -262,5 +267,91 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             throw new NotFoundException("No responses found for this patient in this camp.");
 
         return responses;
+    }
+
+    public async Task<IntakeFormResponseExportDto> ExportCampResponsesToExcelAsync(Guid campId, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Starting Excel export for camp {CampId} intake form responses", campId);
+
+        // Get all responses for this camp
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailsAsync(campId, ct);
+
+        if (!responses.Any())
+        {
+            _logger.LogWarning("No intake form responses found for camp {CampId}", campId);
+        }
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Intake Form Responses");
+
+        // Get all unique fields from all responses to build dynamic columns
+        var allFields = responses
+            .SelectMany(r => r.FieldResponses)
+            .Where(fr => fr.Field != null)
+            .Select(fr => new { fr.Field.Id, fr.Field.Label, fr.Field.FieldType })
+            .Distinct()
+            .OrderBy(f => f.Label)
+            .ToList();
+
+        // Create headers - static columns first, then dynamic field columns
+        var staticHeaders = new List<string>
+    {
+        "Response Date",
+        "Patient Name"
+    };
+
+        var dynamicHeaders = allFields.Select(f => f.Label).ToList();
+        var allHeaders = staticHeaders.Concat(dynamicHeaders).ToList();
+
+        // Set headers
+        for (int i = 0; i < allHeaders.Count; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = allHeaders[i];
+            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+        }
+
+        // Populate data rows
+        int currentRow = 2;
+        foreach (var response in responses)
+        {
+            int currentCol = 1;
+
+            // Static columns
+            worksheet.Cell(currentRow, currentCol++).Value = response.CreatedAt.ToString("yyyy-MM-dd HH:mm");
+            worksheet.Cell(currentRow, currentCol++).Value = response.Patient?.PatientNumber ?? "Unknown";
+
+            // Dynamic field columns
+            foreach (var field in allFields)
+            {
+                var fieldResponse = response.FieldResponses
+                    .FirstOrDefault(fr => fr.Field?.Id == field.Id);
+
+                string cellValue = fieldResponse?.Value ?? "";
+                worksheet.Cell(currentRow, currentCol++).Value = cellValue;
+            }
+
+            currentRow++;
+        }
+
+        // Auto-fit columns
+        worksheet.ColumnsUsed().AdjustToContents();
+
+        // Create the Excel file in memory
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        var content = stream.ToArray();
+
+        var fileName = $"IntakeFormResponses_Camp_{campId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+        _logger.LogInformation("Excel export completed for camp {CampId}. Generated {RowCount} rows with {ColumnCount} columns",
+            campId, responses.Count, allHeaders.Count);
+
+        return new IntakeFormResponseExportDto
+        {
+            Content = content,
+            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            FileName = fileName
+        };
     }
 }

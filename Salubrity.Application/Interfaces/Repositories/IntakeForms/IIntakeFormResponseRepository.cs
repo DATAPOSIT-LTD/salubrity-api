@@ -27,4 +27,5 @@ public interface IIntakeFormResponseRepository
     Task<Guid> GetStatusIdByNameAsync(string name, CancellationToken ct = default);
     Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid? patientId, Guid healthCampId, CancellationToken ct = default);
 
+    Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailsAsync(Guid campId, CancellationToken ct = default);
 }

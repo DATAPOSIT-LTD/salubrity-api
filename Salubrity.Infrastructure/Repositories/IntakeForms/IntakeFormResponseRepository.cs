@@ -1,10 +1,11 @@
+using DocumentFormat.OpenXml.InkML;
 using Microsoft.EntityFrameworkCore;
-using Salubrity.Application.Interfaces.Repositories.IntakeForms;
-using Salubrity.Domain.Entities.IntakeForms;
-using Salubrity.Application.Interfaces;
-using Salubrity.Shared.Exceptions;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
+using Salubrity.Application.Interfaces;
+using Salubrity.Application.Interfaces.Repositories.IntakeForms;
 using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.IntakeForms;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Infrastructure.Persistence.Repositories.IntakeForms;
 
@@ -126,6 +127,19 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             };
 
         return await query.ToListAsync(ct);
+    }
+
+    public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailsAsync(Guid campId, CancellationToken ct = default)
+    {
+        return await _db.IntakeFormResponses
+            .Include(r => r.Patient)
+            .Include(r => r.FieldResponses)
+                .ThenInclude(fr => fr.Field)
+            .Where(r => r.PatientId != null &&
+                       _db.HealthCampParticipants.Any(p => p.Id == r.PatientId && p.HealthCampId == campId) &&
+                       !r.IsDeleted)
+            .OrderBy(r => r.CreatedAt)
+            .ToListAsync(ct);
     }
 }
 

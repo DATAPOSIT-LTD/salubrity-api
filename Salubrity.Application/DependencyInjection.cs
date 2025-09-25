@@ -21,7 +21,7 @@ using Salubrity.Application.Interfaces.Services.Lookups;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Organizations;
-
+using Salubrity.Application.Interfaces.Services.Reporting;
 using Salubrity.Application.Interfaces.Services.Subcontractors;
 
 using Salubrity.Application.Interfaces.Services.Users;
@@ -45,6 +45,7 @@ using Salubrity.Application.Services.Notifications;
 using Salubrity.Application.Services.Organizations;
 using Salubrity.Application.Services.Patients;
 using Salubrity.Application.Services.Rbac;
+using Salubrity.Application.Services.Reporting;
 using Salubrity.Application.Services.Subcontractor;
 using Salubrity.Application.Services.Subcontractors;
 
@@ -132,6 +133,7 @@ namespace Salubrity.Application
             services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
             services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();
             services.AddScoped<IDoctorRecommendationService, DoctorRecommendationService>();
+
 
 
 

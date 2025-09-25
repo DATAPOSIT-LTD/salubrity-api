@@ -844,7 +844,7 @@ public class HealthCampRepository : IHealthCampRepository
         }
 
 
-        dto.Assignments = result.OrderBy(x => x.ServiceName).ToList();
+        dto.Assignments = [.. result.OrderBy(x => x.ServiceName)];
 
         return dto;
     }

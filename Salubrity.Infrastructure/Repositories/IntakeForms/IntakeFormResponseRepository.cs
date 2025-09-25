@@ -62,7 +62,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     }
 
     public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(
-     Guid patientId, Guid healthCampId, CancellationToken ct = default)
+     Guid? patientId, Guid healthCampId, CancellationToken ct = default)
     {
         var query =
             from r in _db.IntakeFormResponses

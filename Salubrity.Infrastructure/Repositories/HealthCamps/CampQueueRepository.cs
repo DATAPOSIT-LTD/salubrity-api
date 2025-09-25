@@ -7,6 +7,7 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Shared.Exceptions;
 
 namespace Salubrity.Infrastructure.Repositories.Camps;
 
@@ -46,13 +47,13 @@ public class CampQueueRepository : ICampQueueRepository
             (x.Status == "Queued" || x.Status == "InService"), ct);
 
         if (hasActive)
-            throw new InvalidOperationException("You already have an active station.");
+            throw new ConflictException("You already have an active station.");
 
         // validate assignment belongs to camp
         var belongs = await _db.Set<HealthCampServiceAssignment>().AnyAsync(a =>
             a.Id == dto.AssignmentId && a.HealthCampId == dto.CampId, ct);
 
-        if (!belongs) throw new InvalidOperationException("Invalid station.");
+        if (!belongs) throw new ConflictException("Invalid station.");
 
         var checkIn = new HealthCampStationCheckIn
         {
@@ -163,7 +164,7 @@ public class CampQueueRepository : ICampQueueRepository
     {
         // Staff auth/ownership checks live in your policy layer (omitted here)
         var ci = await _db.Set<HealthCampStationCheckIn>().FirstOrDefaultAsync(x => x.Id == checkInId, ct);
-        if (ci == null) throw new InvalidOperationException("Check-in not found.");
+        if (ci == null) throw new ConflictException("Check-in not found.");
         if (ci.Status != "Queued") return;
 
         ci.Status = "InService";
@@ -174,7 +175,7 @@ public class CampQueueRepository : ICampQueueRepository
     public async Task CompleteServiceAsync(Guid staffUserId, Guid checkInId, CancellationToken ct = default)
     {
         var ci = await _db.Set<HealthCampStationCheckIn>().FirstOrDefaultAsync(x => x.Id == checkInId, ct);
-        if (ci == null) throw new InvalidOperationException("Check-in not found.");
+        if (ci == null) throw new ConflictException("Check-in not found.");
         if (ci.Status != "InService") return;
 
         ci.Status = "Completed";
@@ -227,6 +228,42 @@ public class CampQueueRepository : ICampQueueRepository
             .OrderByDescending(c => c.CreatedAt)
             .FirstOrDefaultAsync(ct);
     }
+    public async Task<List<MyQueuedParticipantDto>> GetQueuedParticipantsAsync(
+        Guid userId,
+        Guid campId,
+        Guid? subcontractorId,
+        CancellationToken ct = default)
+    {
+        var assignmentIds = await _db.HealthCampServiceAssignments
+            .Where(a => a.HealthCampId == campId &&
+                        (subcontractorId == null || a.SubcontractorId == subcontractorId))
+            .Select(a => a.Id)
+            .ToListAsync(ct);
+
+        if (!assignmentIds.Any())
+            return [];
+
+        var queue = await _db.HealthCampStationCheckIns
+            .Where(ci =>
+                ci.HealthCampId == campId &&
+                assignmentIds.Contains(ci.HealthCampServiceAssignmentId) &&
+                ci.Status == "Queued")
+            .OrderByDescending(ci => ci.Priority)
+            .ThenBy(ci => ci.CreatedAt)
+            .Select(ci => new MyQueuedParticipantDto
+            {
+                CheckInId = ci.Id,
+                ParticipantId = ci.HealthCampParticipantId,
+                Status = ci.Status,
+                Priority = ci.Priority,
+                CreatedAt = ci.CreatedAt,
+                ParticipantName = ci.Participant.User.FirstName + " " + ci.Participant.User.LastName
+            })
+            .ToListAsync(ct);
+
+        return queue;
+    }
+
 
 
 }

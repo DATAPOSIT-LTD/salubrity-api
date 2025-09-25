@@ -76,9 +76,11 @@ public class CampController : BaseController
     {
         var userId = GetCurrentUserId();
         var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+        var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
+        var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
 
         // Admins have no subcontractorId → pass null to service
-        var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        var subcontractorId = (isAdmin || isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
         return Success(result);
@@ -118,16 +120,22 @@ public class CampController : BaseController
     [HttpGet("my/ongoing")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyOgoingCampsAsync(
-     [FromServices] ICurrentSubcontractorService current,
-     CancellationToken ct)
+    [FromServices] ICurrentSubcontractorService current,
+    CancellationToken ct)
     {
         var userId = GetCurrentUserId();
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
-        var subcontractorId = isConcierge ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
+        var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+
+        var subcontractorId = (isConcierge || isDoctor || isAdmin)
+            ? (Guid?)null
+            : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
         var result = await _service.GetMyOngoingCampsAsync(subcontractorId);
         return Success(result);
     }
+
 
     // [Authorize(Roles = "Admin")]
     [HttpPost("{campId:guid}/participants")]
@@ -238,7 +246,7 @@ public class CampController : BaseController
         return Success(patients);
     }
 
-    [Authorize(Roles = "Subcontractor,Admin")]
+    [Authorize(Roles = "Subcontractor,Doctor,Admin")]
     [HttpGet("{campId:guid}/patients/{participantId:guid}/detail-with-forms")]
     [ProducesResponseType(typeof(ApiResponse<CampPatientDetailWithFormsDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampPatientDetailWithForms(

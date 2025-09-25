@@ -73,40 +73,7 @@ public class BulkLabUploadService : IBulkLabUploadService
     public async Task<BulkUploadResultDto> UploadExcelAsync(CreateBulkLabUploadDto dto, CancellationToken ct = default)
     {
 
-        //         public class CreateBulkLabUploadDto
-        // {
-        //     public IFormFile ExcelFile { get; set; } = null!;
-        //     public Guid IntakeFormVersionId { get; set; }
-        //     public Guid SubmittedByUserId { get; set; }
-        // }
 
-        /**
-        {
-    "intakeFormId": "a6fdecc9-1b30-43d2-8852-f4c21e7c1201",
-    "intakeFormVersionId": "28a9908c-5859-4416-ada3-9077b84a1d25",
-    "patientId": "749fad67-0ab7-4cf4-bc38-aa83e0c413f9",
-    "serviceId": "b50a6ef7-a9c2-4c86-ad7e-5ede161e4f2d",
-    "responseStatusId": "c40c5a53-55bd-4c58-81dd-fafc54db0ac7",
-    "fieldResponses": [
-        {
-            "fieldId": "114b2d4e-4f75-4d0e-90f7-049ba92b468d",
-            "value": "1"
-        },
-        {
-            "fieldId": "0e2cb7c4-c8fa-4de5-be26-b0f2c23ee13e",
-            "value": "5"
-        },
-        {
-            "fieldId": "a50c0ee9-3329-4473-9175-21001f4f0b82",
-            "value": "1"
-        },
-        {
-            "fieldId": "651f3cc4-10fb-4d3a-9b76-baaabb671255",
-            "value": "No additional notes for now"
-        }
-    ]
-}
-        */
         ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
         var result = new BulkUploadResultDto();
@@ -117,7 +84,7 @@ public class BulkLabUploadService : IBulkLabUploadService
             _logger.LogInformation("🗂 Starting processing of sheet: {SheetName}", sheet.Name);
 
             // 1. Load form version including sections + fields
-            var formVersion = await _intakeFormRepository.GetActiveVersionWithFieldsByFormNameAsync(sheet.Name, ct);
+            var formVersion = await _intakeFormRepository.GetActiveVersionWithFieldsByServiceNameAsync(sheet.Name, ct);
 
             if (formVersion == null)
             {
@@ -298,8 +265,10 @@ public class BulkLabUploadService : IBulkLabUploadService
         if (scopedAssignments.Count == 0)
             throw new NotFoundException("You are not assigned to the selected health camp.");
 
-        // Collect intake form IDs directly from service/category/subcategory
+        // Collect intake forms & map to service/category/subcategory names
         var intakeFormIds = new HashSet<Guid>();
+        var intakeFormEntries = new Dictionary<Guid, string>();
+
         foreach (var assignment in scopedAssignments)
         {
             ct.ThrowIfCancellationRequested();
@@ -307,21 +276,33 @@ public class BulkLabUploadService : IBulkLabUploadService
             switch (assignment.AssignmentType)
             {
                 case PackageItemType.Service:
-                    var service = await _serviceRepo.GetByIdAsync(assignment.AssignmentId);
+                    var service = await _serviceRepo.GetByIdAsync(assignment.AssignmentId, ct);
                     if (service?.IntakeFormId != null)
-                        intakeFormIds.Add(service.IntakeFormId.Value);
+                    {
+                        var formId = service.IntakeFormId.Value;
+                        intakeFormIds.Add(formId);
+                        intakeFormEntries[formId] = service.Name;
+                    }
                     break;
 
                 case PackageItemType.ServiceCategory:
                     var category = await _categoryRepo.GetByIdAsync(assignment.AssignmentId);
                     if (category?.IntakeFormId != null)
-                        intakeFormIds.Add(category.IntakeFormId.Value);
+                    {
+                        var formId = category.IntakeFormId.Value;
+                        intakeFormIds.Add(formId);
+                        intakeFormEntries[formId] = category.Name;
+                    }
                     break;
 
                 case PackageItemType.ServiceSubcategory:
                     var subcategory = await _subcategoryRepo.GetByIdAsync(assignment.AssignmentId);
                     if (subcategory?.IntakeFormId != null)
-                        intakeFormIds.Add(subcategory.IntakeFormId.Value);
+                    {
+                        var formId = subcategory.IntakeFormId.Value;
+                        intakeFormIds.Add(formId);
+                        intakeFormEntries[formId] = subcategory.Name;
+                    }
                     break;
             }
         }
@@ -338,12 +319,31 @@ public class BulkLabUploadService : IBulkLabUploadService
         // Get all patients in the camp
         var patients = await _patientRepo.GetPatientsByCampViaUserAsync(campId, ct);
 
-        // Generate worksheet per lab form
+        // Track used sheet names to avoid duplicates
+        var usedSheetNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var form in formsToInclude)
         {
             ct.ThrowIfCancellationRequested();
 
-            var sheet = package.Workbook.Worksheets.Add(form.Name);
+            // Resolve sheet name
+            string baseName = intakeFormEntries.TryGetValue(form.Id, out var serviceName)
+                ? serviceName
+                : form.Name;
+
+            // Ensure uniqueness (append counter if duplicate)
+            string sheetName = baseName;
+            int counter = 2;
+            while (usedSheetNames.Contains(sheetName))
+            {
+                sheetName = $"{baseName} ({counter})";
+                counter++;
+            }
+            usedSheetNames.Add(sheetName);
+
+            // Create worksheet
+            var sheet = package.Workbook.Worksheets.Add(sheetName);
+
             var headers = new List<string> { "Patient Number", "Patient Full Name" };
 
             foreach (var section in form.Sections.OrderBy(s => s.Order))
@@ -366,7 +366,6 @@ public class BulkLabUploadService : IBulkLabUploadService
             foreach (var patient in patients)
             {
                 ct.ThrowIfCancellationRequested();
-
                 if (patient.User == null) continue;
 
                 var fullName = string.Join(" ", new[]
@@ -392,6 +391,7 @@ public class BulkLabUploadService : IBulkLabUploadService
         stream.Position = 0;
         return stream;
     }
+
 
 
 

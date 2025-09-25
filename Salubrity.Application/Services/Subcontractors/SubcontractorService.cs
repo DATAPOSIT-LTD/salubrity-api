@@ -46,6 +46,82 @@ namespace Salubrity.Application.Services.Subcontractor
             _campAssignmentRepo = campAssignmentRepository;
         }
 
+        // public async Task<SubcontractorDto> CreateAsync(CreateSubcontractorDto dto)
+        // {
+        //     if (dto.StatusId is null)
+        //         throw new ValidationException(["Status is required"]);
+
+        //     if (dto.User == null)
+        //         throw new ValidationException(["User info is required"]);
+
+        //     var industry = dto.IndustryId.HasValue
+        //         ? await _industryService.GetByIdAsync(dto.IndustryId.Value)
+        //         : await _industryService.GetDefaultIndustryAsync();
+
+        //     if (industry == null)
+        //         throw new NotFoundException("Industry not found");
+
+        //     var existing = await _userRepository.FindUserByEmailAsync(dto.User.Email.Trim().ToLowerInvariant());
+        //     if (existing is not null)
+        //         throw new ValidationException(["A user with this email already exists."]);
+
+        //     var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor") ?? throw new NotFoundException("Subcontractor role not found");
+
+        //     var userId = Guid.NewGuid();
+        //     var rawPassword = _passwordGenerator.Generate();
+
+        //     var user = new User
+        //     {
+        //         Id = userId,
+        //         FirstName = dto.User.FirstName?.Trim(),
+        //         MiddleName = dto.User.MiddleName?.Trim(),
+        //         LastName = dto.User.LastName?.Trim(),
+        //         Email = dto.User.Email.Trim().ToLowerInvariant(),
+        //         Phone = dto.User.Phone?.Trim(),
+        //         // NationalId = dto.User.NationalId?.Trim(),
+        //         GenderId = dto.User.GenderId,
+        //         DateOfBirth = dto.User.DateOfBirth.ToUtcSafe(),
+        //         // PrimaryLanguage = dto.User.PrimaryLanguage,
+        //         PasswordHash = _passwordHasher.HashPassword(rawPassword),
+        //         IsActive = true,
+        //         IsVerified = false,
+        //         CreatedAt = DateTime.UtcNow,
+        //         UserRoles =
+        //         [
+        //             new UserRole
+        //             {
+        //                 RoleId = subcontractorRole.Id,
+        //                 UserId = userId
+        //             }
+        //         ]
+        //     };
+
+        //     var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
+        //     {
+        //         Id = Guid.NewGuid(),
+        //         User = user,
+        //         IndustryId = industry.Id,
+        //         LicenseNumber = dto.LicenseNumber,
+        //         Bio = dto.Bio,
+        //         StatusId = dto.StatusId.Value,
+        //         Specialties = dto.SpecialtyIds?
+        //             .Select(id => new SubcontractorSpecialty { ServiceId = id })
+        //             .ToList() ?? []
+        //     };
+
+        //     await _repo.AddAsync(subcontractor);
+
+        //     foreach (var roleId in dto.SubcontractorRoleIds)
+        //     {
+        //         var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
+        //         await _repo.AssignRoleAsync(subcontractor.Id, roleId, isPrimary);
+        //         await _repo.SaveChangesAsync();
+        //     }
+
+        //     await _repo.SaveChangesAsync();
+
+        //     return _mapper.Map<SubcontractorDto>(subcontractor);
+        // }
         public async Task<SubcontractorDto> CreateAsync(CreateSubcontractorDto dto)
         {
             if (dto.StatusId is null)
@@ -61,14 +137,34 @@ namespace Salubrity.Application.Services.Subcontractor
             if (industry == null)
                 throw new NotFoundException("Industry not found");
 
-            var existing = await _userRepository.FindUserByEmailAsync(dto.User.Email.Trim().ToLowerInvariant());
-            if (existing is not null)
-                throw new ValidationException(["A user with this email already exists."]);
+            var email = dto.User.Email?.Trim().ToLowerInvariant();
+            var phone = dto.User.Phone?.Trim();
 
-            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor") ?? throw new NotFoundException("Subcontractor role not found");
+            // ⚡ Delete ANY user that conflicts on email OR phone
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                var userByEmail = await _userRepository.FindUserByEmailAsync(email);
+                if (userByEmail is not null)
+                {
+                    await _userRepository.DeleteUserAsync(userByEmail.Id);
+                }
+            }
 
+            if (!string.IsNullOrWhiteSpace(phone))
+            {
+                var userByPhone = await _userRepository.FindUserByPhoneAsync(phone);
+                if (userByPhone is not null)
+                {
+                    await _userRepository.DeleteUserAsync(userByPhone.Id);
+                }
+            }
+
+            // 🔑 Always create fresh user
             var userId = Guid.NewGuid();
             var rawPassword = _passwordGenerator.Generate();
+
+            var subcontractorRole = await _roleRepo.FindByNameAsync("Subcontractor")
+                ?? throw new NotFoundException("Subcontractor role not found");
 
             var user = new User
             {
@@ -76,12 +172,10 @@ namespace Salubrity.Application.Services.Subcontractor
                 FirstName = dto.User.FirstName?.Trim(),
                 MiddleName = dto.User.MiddleName?.Trim(),
                 LastName = dto.User.LastName?.Trim(),
-                Email = dto.User.Email.Trim().ToLowerInvariant(),
-                Phone = dto.User.Phone?.Trim(),
-                // NationalId = dto.User.NationalId?.Trim(),
+                Email = email,
+                Phone = phone,
                 GenderId = dto.User.GenderId,
                 DateOfBirth = dto.User.DateOfBirth.ToUtcSafe(),
-                // PrimaryLanguage = dto.User.PrimaryLanguage,
                 PasswordHash = _passwordHasher.HashPassword(rawPassword),
                 IsActive = true,
                 IsVerified = false,
@@ -89,17 +183,20 @@ namespace Salubrity.Application.Services.Subcontractor
                 UserRoles =
                 [
                     new UserRole
-                    {
-                        RoleId = subcontractorRole.Id,
-                        UserId = userId
-                    }
+            {
+                RoleId = subcontractorRole.Id,
+                UserId = userId
+            }
                 ]
             };
 
+            await _userRepository.AddUserAsync(user);
+
+            // 🎯 Create subcontractor for this user
             var subcontractor = new Domain.Entities.Subcontractor.Subcontractor
             {
                 Id = Guid.NewGuid(),
-                User = user,
+                UserId = user.Id, // ✅ only FK
                 IndustryId = industry.Id,
                 LicenseNumber = dto.LicenseNumber,
                 Bio = dto.Bio,
@@ -115,13 +212,16 @@ namespace Salubrity.Application.Services.Subcontractor
             {
                 var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
                 await _repo.AssignRoleAsync(subcontractor.Id, roleId, isPrimary);
-                await _repo.SaveChangesAsync();
             }
 
             await _repo.SaveChangesAsync();
 
             return _mapper.Map<SubcontractorDto>(subcontractor);
         }
+
+
+
+
         public async Task<List<SubcontractorDto>> GetAllAsync()
         {
             var subs = await _repo.GetAllWithDetailsAsync();

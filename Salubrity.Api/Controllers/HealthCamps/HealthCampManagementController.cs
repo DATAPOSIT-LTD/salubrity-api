@@ -28,13 +28,16 @@ public class HealthCampManagementController : BaseController
         return Success(result);
     }
 
+
+
     [HttpGet("{healthCampId:guid}/service-stations")]
     [ProducesResponseType(typeof(ApiResponse<List<ServiceStationSummaryDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetServiceStations(Guid healthCampId)
+    public async Task<IActionResult> GetServiceStations(Guid healthCampId, [FromQuery] bool group = false)
     {
-        var result = await _service.GetServiceStationsAsync(healthCampId);
+        var result = await _service.GetServiceStationsAsync(healthCampId, group);
         return Success(result);
     }
+
 
     [HttpGet("{healthCampId:guid}/patients")]
     [ProducesResponseType(typeof(ApiResponse<List<CampPatientSummaryDto>>), StatusCodes.Status200OK)]

@@ -101,18 +101,62 @@ public class IntakeFormRepository : IIntakeFormRepository
             .ToListAsync(ct);
     }
 
-    public async Task<IntakeFormVersion?> GetActiveVersionWithFieldsByFormNameAsync(string formName, CancellationToken ct)
+    public async Task<IntakeFormVersion?> GetActiveVersionWithFieldsByServiceNameAsync(
+        string serviceName,
+        CancellationToken ct)
     {
-        return await _context.IntakeFormVersions
-            .Include(v => v.IntakeForm)
-            .Include(v => v.Sections)
-                .ThenInclude(s => s.Fields)
-            .Where(v => !v.IsDeleted
-                && v.IsActive
-                && v.IntakeForm.Name == formName)
-            .OrderByDescending(v => v.VersionNumber)
+        // 1. Try Service → IntakeForm
+        var serviceFormId = await _context.Services
+            .Where(s => !s.IsDeleted && s.Name == serviceName && s.IntakeFormId != null)
+            .Select(s => s.IntakeFormId.Value)
             .FirstOrDefaultAsync(ct);
+
+        if (serviceFormId != Guid.Empty)
+        {
+            return await _context.IntakeFormVersions
+                .Include(v => v.IntakeForm)
+                .Include(v => v.Sections).ThenInclude(s => s.Fields)
+                .Where(v => !v.IsDeleted && v.IsActive && v.IntakeFormId == serviceFormId)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        // 2. Try ServiceCategory → IntakeForm
+        var categoryFormId = await _context.ServiceCategories
+            .Where(c => !c.IsDeleted && c.Name == serviceName && c.IntakeFormId != null)
+            .Select(c => c.IntakeFormId.Value)
+            .FirstOrDefaultAsync(ct);
+
+        if (categoryFormId != Guid.Empty)
+        {
+            return await _context.IntakeFormVersions
+                .Include(v => v.IntakeForm)
+                .Include(v => v.Sections).ThenInclude(s => s.Fields)
+                .Where(v => !v.IsDeleted && v.IsActive && v.IntakeFormId == categoryFormId)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        // 3. Try ServiceSubcategory → IntakeForm
+        var subcategoryFormId = await _context.ServiceSubcategories
+            .Where(sc => !sc.IsDeleted && sc.Name == serviceName && sc.IntakeFormId != null)
+            .Select(sc => sc.IntakeFormId.Value)
+            .FirstOrDefaultAsync(ct);
+
+        if (subcategoryFormId != Guid.Empty)
+        {
+            return await _context.IntakeFormVersions
+                .Include(v => v.IntakeForm)
+                .Include(v => v.Sections).ThenInclude(s => s.Fields)
+                .Where(v => !v.IsDeleted && v.IsActive && v.IntakeFormId == subcategoryFormId)
+                .OrderByDescending(v => v.VersionNumber)
+                .FirstOrDefaultAsync(ct);
+        }
+
+        // Nothing matched
+        return null;
     }
+
 
 
 }

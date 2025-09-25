@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Audit;
+using Salubrity.Domain.Entities.Clinical;
 using Salubrity.Domain.Entities.Configurations;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -104,6 +105,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<ReportingMetricMapping> ReportingMetricMappings { get; set; }
         public DbSet<FormFieldMapping> FormFieldMappings { get; set; }
         public DbSet<PatientNumberSequence> PatientNumberSequences { get; set; }
+        public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
 
         // ─────────────────────────────────────
         //  Model Configuration

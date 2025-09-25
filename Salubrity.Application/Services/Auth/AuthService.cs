@@ -45,7 +45,8 @@ namespace Salubrity.Application.Services.Auth
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IOrganizationRepository _organizationRepository;
         private readonly IPatientNumberGeneratorService _patientNumberGeneratorService;
-        private readonly IHealthCampParticipantRepository _healthCampParticipantRepository; 
+        private readonly IHealthCampParticipantRepository _healthCampParticipantRepository;
+
 
 
 
@@ -369,6 +370,10 @@ namespace Salubrity.Application.Services.Auth
             var permissions = new HashSet<string>();
             var menus = new List<MenuResponseDto>();
 
+            // Employee? emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.Organization.Id);
+
+
+
             foreach (var roleId in roleIds)
             {
                 var role = await _roleRepository.GetByIdAsync(roleId);
@@ -422,11 +427,16 @@ namespace Salubrity.Application.Services.Auth
             }
 
             string? billingStatus = null;
-            if (user.RelatedEntityType == "HealthCampParticipant" && user.RelatedEntityId.HasValue)
+
+            var patient = await _patientRepository.GetByUserIdAsync(userId);
+
+            if (patient != null)
             {
-                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(user.RelatedEntityId.Value);
+                var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patient.Id);
+                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(participantId.Value);
                 billingStatus = participant?.BillingStatus?.Name;
             }
+
 
             return new MeResponseDto
             {
@@ -439,7 +449,12 @@ namespace Salubrity.Application.Services.Auth
                 RelatedEntityType = user.RelatedEntityType,
                 RelatedEntityId = user.RelatedEntityId,
                 OnboardingComplete = isOnboardingComplete,
-                BillingStatus = billingStatus
+                BillingStatus = new BillingStatusDto
+                {
+                    CanProceed = billingStatus == "Billed" || billingStatus == "Proceed without billing",
+                    Status = billingStatus
+                },
+                EmployeeId = null
             };
         }
     }

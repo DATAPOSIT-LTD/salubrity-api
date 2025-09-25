@@ -14,8 +14,8 @@ public class HealthCampManagementService : IHealthCampManagementService
         _repo = repo;
     }
 
-    public Task<List<ServiceStationSummaryDto>> GetServiceStationsAsync(Guid healthCampId)
-        => _repo.GetServiceStationsAsync(healthCampId);
+    public Task<List<ServiceStationSummaryDto>> GetServiceStationsAsync(Guid healthCampId, bool group)
+        => _repo.GetServiceStationsAsync(healthCampId, group);
 
     public Task<List<CampPatientSummaryDto>> GetCampPatientsAsync(Guid healthCampId)
         => _repo.GetCampPatientsAsync(healthCampId);
@@ -32,15 +32,15 @@ public class HealthCampManagementService : IHealthCampManagementService
             ?? throw new NotFoundException("Health camp not found");
 
         var organization = camp.Organization;
-        var venue = camp.Location ?? "—";
+        var venue = camp.Location ?? "ï¿½";
 
         var insurer = organization.InsuranceProviders
             .Select(x => x.InsuranceProvider.Name)
-            .FirstOrDefault() ?? "—";
+            .FirstOrDefault() ?? "ï¿½";
 
         var packageName = organization.Packages
             .Select(p => p.ServicePackage.Name)
-            .FirstOrDefault() ?? "—";
+            .FirstOrDefault() ?? "ï¿½";
 
         var packageCost = organization.Packages
             .Select(p => p.ServicePackage.Price)
@@ -48,7 +48,7 @@ public class HealthCampManagementService : IHealthCampManagementService
 
         var costDisplay = packageCost.HasValue
             ? $"Ksh {packageCost.Value:N0} Per Person"
-            : "—";
+            : "ï¿½";
 
         return new OrganizationCampDetailsDto
         {
@@ -57,7 +57,7 @@ public class HealthCampManagementService : IHealthCampManagementService
 
             ClientName = organization.BusinessName,
             Venue = venue,
-            ExpectedPatients = 68, // TODO: Replace with actual source if available
+            ExpectedPatients = camp.ExpectedParticipants ?? 0, // TODO: Replace with actual source if available
             SubcontractorCount = camp.ServiceAssignments.Count,
             SubcontractorsReady = camp.ServiceAssignments.Count > 0,
 

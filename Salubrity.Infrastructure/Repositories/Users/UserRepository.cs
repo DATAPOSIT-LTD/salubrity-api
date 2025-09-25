@@ -1,4 +1,3 @@
-using Azure.Core;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Infrastructure.Security;
@@ -7,6 +6,7 @@ using Salubrity.Infrastructure.Persistence;
 
 namespace Salubrity.Infrastructure.Repositories.Users
 {
+
     public class UserRepository : IUserRepository
     {
         private readonly AppDbContext _context;
@@ -26,11 +26,20 @@ namespace Salubrity.Infrastructure.Repositories.Users
                 .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
+        public async Task<User?> FindUserByPhoneAsync(string phone) // ✅ NEW METHOD
+        {
+            return await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .FirstOrDefaultAsync(u => u.Phone != null && u.Phone.Trim() == phone.Trim());
+        }
+
         public async Task<User?> FindUserByIdAsync(Guid userId)
         {
             return await _context.Users
                 .Include(u => u.UserRoles)
                     .ThenInclude(ur => ur.Role)
+                .Include(u => u.Organization)
                 .FirstOrDefaultAsync(u => u.Id == userId);
         }
 
@@ -42,9 +51,7 @@ namespace Salubrity.Infrastructure.Repositories.Users
 
         public async Task AddUserAsync(User user)
         {
-           
-            _context.Users.Add(user);          
-
+            _context.Users.Add(user);
             await _context.SaveChangesAsync();
         }
 
@@ -70,6 +77,38 @@ namespace Salubrity.Infrastructure.Repositories.Users
             return await _context.Users
                 .Include(u => u.UserRoles)
                 .ToListAsync(ct);
+        }
+        public async Task DeleteUserAsync(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user != null)
+            {
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync();
+            }
+        }
+        public async Task<int> BackfillSubcontractorLinksAsync(CancellationToken ct = default)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""Users"" u
+                SET ""RelatedEntityId"" = s.""Id"",
+                    ""RelatedEntityType"" = 'Subcontractor'
+                FROM ""Subcontractors"" s
+                WHERE s.""UserId"" = u.""Id""
+                  AND (u.""RelatedEntityId"" IS NULL OR u.""RelatedEntityType"" IS NULL);
+            ", ct);
+        }
+
+        public async Task<int> BackfillPatientLinksAsync(CancellationToken ct = default)
+        {
+            return await _context.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""Users"" u
+                SET ""RelatedEntityId"" = p.""Id"",
+                    ""RelatedEntityType"" = 'Patient'
+                FROM ""Patients"" p
+                WHERE p.""UserId"" = u.""Id""
+                  AND (u.""RelatedEntityId"" IS NULL OR u.""RelatedEntityType"" IS NULL);
+            ", ct);
         }
     }
 }

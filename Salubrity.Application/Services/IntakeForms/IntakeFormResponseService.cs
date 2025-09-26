@@ -2,6 +2,7 @@
 
 using ClosedXML.Excel;
 using Microsoft.Extensions.Logging;
+using OfficeOpenXml;
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.HealthCamps;
@@ -35,6 +36,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly IHealthCampServiceAssignmentRepository _assignmentRepository;
     private readonly ILogger<IntakeFormResponseService> _logger;
     private readonly IHealthCampService _campService;
+    private readonly IIntakeFormRepository _intakeFormRepository;
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -45,7 +47,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IServiceCategoryRepository serviceCategoryRepository,
         IServiceSubcategoryRepository serviceSubcategoryRepository,
         ILogger<IntakeFormResponseService> logger,
-        IHealthCampService campService
+        IHealthCampService campService,
+        IIntakeFormRepository intakeFormRepository
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -57,6 +60,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _serviceSubcategoryRepository = serviceSubcategoryRepository;
         _logger = logger;
         _campService = campService;
+        _intakeFormRepository = intakeFormRepository;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -271,81 +275,98 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     public async Task<IntakeFormResponseExportDto> ExportCampResponsesToExcelAsync(Guid campId, CancellationToken ct = default)
     {
-        _logger.LogInformation("Starting Excel export for camp {CampId} intake form responses", campId);
+        ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
 
-        // Get all responses for this camp
-        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailsAsync(campId, ct);
+        _logger.LogInformation("Starting Excel export for camp {CampId}", campId);
 
-        if (!responses.Any())
+        // 1. Get service assignments for this camp (via repository)
+        var assignments = await _assignmentRepository.GetByCampIdAsync(campId, ct);
+
+        if (assignments.Count == 0)
+            throw new ValidationException(["No service assignments found for this camp."]);
+
+        using var package = new ExcelPackage();
+
+        foreach (var assignment in assignments)
         {
-            _logger.LogWarning("No intake form responses found for camp {CampId}", campId);
-        }
+            string sheetName = assignment.AssignmentName ?? $"Assignment_{assignment.Id}";
+            var ws = package.Workbook.Worksheets.Add(sheetName);
 
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Intake Form Responses");
+            // 2. Resolve form version for this assignment (via repository)
+            var formVersion = await _intakeFormRepository.ResolveFormVersionByAssignmentAsync(
+                assignment.AssignmentId, assignment.AssignmentType, ct);
 
-        // Get all unique fields from all responses to build dynamic columns
-        var allFields = responses
-            .SelectMany(r => r.FieldResponses)
-            .Where(fr => fr.Field != null)
-            .Select(fr => new { fr.Field.Id, fr.Field.Label, fr.Field.FieldType })
-            .Distinct()
-            .OrderBy(f => f.Label)
-            .ToList();
-
-        // Create headers - static columns first, then dynamic field columns
-        var staticHeaders = new List<string>
-    {
-        "Response Date",
-        "Patient Name"
-    };
-
-        var dynamicHeaders = allFields.Select(f => f.Label).ToList();
-        var allHeaders = staticHeaders.Concat(dynamicHeaders).ToList();
-
-        // Set headers
-        for (int i = 0; i < allHeaders.Count; i++)
-        {
-            worksheet.Cell(1, i + 1).Value = allHeaders[i];
-            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-        }
-
-        // Populate data rows
-        int currentRow = 2;
-        foreach (var response in responses)
-        {
-            int currentCol = 1;
-
-            // Static columns
-            worksheet.Cell(currentRow, currentCol++).Value = response.CreatedAt.ToString("yyyy-MM-dd HH:mm");
-            worksheet.Cell(currentRow, currentCol++).Value = response.Patient?.PatientNumber ?? "Unknown";
-
-            // Dynamic field columns
-            foreach (var field in allFields)
+            if (formVersion == null)
             {
-                var fieldResponse = response.FieldResponses
-                    .FirstOrDefault(fr => fr.Field?.Id == field.Id);
-
-                string cellValue = fieldResponse?.Value ?? "";
-                worksheet.Cell(currentRow, currentCol++).Value = cellValue;
+                _logger.LogWarning("No IntakeFormVersion found for assignment {AssignmentId}", assignment.AssignmentId);
+                continue;
             }
 
-            currentRow++;
+            // 3. Flatten ordered fields
+            var fields = formVersion.Sections
+                .OrderBy(s => s.Order)
+                .SelectMany(s => s.Fields.OrderBy(f => f.Order))
+                .ToList();
+
+            // 4. Build headers
+            var headers = new List<string>
+        {
+            "Response Date",
+            "Patient Number",
+            "Full Name",
+            "Gender",
+            "Date of Birth",
+            "Status"
+        };
+            headers.AddRange(fields.Select(f => f.Label));
+
+            for (int col = 1; col <= headers.Count; col++)
+            {
+                ws.Cells[1, col].Value = headers[col - 1];
+                ws.Cells[1, col].Style.Font.Bold = true;
+                ws.Cells[1, col].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                ws.Cells[1, col].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            // 5. Get responses scoped by camp + assignment + participants (via repository)
+            var responses = await _intakeFormResponseRepository
+                .GetByCampAndAssignmentAsync(campId, assignment.AssignmentId, assignment.AssignmentType, ct);
+
+            int row = 2;
+            foreach (var response in responses)
+            {
+                var user = response.Patient?.User;
+                int col = 1;
+
+                ws.Cells[row, col++].Value = response.CreatedAt.ToString("yyyy-MM-dd HH:mm");
+                ws.Cells[row, col++].Value = response.Patient?.PatientNumber ?? "";
+                ws.Cells[row, col++].Value = user?.FullName ?? "";
+                ws.Cells[row, col++].Value = user?.Gender?.Name ?? "";
+                ws.Cells[row, col++].Value = user?.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
+                ws.Cells[row, col++].Value = response.Status?.Name ?? "";
+
+                foreach (var field in fields)
+                {
+                    var fieldResponse = response.FieldResponses
+                        .FirstOrDefault(fr => fr.FieldId == field.Id);
+                    ws.Cells[row, col++].Value = fieldResponse?.Value ?? "";
+                }
+
+                row++;
+            }
+
+            // 6. Format worksheet
+            if (ws.Dimension != null)
+            {
+                ws.Cells[ws.Dimension.Address].AutoFitColumns();
+                ws.View.FreezePanes(2, 1);
+            }
         }
 
-        // Auto-fit columns
-        worksheet.ColumnsUsed().AdjustToContents();
+        var content = package.GetAsByteArray();
+        var fileName = $"Camp_{campId}_Responses_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
 
-        // Create the Excel file in memory
-        using var stream = new MemoryStream();
-        workbook.SaveAs(stream);
-        var content = stream.ToArray();
-
-        var fileName = $"IntakeFormResponses_Camp_{campId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-
-        _logger.LogInformation("Excel export completed for camp {CampId}. Generated {RowCount} rows with {ColumnCount} columns",
-            campId, responses.Count, allHeaders.Count);
+        _logger.LogInformation("Excel export completed for camp {CampId}", campId);
 
         return new IntakeFormResponseExportDto
         {
@@ -354,4 +375,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             FileName = fileName
         };
     }
+
+
 }

@@ -141,5 +141,34 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             .OrderBy(r => r.CreatedAt)
             .ToListAsync(ct);
     }
+
+    public async Task<List<IntakeFormResponse>> GetByCampAndAssignmentAsync(
+    Guid campId,
+    Guid assignmentId,
+    PackageItemType assignmentType,
+    CancellationToken ct = default)
+    {
+        var query = _db.IntakeFormResponses
+            .AsNoTracking()
+            .Include(r => r.Patient)
+                .ThenInclude(p => p.User)
+                    .ThenInclude(u => u.Gender)
+            .Include(r => r.Status)
+            .Include(r => r.FieldResponses)
+                .ThenInclude(fr => fr.Field)
+            .Where(r =>
+                !r.IsDeleted &&
+                r.SubmittedServiceId == assignmentId &&
+                r.SubmittedServiceType == assignmentType &&
+                _db.HealthCampParticipants.Any(p =>
+                    p.HealthCampId == campId &&
+                    p.PatientId == r.PatientId &&
+                    !p.IsDeleted));
+
+        return await query
+            .OrderBy(r => r.CreatedAt)
+            .ToListAsync(ct);
+    }
+
 }
 

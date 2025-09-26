@@ -2,6 +2,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Infrastructure.Persistence;
 
@@ -158,5 +159,47 @@ public class IntakeFormRepository : IIntakeFormRepository
     }
 
 
+    public async Task<IntakeFormVersion?> ResolveFormVersionByAssignmentAsync(
+        Guid assignmentId,
+        PackageItemType assignmentType,
+        CancellationToken ct = default)
+    {
+        IntakeForm? form = null;
+
+        switch (assignmentType)
+        {
+            case PackageItemType.Service:
+                form = await _context.Services
+                    .Where(s => s.Id == assignmentId && s.IntakeFormId != null)
+                    .Select(s => s.IntakeForm!)
+                    .FirstOrDefaultAsync(ct);
+                break;
+
+            case PackageItemType.ServiceCategory:
+                form = await _context.ServiceCategories
+                    .Where(c => c.Id == assignmentId && c.IntakeFormId != null)
+                    .Select(c => c.IntakeForm!)
+                    .FirstOrDefaultAsync(ct);
+                break;
+
+            case PackageItemType.ServiceSubcategory:
+                form = await _context.ServiceSubcategories
+                    .Where(sc => sc.Id == assignmentId && sc.IntakeFormId != null)
+                    .Select(sc => sc.IntakeForm!)
+                    .FirstOrDefaultAsync(ct);
+                break;
+        }
+
+        if (form == null)
+            return null;
+
+        // Get active version with sections + fields
+        return await _context.IntakeFormVersions
+            .Include(v => v.Sections)
+                .ThenInclude(s => s.Fields)
+            .Where(v => v.IntakeFormId == form.Id && v.IsActive && !v.IsDeleted)
+            .OrderByDescending(v => v.VersionNumber)
+            .FirstOrDefaultAsync(ct);
+    }
 
 }

@@ -21,6 +21,13 @@ public class HealthCampServiceAssignmentRepository : IHealthCampServiceAssignmen
             .Where(x => x.SubcontractorId == subcontractorId)
             .ToListAsync(ct);
     }
+    public async Task<List<HealthCampServiceAssignment>> GetByCampIdAsync(Guid campId, CancellationToken ct = default)
+    {
+        return await _db.HealthCampServiceAssignments
+            .Include(a => a.HealthCamp)
+            .Where(a => a.HealthCampId == campId && !a.IsDeleted)
+            .ToListAsync(ct);
+    }
 
 
 }

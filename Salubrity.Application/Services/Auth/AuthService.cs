@@ -18,6 +18,7 @@ using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.Menus;
 using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Users;
+using Salubrity.Domain.Entities.Auth;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Rbac;
@@ -305,7 +306,45 @@ namespace Salubrity.Application.Services.Auth
 
         public async Task RequestPasswordResetAsync(ForgotPasswordRequestDto input)
         {
-            // TODO: Implement optional email notification for reset
+            if (string.IsNullOrWhiteSpace(input.Email))
+                throw new ValidationException(["Email is required."]);
+
+            // Step 1: Find user
+            var user = await _userRepository.FindUserByEmailAsync(input.Email);
+            if (user == null)
+                throw new NotFoundException("User", input.Email);
+
+            // Step 2: Generate reset token
+            var token = Guid.NewGuid().ToString("N");
+            var expiresAt = DateTime.UtcNow.AddHours(1);
+
+            var resetToken = new PasswordResetToken
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                Token = token,
+                ExpiresAt = expiresAt,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // await _resetTokenRepository.AddAsync(resetToken);
+
+            // // Step 3: Optionally send email
+            // if (input.SendEmailNotification)
+            // {
+            //     var resetLink = $"{input.BaseUrl}/reset-password?token={token}";
+            //     var subject = "Password Reset Request";
+            //     var body = $@"
+            //     <p>Hello {user.FirstName},</p>
+            //     <p>We received a request to reset your password. 
+            //     Please click the link below to set a new password:</p>
+            //     <p><a href=""{resetLink}"">{resetLink}</a></p>
+            //     <p>This link will expire in 1 hour.</p>
+            //     <p>If you did not request this, please ignore this email.</p>
+            // ";
+
+            //     await _emailSender.SendEmailAsync(user.Email, subject, body);
+            // }
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequestDto input)

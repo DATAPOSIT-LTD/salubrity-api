@@ -1,3 +1,4 @@
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 
 namespace Salubrity.Application.Interfaces.Repositories.IntakeForms;
@@ -27,4 +28,9 @@ public interface IIntakeFormRepository
     Task<bool> IsFormAssignedAnywhereAsync(Guid formId);
 
     Task<List<IntakeForm>> GetLabFormsByIdsAsync(HashSet<Guid> ids, CancellationToken ct);
+    Task<IntakeFormVersion?> ResolveFormVersionByAssignmentAsync(
+    Guid assignmentId,
+    PackageItemType assignmentType,
+    CancellationToken ct = default);
+
 }

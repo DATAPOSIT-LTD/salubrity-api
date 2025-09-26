@@ -112,13 +112,14 @@ public class IntakeFormResponsesController : BaseController
     }
 
     [HttpGet("camps/{campId:guid}/export")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ExportCampResponsesToExcel(Guid campId, CancellationToken ct)
     {
         var exportData = await _service.ExportCampResponsesToExcelAsync(campId, ct);
-
         return File(exportData.Content, exportData.ContentType, exportData.FileName);
     }
+
 }

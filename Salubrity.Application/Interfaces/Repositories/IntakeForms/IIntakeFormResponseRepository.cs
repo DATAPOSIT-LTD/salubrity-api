@@ -1,4 +1,5 @@
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 
 namespace Salubrity.Application.Interfaces.Repositories.IntakeForms;
@@ -28,4 +29,10 @@ public interface IIntakeFormResponseRepository
     Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid? patientId, Guid healthCampId, CancellationToken ct = default);
 
     Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailsAsync(Guid campId, CancellationToken ct = default);
+    Task<List<IntakeFormResponse>> GetByCampAndAssignmentAsync(
+    Guid campId,
+    Guid assignmentId,
+    PackageItemType assignmentType,
+    CancellationToken ct = default);
+
 }

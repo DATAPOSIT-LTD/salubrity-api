@@ -16,5 +16,9 @@ namespace Salubrity.Application.Interfaces.Repositories
         Task<Subcontractor?> GetByUserIdAsync(Guid userId);
         Task<Subcontractor?> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
 
+        // Fixes for update subcontractor
+        Task RemoveAllSpecialtiesAsync(Guid subcontractorId, CancellationToken ct = default);
+        Task RemoveAllRoleAssignmentsAsync(Guid subcontractorId, CancellationToken ct = default);
+        Task AddSpecialtiesAsync(Guid subcontractorId, List<Guid> serviceIds, CancellationToken ct = default);
     }
 }

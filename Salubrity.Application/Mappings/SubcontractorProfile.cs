@@ -1,5 +1,7 @@
 using AutoMapper;
 using Salubrity.Application.DTOs.Subcontractor;
+using Salubrity.Application.DTOs.Users;
+using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Subcontractor;
 
 namespace Salubrity.Application.Mappings;
@@ -35,5 +37,7 @@ public class SubcontractorProfile : Profile
             .ForMember(d => d.RoleName, o => o.MapFrom(s => s.SubcontractorRole.Name))
             .ForMember(d => d.Description, o => o.MapFrom(s => s.SubcontractorRole.Description));
 
+        // Fixes for update subcontractor
+        CreateMap<UserUpdateRequest, User>();
     }
 }

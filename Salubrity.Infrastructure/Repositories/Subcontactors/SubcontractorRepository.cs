@@ -146,5 +146,37 @@ namespace Salubrity.Infrastructure.Repositories
                 .FirstOrDefaultAsync(s => s.UserId == userId, ct);
         }
 
+
+        //Fixes for update subcontractor
+
+        public async Task RemoveAllSpecialtiesAsync(Guid subcontractorId, CancellationToken ct = default)
+        {
+            var specialties = await _db.SubcontractorSpecialties
+                .Where(s => s.SubcontractorId == subcontractorId)
+                .ToListAsync(ct);
+
+            _db.SubcontractorSpecialties.RemoveRange(specialties);
+        }
+
+        public async Task RemoveAllRoleAssignmentsAsync(Guid subcontractorId, CancellationToken ct = default)
+        {
+            var roleAssignments = await _db.SubcontractorRoleAssignments
+                .Where(r => r.SubcontractorId == subcontractorId)
+                .ToListAsync(ct);
+
+            _db.SubcontractorRoleAssignments.RemoveRange(roleAssignments);
+        }
+
+        public async Task AddSpecialtiesAsync(Guid subcontractorId, List<Guid> serviceIds, CancellationToken ct = default)
+        {
+            var specialties = serviceIds.Select(serviceId => new SubcontractorSpecialty
+            {
+                SubcontractorId = subcontractorId,
+                ServiceId = serviceId
+            }).ToList();
+
+            await _db.SubcontractorSpecialties.AddRangeAsync(specialties, ct);
+        }
+
     }
 }

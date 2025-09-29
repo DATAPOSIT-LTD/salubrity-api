@@ -45,5 +45,20 @@ namespace Salubrity.Api.Controllers.Concierge
             var result = await _service.GetCampServiceStationsWithQueueAsync(campId, ct);
             return Success(result);
         }
+
+        [HttpGet("{patientId:guid}/detail")]
+        [ProducesResponseType(typeof(ApiResponse<PatientDetailDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetPatientDetail(Guid patientId, CancellationToken ct)
+        {
+            var result = await _service.GetPatientDetailByIdAsync(patientId, ct);
+
+            //if (result == null)
+            //{
+            //    return Failure("Patient not found.");
+            //}    
+
+            return Success(result);
+        }
     }
 }

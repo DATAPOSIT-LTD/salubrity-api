@@ -87,11 +87,37 @@ public class CampQueueRepository : ICampQueueRepository
         await _db.SaveChangesAsync(ct);
     }
 
+    // public async Task<CheckInStateDto> GetMyCheckInStateAsync(Guid userId, Guid campId, CancellationToken ct = default)
+    // {
+    //     var participantId = await GetParticipantIdAsync(userId, campId, ct);
+
+    //     var active = await _db.Set<HealthCampStationCheckIn>()
+    //         .Include(x => x.Assignment)
+    //         .Where(x => x.HealthCampId == campId
+    //                  && x.HealthCampParticipantId == participantId
+    //                  && (x.Status == "Queued" || x.Status == "InService"))
+    //         .FirstOrDefaultAsync(ct);
+
+    //     if (active == null)
+    //         return new CheckInStateDto { CampId = campId, Status = "None" };
+
+    //     var stationName = await _referenceResolver.GetNameAsync(
+    //         (PackageItemType)active.Assignment.AssignmentType,
+    //         active.Assignment.AssignmentId);
+
+    //     return new CheckInStateDto
+    //     {
+    //         CampId = campId,
+    //         ActiveAssignmentId = active.HealthCampServiceAssignmentId,
+    //         ActiveStationName = stationName,
+    //         Status = active.Status
+    //     };
+    // }
     public async Task<CheckInStateDto> GetMyCheckInStateAsync(Guid userId, Guid campId, CancellationToken ct = default)
     {
         var participantId = await GetParticipantIdAsync(userId, campId, ct);
 
-        var active = await _db.Set<HealthCampStationCheckIn>()
+        var active = await _db.HealthCampStationCheckIns
             .Include(x => x.Assignment)
             .Where(x => x.HealthCampId == campId
                      && x.HealthCampParticipantId == participantId
@@ -105,15 +131,131 @@ public class CampQueueRepository : ICampQueueRepository
             (PackageItemType)active.Assignment.AssignmentType,
             active.Assignment.AssignmentId);
 
+        var coveredServices = new List<CoveredServiceDto>();
+
+        // expand based on type
+        if (active.Assignment.AssignmentType == PackageItemType.Service)
+        {
+            // all categories + subcategories assigned under this service
+            coveredServices = await _db.HealthCampServiceAssignments
+                .Where(a => a.HealthCampId == campId &&
+                            (a.AssignmentType == PackageItemType.ServiceCategory || a.AssignmentType == PackageItemType.ServiceSubcategory))
+                .Select(a => new CoveredServiceDto
+                {
+                    Id = a.AssignmentId,
+                    Name = a.AssignmentName ?? "", // fallback
+                    Type = a.AssignmentType.ToString()
+                })
+                .ToListAsync(ct);
+        }
+        else if (active.Assignment.AssignmentType == PackageItemType.ServiceCategory)
+        {
+            // all subcategories assigned under this category
+            coveredServices = await _db.HealthCampServiceAssignments
+                .Where(a => a.HealthCampId == campId && a.AssignmentType == PackageItemType.ServiceSubcategory)
+                .Select(a => new CoveredServiceDto
+                {
+                    Id = a.AssignmentId,
+                    Name = a.AssignmentName ?? "",
+                    Type = "Subcategory"
+                })
+                .ToListAsync(ct);
+        }
+        else if (active.Assignment.AssignmentType == PackageItemType.ServiceSubcategory)
+        {
+            // leaf itself
+            coveredServices.Add(new CoveredServiceDto
+            {
+                Id = active.Assignment.AssignmentId,
+                Name = active.Assignment.AssignmentName ?? "",
+                Type = "Subcategory"
+            });
+        }
+
+        // 🔎 Now enrich with status from IntakeFormResponses
+        var serviceIds = coveredServices.Select(c => c.Id).ToList();
+
+        var completed = await _db.IntakeFormResponses
+            .Where(r => r.PatientId == active.Participant.PatientId &&
+                        serviceIds.Contains(r.ResolvedServiceId))
+            .Select(r => r.ResolvedServiceId)
+            .ToListAsync(ct);
+
+        foreach (var cs in coveredServices)
+        {
+            if (completed.Contains(cs.Id))
+                cs.Status = "Completed";
+            else if (active.Status == "InService")
+                cs.Status = "InService";
+            else
+                cs.Status = "Queued";
+        }
+
+        // parent’s status derived from children
+        string parentStatus;
+        if (coveredServices.All(cs => cs.Status == "Completed"))
+            parentStatus = "Completed";
+        else if (coveredServices.Any(cs => cs.Status == "InService"))
+            parentStatus = "InService";
+        else
+            parentStatus = "Queued";
+
         return new CheckInStateDto
         {
             CampId = campId,
             ActiveAssignmentId = active.HealthCampServiceAssignmentId,
             ActiveStationName = stationName,
-            Status = active.Status
+            Status = parentStatus,
+            CoveredServices = coveredServices
         };
     }
 
+
+
+    // public async Task<QueuePositionDto> GetMyPositionAsync(Guid userId, Guid campId, Guid assignmentId, CancellationToken ct = default)
+    // {
+    //     var participantId = await GetParticipantIdAsync(userId, campId, ct);
+
+    //     var q = _db.Set<HealthCampStationCheckIn>()
+    //         .Where(x => x.HealthCampId == campId
+    //                  && x.HealthCampServiceAssignmentId == assignmentId
+    //                  && x.Status == "Queued");
+
+    //     var queue = await q
+    //         .OrderByDescending(x => x.Priority)
+    //         .ThenBy(x => x.CreatedAt)
+    //         .Select(x => new { x.Id, x.HealthCampParticipantId })
+    //         .ToListAsync(ct);
+
+    //     var yourIndex = queue.FindIndex(x => x.HealthCampParticipantId == participantId);
+
+    //     // 🔁 Fetch assignment and resolve name
+    //     var assignment = await _db.Set<HealthCampServiceAssignment>()
+    //         .Where(a => a.Id == assignmentId)
+    //         .Select(a => new { a.AssignmentId, a.AssignmentType })
+    //         .FirstOrDefaultAsync(ct);
+
+    //     var stationName = assignment != null
+    //         ? await _referenceResolver.GetNameAsync((PackageItemType)assignment.AssignmentType, assignment.AssignmentId)
+    //         : "[Unknown Station]";
+
+    //     var meActive = await _db.Set<HealthCampStationCheckIn>()
+    //         .Where(x => x.HealthCampId == campId
+    //                  && x.HealthCampParticipantId == participantId
+    //                  && x.HealthCampServiceAssignmentId == assignmentId)
+    //         .OrderByDescending(x => x.CreatedAt)
+    //         .Select(x => x.Status)
+    //         .FirstOrDefaultAsync(ct);
+
+    //     return new QueuePositionDto
+    //     {
+    //         AssignmentId = assignmentId,
+    //         StationName = stationName,
+    //         QueueLength = queue.Count,
+    //         YourPosition = yourIndex >= 0 ? yourIndex + 1 : 0,
+    //         Status = meActive ?? "None"
+    //     };
+    // }
 
     public async Task<QueuePositionDto> GetMyPositionAsync(Guid userId, Guid campId, Guid assignmentId, CancellationToken ct = default)
     {
@@ -132,7 +274,7 @@ public class CampQueueRepository : ICampQueueRepository
 
         var yourIndex = queue.FindIndex(x => x.HealthCampParticipantId == participantId);
 
-        // 🔁 Fetch assignment and resolve name
+        // Fetch assignment and resolve name
         var assignment = await _db.Set<HealthCampServiceAssignment>()
             .Where(a => a.Id == assignmentId)
             .Select(a => new { a.AssignmentId, a.AssignmentType })
@@ -150,15 +292,76 @@ public class CampQueueRepository : ICampQueueRepository
             .Select(x => x.Status)
             .FirstOrDefaultAsync(ct);
 
+        // Build CoveredServices (similar to GetMyCheckInStateAsync)
+        var coveredServices = new List<CoveredServiceDto>();
+
+        if (assignment != null)
+        {
+            if (assignment.AssignmentType == PackageItemType.Service)
+            {
+                coveredServices = await _db.HealthCampServiceAssignments
+                    .Where(a => a.HealthCampId == campId &&
+                                (a.AssignmentType == PackageItemType.ServiceCategory || a.AssignmentType == PackageItemType.ServiceSubcategory))
+                    .Select(a => new CoveredServiceDto
+                    {
+                        Id = a.AssignmentId,
+                        Name = a.AssignmentName ?? "",
+                        Type = a.AssignmentType.ToString()
+                    })
+                    .ToListAsync(ct);
+            }
+            else if (assignment.AssignmentType == PackageItemType.ServiceCategory)
+            {
+                coveredServices = await _db.HealthCampServiceAssignments
+                    .Where(a => a.HealthCampId == campId && a.AssignmentType == PackageItemType.ServiceSubcategory)
+                    .Select(a => new CoveredServiceDto
+                    {
+                        Id = a.AssignmentId,
+                        Name = a.AssignmentName ?? "",
+                        Type = "Subcategory"
+                    })
+                    .ToListAsync(ct);
+            }
+            else if (assignment.AssignmentType == PackageItemType.ServiceSubcategory)
+            {
+                coveredServices.Add(new CoveredServiceDto
+                {
+                    Id = assignment.AssignmentId,
+                    Name = stationName,
+                    Type = "Subcategory"
+                });
+            }
+        }
+
+        // Enrich with IntakeFormResponses to mark Completed/InService
+        var serviceIds = coveredServices.Select(c => c.Id).ToList();
+
+        var completed = await _db.IntakeFormResponses
+            .Where(r => r.PatientId == participantId && serviceIds.Contains(r.ResolvedServiceId))
+            .Select(r => r.ResolvedServiceId)
+            .ToListAsync(ct);
+
+        foreach (var cs in coveredServices)
+        {
+            if (completed.Contains(cs.Id))
+                cs.Status = "Completed";
+            else if (meActive == "InService")
+                cs.Status = "InService";
+            else
+                cs.Status = "Queued";
+        }
+
         return new QueuePositionDto
         {
             AssignmentId = assignmentId,
             StationName = stationName,
             QueueLength = queue.Count,
             YourPosition = yourIndex >= 0 ? yourIndex + 1 : 0,
-            Status = meActive ?? "None"
+            Status = meActive ?? "None",
+            CoveredServices = coveredServices
         };
     }
+
 
     public async Task StartServiceAsync(Guid staffUserId, Guid checkInId, CancellationToken ct = default)
     {

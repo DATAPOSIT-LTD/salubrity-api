@@ -15,14 +15,26 @@ public class QueuePositionDto
     public int QueueLength { get; set; }     // total in 'Queued'
     public int YourPosition { get; set; }    // 1-based, considering priority
     public string Status { get; set; } = "Queued"; // Queued/InService/Completed/Canceled
+    public List<CoveredServiceDto> CoveredServices { get; set; } = new();
 }
+
+public class CoveredServiceDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = default!;
+    public string Type { get; set; } = default!; // Service / Category / Subcategory
+    public string Status { get; set; } = "Queued"; // Queued / InService / Completed
+}
+
+
 
 public class CheckInStateDto
 {
     public Guid CampId { get; set; }
     public Guid? ActiveAssignmentId { get; set; }
     public string? ActiveStationName { get; set; }
-    public string Status { get; set; } = "None"; // None/Queued/InService
+    public string Status { get; set; } = "None"; // Derived aggregate
+    public List<CoveredServiceDto> CoveredServices { get; set; } = new();
 }
 
 public static class CampQueueStatus

@@ -1,5 +1,6 @@
 ﻿using Salubrity.Application.DTOs.Concierge;
 using Salubrity.Application.Interfaces.Repositories.Concierge;
+using Salubrity.Application.Interfaces.Repositories.Patients;
 using Salubrity.Application.Interfaces.Services.Concierge;
 
 namespace Salubrity.Application.Services.Concierge
@@ -17,5 +18,8 @@ namespace Salubrity.Application.Services.Concierge
 
         public Task<List<CampServiceStationWithQueueDto>> GetCampServiceStationsWithQueueAsync(Guid campId, CancellationToken ct)
         => _repo.GetCampServiceStationsWithQueueAsync(campId, ct);
+
+        public async Task<PatientDetailDto?> GetPatientDetailByIdAsync(Guid patientId, CancellationToken ct = default)
+        => await _repo.GetPatientDetailByIdAsync(patientId, ct);
     }
 }

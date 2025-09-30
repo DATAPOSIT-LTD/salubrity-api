@@ -6,6 +6,7 @@ using Salubrity.Application.DTOs.IntakeForms;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
+using Salubrity.Application.Services.Forms;
 using Salubrity.Shared.Responses;
 
 namespace Salubrity.Api.Controllers.Forms;
@@ -111,15 +112,18 @@ public class IntakeFormResponsesController : BaseController
         return Success(result);
     }
 
-    [HttpGet("camps/{campId:guid}/export")]
-    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> ExportCampResponsesToExcel(Guid campId, CancellationToken ct)
-    {
-        var exportData = await _service.ExportCampResponsesToExcelAsync(campId, ct);
-        return File(exportData.Content, exportData.ContentType, exportData.FileName);
-    }
+    // Download Findings Implmentation
 
+    [HttpGet("export-camp-data/{campId}")]
+    //[Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportCampData(Guid campId, CancellationToken ct)
+    {
+        var excelData = await _service.ExportCampDataToExcelAsync(campId, ct);
+
+        var fileName = $"Camp_Data_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+
+        return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
 }

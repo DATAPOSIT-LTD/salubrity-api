@@ -35,4 +35,6 @@ public interface IIntakeFormResponseRepository
     PackageItemType assignmentType,
     CancellationToken ct = default);
 
+    // Download Findings Implementation
+    Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default);
 }

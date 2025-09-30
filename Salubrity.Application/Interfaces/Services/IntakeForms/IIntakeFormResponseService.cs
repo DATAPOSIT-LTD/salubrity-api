@@ -9,5 +9,7 @@ public interface IIntakeFormResponseService
 {
     Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid userId, CancellationToken ct = default);
     Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default);
-    Task<IntakeFormResponseExportDto> ExportCampResponsesToExcelAsync(Guid campId, CancellationToken ct = default);
+
+    // Download Findings Implementation
+    Task<byte[]> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default);
 }

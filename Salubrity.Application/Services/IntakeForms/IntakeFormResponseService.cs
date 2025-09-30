@@ -17,6 +17,8 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
+using ClosedXML.Excel;
+using System.IO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,6 +39,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly ILogger<IntakeFormResponseService> _logger;
     private readonly IHealthCampService _campService;
     private readonly IIntakeFormRepository _intakeFormRepository;
+    private readonly IHealthCampRepository _healthCampRepository;
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -48,7 +51,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IServiceSubcategoryRepository serviceSubcategoryRepository,
         ILogger<IntakeFormResponseService> logger,
         IHealthCampService campService,
-        IIntakeFormRepository intakeFormRepository
+        IIntakeFormRepository intakeFormRepository,
+        IHealthCampRepository healthCampRepository
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -61,6 +65,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _logger = logger;
         _campService = campService;
         _intakeFormRepository = intakeFormRepository;
+        _healthCampRepository = healthCampRepository;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -273,344 +278,156 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return responses;
     }
 
-    public async Task<IntakeFormResponseExportDto> ExportCampResponsesToExcelAsync(Guid campId, CancellationToken ct = default)
-    {
-        _logger.LogInformation("Starting Excel export for camp {CampId} intake form responses", campId);
+    // Download Findings Implementation
 
-        // Get all responses for this camp
-        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailsAsync(campId, ct);
+    public async Task<byte[]> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
+    {
+        // Verify camp exists
+        var camp = await _healthCampRepository.GetByIdAsync(campId);
+        if (camp == null)
+            throw new NotFoundException($"Health camp with ID {campId} not found.");
+
+        // Get all responses for this camp with participant and field details
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
 
         if (!responses.Any())
-        {
-            _logger.LogWarning("No intake form responses found for camp {CampId}", campId);
-        }
+            throw new NotFoundException("No intake form responses found for this camp.");
+
+        // Group responses by participant to consolidate multiple forms per participant
+        var participantResponses = responses
+            .GroupBy(r => r.PatientId)
+            .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
+            .ThenBy(g => g.First().Patient?.User?.LastName ?? "")
+            .ToList();
 
         using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Health Camp Data");
+        var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
-        // Define the exact column headers as per your template
-        var headers = new List<string>
+        // Define column headers in the exact order specified
+        var headers = new[]
         {
-            "Unnamed: 0",
-            "Name",
-            "Sex",
-            "YOB",
-            "Age (yrs)",
-            "Workplace",
-            "Lifestyle Risk",
-            "Sys BP (mmHg)",
-            "Dia BP (mmHg)",
-            "BP Risk",
-            "HR",
-            "Temp",
-            "RBS (mmol/L)",
-            "Diabetes Mellitus Risk",
-            "Height (m)",
-            "Weight (kg)",
-            "BMI (kg/m2)",
-            "BMI Risk",
-            "SPO2",
-            "RS",
-            "CVS",
-            "MSS",
-            "CNS",
-            "Mental health screen",
-            "Skin",
-            "Breast",
-            "Pap",
-            "ECG",
-            "Visual acuity",
-            "Colour vision",
-            "Audiometry",
-            "Dental",
-            "Body Fat%",
-            "Body Water%",
-            "Muscle Mass (%)",
-            "Bone Density (%)",
-            "BMR Kcl/day",
-            "Metabolic Age",
-            "Nutrition Review",
-            "FHG",
-            "HbA1c",
-            "HbA1c Flags",
-            "TSH",
-            "TSH FLAG",
-            "Urinalysis",
-            "Occult blood",
-            "PSA",
-            "PSA Risk",
-            "Cholesterol (mg/dL)",
-            "Lipid Risk",
-            "HDL (mg/dL)",
-            "HDL Risk",
-            "TG (mg/dL)",
-            "TG Risk",
-            "LDL (mg/dL)",
-            "LDL Risk",
-            "Creatinine (mg/dL)",
-            "Creat flag",
-            "GGT (u/L)",
-            "GGT flag",
-            "Pertinent History",
-            "Clinical findings",
-            "Conclusion",
-            "Recommendation",
-            "Specific Instructions",
-            "CDMP"
-        };
+        "Name", "Sex", "YOB", "Age (yrs)", "Workplace", "Lifestyle Risk",
+        "Sys BP (mmHg)", "Dia BP (mmHg)", "BP Risk", "HR", "Temp", "RBS (mmol/L)",
+        "Diabetes Mellitus Risk", "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk",
+        "SPO2", "RS", "CVS", "MSS", "CNS", "Mental health screen", "Skin", "Breast",
+        "Pap", "ECG", "Visual acuity", "Colour vision", "Audiometry", "Dental",
+        "Body Fat%", "Body Water%", "Muscle Mass (%)", "Bone Density (%)", "BMR Kcl/day",
+        "Metabolic Age", "Nutrition Review", "FHG", "HbA1c", "HbA1c Flags", "TSH",
+        "TSH FLAG", "Urinalysis", "Occult blood", "PSA", "PSA Risk", "Cholesterol (mg/dL)",
+        "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)", "TG Risk", "LDL (mg/dL)",
+        "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)", "GGT flag",
+        "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
+        "Specific Instructions", "CDMP"
+    };
 
         // Set headers
-        for (int i = 0; i < headers.Count; i++)
+        for (int i = 0; i < headers.Length; i++)
         {
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightBlue;
-            worksheet.Cell(1, i + 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
         }
 
-        // Group responses by participant to consolidate all their data into one row
-        var participantResponses = responses
-            .GroupBy(r => r.PatientId)
-            .ToList();
-
-        _logger.LogInformation("Found {ParticipantCount} participants with responses for camp {CampId}",
-            participantResponses.Count, campId);
-
-        // Populate data rows
         int currentRow = 2;
+
         foreach (var participantGroup in participantResponses)
         {
+            var participant = participantGroup.First().Patient;
+            if (participant?.User == null) continue;
+
+            // Collect all field responses for this participant across all their forms
             var allFieldResponses = participantGroup
                 .SelectMany(r => r.FieldResponses)
-                .Where(fr => fr.Field != null)
-                .ToList();
+                .GroupBy(fr => fr.Field.Label, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value ?? "-", StringComparer.OrdinalIgnoreCase);
 
-            // Get participant info from the first response
-            var firstResponse = participantGroup.First();
-            var participant = firstResponse.Patient;
+            // Calculate age from date of birth
+            var age = participant.User.DateOfBirth.HasValue
+                ? DateTime.Now.Year - participant.User.DateOfBirth.Value.Year
+                : (int?)null;
 
-            _logger.LogInformation("Processing participant {ParticipantId} with {ResponseCount} field responses",
-                participantGroup.Key, allFieldResponses.Count);
-
-            // Create a dictionary for easy field lookup by label
-            var fieldValueMap = allFieldResponses
-                .Where(fr => !string.IsNullOrEmpty(fr.Value))
-                .GroupBy(fr => fr.Field.Label.Trim(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Value, StringComparer.OrdinalIgnoreCase);
-
-            // Map each column
-            for (int colIndex = 0; colIndex < headers.Count; colIndex++)
+            // Populate row data
+            var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                string cellValue = "";
-                string header = headers[colIndex];
+                ["Name"] = $"{participant.User.FirstName} {participant.User.MiddleName} {participant.User.LastName}".Replace("  ", " ").Trim(),
+                ["Sex"] = GetFieldValue(allFieldResponses, "Sex", "Gender", "M/F"),
+                ["YOB"] = participant.User.DateOfBirth?.Year.ToString() ?? "-",
+                ["Age (yrs)"] = age?.ToString() ?? "-",
+                ["Workplace"] = GetFieldValue(allFieldResponses, "Workplace", "Work Place", "Company"),
+                ["Lifestyle Risk"] = GetFieldValue(allFieldResponses, "Lifestyle Risk"),
+                ["Sys BP (mmHg)"] = GetFieldValue(allFieldResponses, "Sys BP (mmHg)", "Systolic BP", "SBP", "Systolic Blood Pressure"),
+                ["Dia BP (mmHg)"] = GetFieldValue(allFieldResponses, "Dia BP (mmHg)", "Diastolic BP", "DBP", "Diastolic Blood Pressure"),
+                ["BP Risk"] = GetFieldValue(allFieldResponses, "BP Risk", "Blood Pressure Risk"),
+                ["HR"] = GetFieldValue(allFieldResponses, "HR", "Heart Rate", "Pulse"),
+                ["Temp"] = GetFieldValue(allFieldResponses, "Temp", "Temperature"),
+                ["RBS (mmol/L)"] = GetFieldValue(allFieldResponses, "RBS (mmol/L)", "RBS", "Random Blood Sugar"),
+                ["Diabetes Mellitus Risk"] = GetFieldValue(allFieldResponses, "Diabetes Mellitus Risk", "Diabetes Risk"),
+                ["Height (m)"] = GetFieldValue(allFieldResponses, "Height (m)", "Height"),
+                ["Weight (kg)"] = GetFieldValue(allFieldResponses, "Weight (kg)", "Weight"),
+                ["BMI (kg/m2)"] = GetFieldValue(allFieldResponses, "BMI (kg/m2)", "BMI"),
+                ["BMI Risk"] = GetFieldValue(allFieldResponses, "BMI Risk"),
+                ["SPO2"] = GetFieldValue(allFieldResponses, "SPO2", "Oxygen Saturation"),
+                ["RS"] = GetFieldValue(allFieldResponses, "RS", "Respiratory System"),
+                ["CVS"] = GetFieldValue(allFieldResponses, "CVS", "Cardiovascular System"),
+                ["MSS"] = GetFieldValue(allFieldResponses, "MSS", "Musculoskeletal System"),
+                ["CNS"] = GetFieldValue(allFieldResponses, "CNS", "Central Nervous System"),
+                ["Mental health screen"] = GetFieldValue(allFieldResponses, "Mental health screen", "Mental Health"),
+                ["Skin"] = GetFieldValue(allFieldResponses, "Skin"),
+                ["Breast"] = GetFieldValue(allFieldResponses, "Breast"),
+                ["Pap"] = GetFieldValue(allFieldResponses, "Pap", "Pap Smear"),
+                ["ECG"] = GetFieldValue(allFieldResponses, "ECG"),
+                ["Visual acuity"] = GetFieldValue(allFieldResponses, "Visual acuity", "Vision"),
+                ["Colour vision"] = GetFieldValue(allFieldResponses, "Colour vision", "Color Vision"),
+                ["Audiometry"] = GetFieldValue(allFieldResponses, "Audiometry", "Hearing"),
+                ["Dental"] = GetFieldValue(allFieldResponses, "Dental"),
+                ["Body Fat%"] = GetFieldValue(allFieldResponses, "Body Fat%", "Body Fat"),
+                ["Body Water%"] = GetFieldValue(allFieldResponses, "Body Water%", "Body Water"),
+                ["Muscle Mass (%)"] = GetFieldValue(allFieldResponses, "Muscle Mass (%)", "Muscle Mass"),
+                ["Bone Density (%)"] = GetFieldValue(allFieldResponses, "Bone Density (%)", "Bone Density"),
+                ["BMR Kcl/day"] = GetFieldValue(allFieldResponses, "BMR Kcl/day", "BMR"),
+                ["Metabolic Age"] = GetFieldValue(allFieldResponses, "Metabolic Age"),
+                ["Nutrition Review"] = GetFieldValue(allFieldResponses, "Nutrition Review", "Nutrition"),
+                ["FHG"] = GetFieldValue(allFieldResponses, "FHG", "Fasting Blood Glucose"),
+                ["HbA1c"] = GetFieldValue(allFieldResponses, "HbA1c"),
+                ["HbA1c Flags"] = GetFieldValue(allFieldResponses, "HbA1c Flags", "HbA1c Flag"),
+                ["TSH"] = GetFieldValue(allFieldResponses, "TSH"),
+                ["TSH FLAG"] = GetFieldValue(allFieldResponses, "TSH FLAG", "TSH Flag"),
+                ["Urinalysis"] = GetFieldValue(allFieldResponses, "Urinalysis"),
+                ["Occult blood"] = GetFieldValue(allFieldResponses, "Occult blood"),
+                ["PSA"] = GetFieldValue(allFieldResponses, "PSA"),
+                ["PSA Risk"] = GetFieldValue(allFieldResponses, "PSA Risk"),
+                ["Cholesterol (mg/dL)"] = GetFieldValue(allFieldResponses, "Cholesterol (mg/dL)", "Cholesterol"),
+                ["Lipid Risk"] = GetFieldValue(allFieldResponses, "Lipid Risk"),
+                ["HDL (mg/dL)"] = GetFieldValue(allFieldResponses, "HDL (mg/dL)", "HDL"),
+                ["HDL Risk"] = GetFieldValue(allFieldResponses, "HDL Risk"),
+                ["TG (mg/dL)"] = GetFieldValue(allFieldResponses, "TG (mg/dL)", "TG", "Triglycerides"),
+                ["TG Risk"] = GetFieldValue(allFieldResponses, "TG Risk", "Triglycerides Risk"),
+                ["LDL (mg/dL)"] = GetFieldValue(allFieldResponses, "LDL (mg/dL)", "LDL"),
+                ["LDL Risk"] = GetFieldValue(allFieldResponses, "LDL Risk"),
+                ["Creatinine (mg/dL)"] = GetFieldValue(allFieldResponses, "Creatinine (mg/dL)", "Creatinine"),
+                ["Creat flag"] = GetFieldValue(allFieldResponses, "Creat flag", "Creatinine Flag"),
+                ["GGT (u/L)"] = GetFieldValue(allFieldResponses, "GGT (u/L)", "GGT"),
+                ["GGT flag"] = GetFieldValue(allFieldResponses, "GGT flag", "GGT Flag"),
+                ["Pertinent History"] = GetFieldValue(allFieldResponses, "Pertinent History", "Pertinent History Findings"),
+                ["Clinical findings"] = GetFieldValue(allFieldResponses, "Clinical findings", "Pertinent Clinical Findings"),
+                ["Conclusion"] = GetFieldValue(allFieldResponses, "Conclusion"),
+                ["Recommendation"] = GetFieldValue(allFieldResponses, "Recommendation"),
+                ["Specific Instructions"] = GetFieldValue(allFieldResponses, "Specific Instructions", "Instructions"),
+                ["CDMP"] = GetFieldValue(allFieldResponses, "CDMP")
+            };
 
-                switch (header)
-                {
-                    case "Unnamed: 0":
-                        cellValue = (currentRow - 1).ToString(); // Row number
-                        break;
-                    case "Name":
-                        cellValue = participant?.PatientNumber ?? "";
-                        break;
-                    case "Sex":
-                        cellValue = GetFieldValue(fieldValueMap, "Sex", "Gender", "M/F");
-                        break;
-                    case "YOB":
-                        cellValue = GetFieldValue(fieldValueMap, "YOB", "Year of Birth", "Birth Year");
-                        break;
-                    case "Age (yrs)":
-                        cellValue = GetFieldValue(fieldValueMap, "Age", "Age (yrs)", "Age in years");
-                        break;
-                    case "Workplace":
-                        cellValue = GetFieldValue(fieldValueMap, "Workplace", "Work place", "Occupation");
-                        break;
-                    case "Lifestyle Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "Lifestyle Risk", "Lifestyle", "Risk Assessment");
-                        break;
-                    case "Sys BP (mmHg)":
-                        cellValue = GetFieldValue(fieldValueMap, "Sys BP (mmHg)", "Systolic BP", "SBP", "Systolic");
-                        break;
-                    case "Dia BP (mmHg)":
-                        cellValue = GetFieldValue(fieldValueMap, "Dia BP (mmHg)", "Diastolic BP", "DBP", "Diastolic");
-                        break;
-                    case "BP Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "BP Risk", "Blood Pressure Risk", "Hypertension Risk");
-                        break;
-                    case "HR":
-                        cellValue = GetFieldValue(fieldValueMap, "HR", "Heart Rate", "Pulse");
-                        break;
-                    case "Temp":
-                        cellValue = GetFieldValue(fieldValueMap, "Temp", "Temperature", "Body Temperature");
-                        break;
-                    case "RBS (mmol/L)":
-                        cellValue = GetFieldValue(fieldValueMap, "RBS (mmol/L)", "RBS", "Random Blood Sugar", "Blood Sugar");
-                        break;
-                    case "Diabetes Mellitus Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "Diabetes Mellitus Risk", "Diabetes Risk", "DM Risk");
-                        break;
-                    case "Height (m)":
-                        cellValue = GetFieldValue(fieldValueMap, "Height (m)", "Height", "Height in meters");
-                        break;
-                    case "Weight (kg)":
-                        cellValue = GetFieldValue(fieldValueMap, "Weight (kg)", "Weight", "Weight in kg");
-                        break;
-                    case "BMI (kg/m2)":
-                        cellValue = GetFieldValue(fieldValueMap, "BMI (kg/m2)", "BMI", "Body Mass Index");
-                        break;
-                    case "BMI Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "BMI Risk", "BMI Category", "Weight Status");
-                        break;
-                    case "SPO2":
-                        cellValue = GetFieldValue(fieldValueMap, "SPO2", "Oxygen Saturation", "O2 Saturation");
-                        break;
-                    case "RS":
-                        cellValue = GetFieldValue(fieldValueMap, "RS", "Respiratory System", "Respiratory");
-                        break;
-                    case "CVS":
-                        cellValue = GetFieldValue(fieldValueMap, "CVS", "Cardiovascular System", "Cardiovascular");
-                        break;
-                    case "MSS":
-                        cellValue = GetFieldValue(fieldValueMap, "MSS", "Musculoskeletal System", "Musculoskeletal");
-                        break;
-                    case "CNS":
-                        cellValue = GetFieldValue(fieldValueMap, "CNS", "Central Nervous System", "Neurological");
-                        break;
-                    case "Mental health screen":
-                        cellValue = GetFieldValue(fieldValueMap, "Mental health screen", "Mental Health", "Psychological");
-                        break;
-                    case "Skin":
-                        cellValue = GetFieldValue(fieldValueMap, "Skin", "Skin Examination", "Dermatological");
-                        break;
-                    case "Breast":
-                        cellValue = GetFieldValue(fieldValueMap, "Breast", "Breast Examination", "Breast Exam");
-                        break;
-                    case "Pap":
-                        cellValue = GetFieldValue(fieldValueMap, "Pap", "Pap Smear", "Cervical Screening");
-                        break;
-                    case "ECG":
-                        cellValue = GetFieldValue(fieldValueMap, "ECG", "Electrocardiogram", "EKG");
-                        break;
-                    case "Visual acuity":
-                        cellValue = GetFieldValue(fieldValueMap, "Visual acuity", "Vision Test", "Eye Exam");
-                        break;
-                    case "Colour vision":
-                        cellValue = GetFieldValue(fieldValueMap, "Colour vision", "Color Vision", "Color Blindness Test");
-                        break;
-                    case "Audiometry":
-                        cellValue = GetFieldValue(fieldValueMap, "Audiometry", "Hearing Test", "Audio Test");
-                        break;
-                    case "Dental":
-                        cellValue = GetFieldValue(fieldValueMap, "Dental", "Dental Examination", "Oral Health");
-                        break;
-                    case "Body Fat%":
-                        cellValue = GetFieldValue(fieldValueMap, "Body Fat%", "Body Fat", "Fat Percentage");
-                        break;
-                    case "Body Water%":
-                        cellValue = GetFieldValue(fieldValueMap, "Body Water%", "Body Water", "Water Percentage");
-                        break;
-                    case "Muscle Mass (%)":
-                        cellValue = GetFieldValue(fieldValueMap, "Muscle Mass (%)", "Muscle Mass", "Muscle Percentage");
-                        break;
-                    case "Bone Density (%)":
-                        cellValue = GetFieldValue(fieldValueMap, "Bone Density (%)", "Bone Density", "Bone Mass");
-                        break;
-                    case "BMR Kcl/day":
-                        cellValue = GetFieldValue(fieldValueMap, "BMR Kcl/day", "BMR", "Basal Metabolic Rate");
-                        break;
-                    case "Metabolic Age":
-                        cellValue = GetFieldValue(fieldValueMap, "Metabolic Age", "Metabolic Age", "Body Age");
-                        break;
-                    case "Nutrition Review":
-                        cellValue = GetFieldValue(fieldValueMap, "Nutrition Review", "Nutrition", "Dietary Assessment");
-                        break;
-                    case "FHG":
-                        cellValue = GetFieldValue(fieldValueMap, "FHG", "Fasting Blood Glucose", "FBG");
-                        break;
-                    case "HbA1c":
-                        cellValue = GetFieldValue(fieldValueMap, "HbA1c", "Hemoglobin A1c", "Glycated Hemoglobin");
-                        break;
-                    case "HbA1c Flags":
-                        cellValue = GetFieldValue(fieldValueMap, "HbA1c Flags", "HbA1c Flag", "HbA1c Status");
-                        break;
-                    case "TSH":
-                        cellValue = GetFieldValue(fieldValueMap, "TSH", "Thyroid Stimulating Hormone", "Thyroid Test");
-                        break;
-                    case "TSH FLAG":
-                        cellValue = GetFieldValue(fieldValueMap, "TSH FLAG", "TSH Flag", "TSH Status");
-                        break;
-                    case "Urinalysis":
-                        cellValue = GetFieldValue(fieldValueMap, "Urinalysis", "Urine Test", "Urine Analysis");
-                        break;
-                    case "Occult blood":
-                        cellValue = GetFieldValue(fieldValueMap, "Occult blood", "Occult Blood", "Hidden Blood");
-                        break;
-                    case "PSA":
-                        cellValue = GetFieldValue(fieldValueMap, "PSA", "Prostate Specific Antigen", "Prostate Test");
-                        break;
-                    case "PSA Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "PSA Risk", "PSA Flag", "Prostate Risk");
-                        break;
-                    case "Cholesterol (mg/dL)":
-                        cellValue = GetFieldValue(fieldValueMap, "Cholesterol (mg/dL)", "Cholesterol", "Total Cholesterol");
-                        break;
-                    case "Lipid Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "Lipid Risk", "Cholesterol Risk", "Lipid Profile Risk");
-                        break;
-                    case "HDL (mg/dL)":
-                        cellValue = GetFieldValue(fieldValueMap, "HDL (mg/dL)", "HDL", "HDL Cholesterol", "Good Cholesterol");
-                        break;
-                    case "HDL Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "HDL Risk", "HDL Flag", "HDL Status");
-                        break;
-                    case "TG (mg/dL)":
-                        cellValue = GetFieldValue(fieldValueMap, "TG (mg/dL)", "TG", "Triglycerides", "Triglyceride");
-                        break;
-                    case "TG Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "TG Risk", "TG Flag", "Triglyceride Risk");
-                        break;
-                    case "LDL (mg/dL)":
-                        cellValue = GetFieldValue(fieldValueMap, "LDL (mg/dL)", "LDL", "LDL Cholesterol", "Bad Cholesterol");
-                        break;
-                    case "LDL Risk":
-                        cellValue = GetFieldValue(fieldValueMap, "LDL Risk", "LDL Flag", "LDL Status");
-                        break;
-                    case "Creatinine (mg/dL)":
-                        cellValue = GetFieldValue(fieldValueMap, "Creatinine (mg/dL)", "Creatinine", "Serum Creatinine");
-                        break;
-                    case "Creat flag":
-                        cellValue = GetFieldValue(fieldValueMap, "Creat flag", "Creatinine Flag", "Kidney Function");
-                        break;
-                    case "GGT (u/L)":
-                        cellValue = GetFieldValue(fieldValueMap, "GGT (u/L)", "GGT", "Gamma GT", "Liver Enzyme");
-                        break;
-                    case "GGT flag":
-                        cellValue = GetFieldValue(fieldValueMap, "GGT flag", "GGT Flag", "Liver Function");
-                        break;
-                    case "Pertinent History":
-                        cellValue = GetFieldValue(fieldValueMap, "Pertinent History", "Medical History", "Past History", "History");
-                        break;
-                    case "Clinical findings":
-                        cellValue = GetFieldValue(fieldValueMap, "Clinical findings", "Clinical Findings", "Examination Findings", "Physical Findings");
-                        break;
-                    case "Conclusion":
-                        cellValue = GetFieldValue(fieldValueMap, "Conclusion", "Assessment", "Diagnosis", "Summary");
-                        break;
-                    case "Recommendation":
-                        cellValue = GetFieldValue(fieldValueMap, "Recommendation", "Recommendations", "Advice", "Plan");
-                        break;
-                    case "Specific Instructions":
-                        cellValue = GetFieldValue(fieldValueMap, "Specific Instructions", "Instructions", "Special Instructions", "Notes");
-                        break;
-                    case "CDMP":
-                        cellValue = GetFieldValue(fieldValueMap, "CDMP", "Care Plan", "Management Plan");
-                        break;
-                    default:
-                        // Try direct field mapping for any other columns
-                        cellValue = GetFieldValue(fieldValueMap, header);
-                        break;
-                }
+            // Write data to Excel row
+            //for (int i = 0; i < headers.Length; i++)
+            //{
+            //    var value = rowData.TryGetValue(headers[i], out var cellValue) ? cellValue : "-";
+            //    worksheet.Cell(currentRow, i + 1).Value = value;
+            //    worksheet.Cell(currentRow, i + 1).DataType = XLDataType.Text;
+            //}
 
-                worksheet.Cell(currentRow, colIndex + 1).Value = cellValue;
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var value = rowData.TryGetValue(headers[i], out var cellValue) ? cellValue : "-";
+                worksheet.Cell(currentRow, i + 1).SetValue($"'{value}"); // Adding single quote forces text format
             }
 
             currentRow++;
@@ -619,41 +436,21 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         // Auto-fit columns
         worksheet.ColumnsUsed().AdjustToContents();
 
-        // Add borders to all cells with data
-        var dataRange = worksheet.Range(1, 1, currentRow - 1, headers.Count);
-        dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-        dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-
-        // Create the Excel file in memory
+        // Convert to byte array
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        var content = stream.ToArray();
-
-        var fileName = $"HealthCamp_Data_{campId}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-
-        _logger.LogInformation("Excel export completed for camp {CampId}. Generated {RowCount} rows with {ColumnCount} columns",
-            campId, participantResponses.Count, headers.Count);
-
-        return new IntakeFormResponseExportDto
-        {
-            Content = content,
-            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            FileName = fileName
-        };
+        return stream.ToArray();
     }
 
-    // Helper method to get field values with multiple possible field names
-    private static string GetFieldValue(Dictionary<string, string> fieldValueMap, params string[] possibleFieldNames)
+    private static string GetFieldValue(Dictionary<string, string> fieldResponses, params string[] possibleLabels)
     {
-        foreach (var fieldName in possibleFieldNames)
+        foreach (var label in possibleLabels)
         {
-            if (fieldValueMap.TryGetValue(fieldName, out var value) && !string.IsNullOrEmpty(value))
+            if (fieldResponses.TryGetValue(label, out var value) && !string.IsNullOrWhiteSpace(value))
             {
                 return value;
             }
         }
-        return "";
+        return "-";
     }
-
-
 }

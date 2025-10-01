@@ -120,11 +120,12 @@ public class IntakeFormResponsesController : BaseController
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExportCampData(Guid campId, CancellationToken ct)
     {
-        var (excelData, campName) = await _service.ExportCampDataToExcelAsync(campId, ct);
+        var (excelData, campName, organizationName) = await _service.ExportCampDataToExcelAsync(campId, ct);
 
-        // Clean the camp name for filename (remove invalid characters)
+        // Clean both names for filename (remove invalid characters)
+        var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        var fileName = $"Camp_Data_Export_{safeCampName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var fileName = $"{safeOrgName}_Camp_Data_Export_{safeCampName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }

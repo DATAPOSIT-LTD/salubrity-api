@@ -478,41 +478,29 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (camp == null)
             throw new NotFoundException($"Health camp with ID {campId} not found.");
 
-        // Get all participants for this specific camp
-        var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
+        // Get all intake form responses for this specific camp
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
 
-        if (!participants.Any())
-            throw new NotFoundException("No participants found for this camp.");
-
-        // Get all intake form responses for this camp
-        var campResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
-
-        // Create a comprehensive dataset by combining participants with their responses
-        var participantData = participants.Select(participant => new
-        {
-            Participant = participant,
-            Patient = participant.Patient,
-            User = participant.User,
-            FormResponses = campResponses.Where(r => r.PatientId == participant.PatientId).ToList()
-        }).ToList();
+        if (!responses.Any())
+            throw new NotFoundException("No intake form responses found for this camp.");
 
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add($"Camp Data - {camp.Name}");
 
-        // Define comprehensive column headers
+        // Define the exact column headers as specified
         var headers = new[]
         {
-        "Participant ID", "Patient ID", "Name", "Email", "Phone", "Sex", "Date of Birth", "Age (yrs)",
-        "Workplace", "Lifestyle Risk", "Sys BP (mmHg)", "Dia BP (mmHg)", "BP Risk", "HR", "Temp",
-        "RBS (mmol/L)", "Diabetes Mellitus Risk", "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk",
-        "SPO2", "RS", "CVS", "MSS", "CNS", "Mental health screen", "Skin", "Breast", "Pap", "ECG",
-        "Visual acuity", "Colour vision", "Audiometry", "Dental", "Body Fat%", "Body Water%",
-        "Muscle Mass (%)", "Bone Density (%)", "BMR Kcl/day", "Metabolic Age", "Nutrition Review",
-        "FHG", "HbA1c", "HbA1c Flags", "TSH", "TSH FLAG", "Urinalysis", "Occult blood", "PSA",
-        "PSA Risk", "Cholesterol (mg/dL)", "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)",
-        "TG Risk", "LDL (mg/dL)", "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)",
-        "GGT flag", "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
-        "Specific Instructions", "CDMP", "Participation Date", "Status"
+        "Name", "Sex", "YOB", "Age (yrs)", "Workplace", "Lifestyle Risk", "Sys BP (mmHg)",
+        "Dia BP (mmHg)", "BP Risk", "HR", "Temp", "RBS (mmol/L)", "Diabetes Mellitus Risk",
+        "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk", "SPO2", "RS", "CVS", "MSS",
+        "CNS", "Mental health screen", "Skin", "Breast", "Pap", "ECG", "Visual acuity",
+        "Colour vision", "Audiometry", "Dental", "Body Fat%", "Body Water%", "Muscle Mass (%)",
+        "Bone Density (%)", "BMR Kcl/day", "Metabolic Age", "Nutrition Review", "FHG", "HbA1c",
+        "HbA1c Flags", "TSH", "TSH FLAG", "Urinalysis", "Occult blood", "PSA", "PSA Risk",
+        "Cholesterol (mg/dL)", "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)", "TG Risk",
+        "LDL (mg/dL)", "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)", "GGT flag",
+        "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
+        "Specific Instructions", "CDMP"
     };
 
         // Add headers to worksheet
@@ -523,25 +511,32 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
         }
 
-        // Populate data rows
-        int row = 2;
-        foreach (var participantInfo in participantData)
-        {
-            var participant = participantInfo.Participant;
-            var user = participantInfo.User;
-            var participantResponses = participantInfo.FormResponses;
+        // Group responses by patient to handle multiple responses per patient
+        var patientResponses = responses.GroupBy(r => r.PatientId).ToList();
 
-            // Create a field value lookup from all responses for this participant
+        int row = 2;
+        foreach (var patientGroup in patientResponses)
+        {
+            var patientResponsesList = patientGroup.ToList();
+            var firstResponse = patientResponsesList.First();
+            var user = firstResponse.Patient?.User;
+
+            if (user == null) continue;
+
+            // Combine all field responses for this patient
+            var allFieldResponses = patientResponsesList
+                .SelectMany(r => r.FieldResponses)
+                .Where(fr => fr.Field != null)
+                .ToList();
+
+            // Create field value lookup
             var fieldValues = new Dictionary<string, string>();
-            foreach (var response in participantResponses)
+            foreach (var fieldResponse in allFieldResponses)
             {
-                foreach (var fieldResponse in response.FieldResponses)
+                var fieldKey = fieldResponse.Field.Label?.ToLowerInvariant().Trim() ?? "";
+                if (!string.IsNullOrEmpty(fieldKey) && !fieldValues.ContainsKey(fieldKey))
                 {
-                    var fieldKey = fieldResponse.Field?.Label?.ToLowerInvariant().Trim() ?? "";
-                    if (!string.IsNullOrEmpty(fieldKey) && !fieldValues.ContainsKey(fieldKey))
-                    {
-                        fieldValues[fieldKey] = fieldResponse.Value ?? "";
-                    }
+                    fieldValues[fieldKey] = fieldResponse.Value ?? "";
                 }
             }
 
@@ -557,26 +552,24 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 return "";
             }
 
-            // Calculate age if date of birth is available
+            // Calculate age and year of birth
+            var yob = "";
             var ageText = "";
             if (user.DateOfBirth.HasValue)
             {
+                yob = user.DateOfBirth.Value.Year.ToString();
                 var age = DateTime.Now.Year - user.DateOfBirth.Value.Year;
                 if (DateTime.Now.DayOfYear < user.DateOfBirth.Value.DayOfYear)
                     age--;
                 ageText = age.ToString();
             }
 
-            // Populate row data
+            // Populate row data with exact column mapping
             var rowData = new object[]
             {
-            participant.Id.ToString(),
-            participant.PatientId?.ToString() ?? "",
             user.FullName ?? "",
-            user.Email ?? "",
-            user.Phone ?? "",
             GetFieldValue("sex", "gender"),
-            user.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
+            yob,
             ageText,
             GetFieldValue("workplace", "company", "employer"),
             GetFieldValue("lifestyle risk", "lifestyle"),
@@ -638,9 +631,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             GetFieldValue("conclusion"),
             GetFieldValue("recommendation", "recommendations"),
             GetFieldValue("specific instructions", "instructions"),
-            GetFieldValue("cdmp"),
-            participant.ParticipatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "",
-            participant.ParticipatedAt != null ? "Participated" : "Registered"
+            GetFieldValue("cdmp")
             };
 
             // Write row data

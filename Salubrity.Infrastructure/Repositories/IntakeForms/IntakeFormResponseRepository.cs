@@ -189,19 +189,18 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
 
     public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
     {
-        return await (from response in _db.IntakeFormResponses
-                      join patient in _db.Patients on response.PatientId equals patient.Id
-                      join participant in _db.HealthCampParticipants on patient.Id equals participant.PatientId
-                      join camp in _db.HealthCamps on participant.HealthCampId equals camp.Id
-                      where response.PatientId != null &&
-                            !response.IsDeleted &&
-                            camp.Id == campId
-                      orderby patient.User.FirstName, patient.User.LastName
-                      select response)
-            .Include(r => r.Patient)
-                .ThenInclude(p => p.User)
-            .Include(r => r.FieldResponses)
-                .ThenInclude(fr => fr.Field)
+        return await (from r in _db.IntakeFormResponses
+                          .Include(r => r.Patient)
+                              .ThenInclude(p => p.User)
+                          .Include(r => r.FieldResponses)
+                              .ThenInclude(fr => fr.Field)
+                      join a in _db.HealthCampServiceAssignments
+                          on r.SubmittedServiceId equals a.AssignmentId
+                      where r.PatientId != null
+                            && a.HealthCampId == campId
+                            && !r.IsDeleted
+                      orderby r.Patient.User.FirstName, r.Patient.User.LastName
+                      select r)
             .ToListAsync(ct);
     }
 }

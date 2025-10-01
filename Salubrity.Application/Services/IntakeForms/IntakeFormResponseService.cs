@@ -473,13 +473,13 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
-        // Verify camp exists
+        // Verify camp exists and get organization info
         var camp = await _healthCampRepository.GetByIdAsync(campId);
         if (camp == null)
             throw new NotFoundException($"Health camp with ID {campId} not found.");
 
         // Get all intake form responses for this specific camp
-        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailsAsync(campId, ct);
 
         if (!responses.Any())
             throw new NotFoundException("No intake form responses found for this camp.");
@@ -649,7 +649,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         // Save to memory stream
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
+
+        // Return the required 3 values: ExcelData, CampName, OrganizationName
+        return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown Organization");
     }
 
 

@@ -1,5 +1,6 @@
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.Join;
 
 namespace Salubrity.Application.Interfaces.Repositories.HealthCamps;
 
@@ -50,6 +51,7 @@ public interface IHealthCampRepository
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
     Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default);
     Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default);
+    Task<List<HealthCampParticipant>> GetParticipantsAsync(Guid campId, string? q, string? sort, CancellationToken ct = default);
 }
 
 

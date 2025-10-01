@@ -17,6 +17,8 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
+using ClosedXML.Excel;
+using System.IO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,6 +39,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly ILogger<IntakeFormResponseService> _logger;
     private readonly IHealthCampService _campService;
     private readonly IIntakeFormRepository _intakeFormRepository;
+    private readonly IHealthCampRepository _healthCampRepository;
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -48,7 +51,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IServiceSubcategoryRepository serviceSubcategoryRepository,
         ILogger<IntakeFormResponseService> logger,
         IHealthCampService campService,
-        IIntakeFormRepository intakeFormRepository
+        IIntakeFormRepository intakeFormRepository,
+        IHealthCampRepository healthCampRepository
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -61,6 +65,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _logger = logger;
         _campService = campService;
         _intakeFormRepository = intakeFormRepository;
+        _healthCampRepository = healthCampRepository;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -273,108 +278,179 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return responses;
     }
 
-    public async Task<IntakeFormResponseExportDto> ExportCampResponsesToExcelAsync(Guid campId, CancellationToken ct = default)
+    // Download Findings Implementation
+
+    public async Task<byte[]> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
-        ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
+        // Verify camp exists
+        var camp = await _healthCampRepository.GetByIdAsync(campId);
+        if (camp == null)
+            throw new NotFoundException($"Health camp with ID {campId} not found.");
 
-        _logger.LogInformation("Starting Excel export for camp {CampId}", campId);
+        // Get all responses for this camp with participant and field details
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
 
-        // 1. Get service assignments for this camp (via repository)
-        var assignments = await _assignmentRepository.GetByCampIdAsync(campId, ct);
+        if (!responses.Any())
+            throw new NotFoundException("No intake form responses found for this camp.");
 
-        if (assignments.Count == 0)
-            throw new ValidationException(["No service assignments found for this camp."]);
+        // Group responses by participant to consolidate multiple forms per participant
+        var participantResponses = responses
+            .GroupBy(r => r.PatientId)
+            .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
+            .ThenBy(g => g.First().Patient?.User?.LastName ?? "")
+            .ToList();
 
-        using var package = new ExcelPackage();
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
-        foreach (var assignment in assignments)
+        // Define column headers in the exact order specified
+        var headers = new[]
         {
-            string sheetName = assignment.AssignmentName ?? $"Assignment_{assignment.Id}";
-            var ws = package.Workbook.Worksheets.Add(sheetName);
+        "Name", "Sex", "YOB", "Age (yrs)", "Workplace", "Lifestyle Risk",
+        "Sys BP (mmHg)", "Dia BP (mmHg)", "BP Risk", "HR", "Temp", "RBS (mmol/L)",
+        "Diabetes Mellitus Risk", "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk",
+        "SPO2", "RS", "CVS", "MSS", "CNS", "Mental health screen", "Skin", "Breast",
+        "Pap", "ECG", "Visual acuity", "Colour vision", "Audiometry", "Dental",
+        "Body Fat%", "Body Water%", "Muscle Mass (%)", "Bone Density (%)", "BMR Kcl/day",
+        "Metabolic Age", "Nutrition Review", "FHG", "HbA1c", "HbA1c Flags", "TSH",
+        "TSH FLAG", "Urinalysis", "Occult blood", "PSA", "PSA Risk", "Cholesterol (mg/dL)",
+        "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)", "TG Risk", "LDL (mg/dL)",
+        "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)", "GGT flag",
+        "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
+        "Specific Instructions", "CDMP"
+    };
 
-            // 2. Resolve form version for this assignment (via repository)
-            var formVersion = await _intakeFormRepository.ResolveFormVersionByAssignmentAsync(
-                assignment.AssignmentId, assignment.AssignmentType, ct);
-
-            if (formVersion == null)
-            {
-                _logger.LogWarning("No IntakeFormVersion found for assignment {AssignmentId}", assignment.AssignmentId);
-                continue;
-            }
-
-            // 3. Flatten ordered fields
-            var fields = formVersion.Sections
-                .OrderBy(s => s.Order)
-                .SelectMany(s => s.Fields.OrderBy(f => f.Order))
-                .ToList();
-
-            // 4. Build headers
-            var headers = new List<string>
+        // Set headers
+        for (int i = 0; i < headers.Length; i++)
         {
-            "Response Date",
-            "Patient Number",
-            "Full Name",
-            "Gender",
-            "Date of Birth",
-            "Status"
-        };
-            headers.AddRange(fields.Select(f => f.Label));
-
-            for (int col = 1; col <= headers.Count; col++)
-            {
-                ws.Cells[1, col].Value = headers[col - 1];
-                ws.Cells[1, col].Style.Font.Bold = true;
-                ws.Cells[1, col].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                ws.Cells[1, col].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
-            }
-
-            // 5. Get responses scoped by camp + assignment + participants (via repository)
-            var responses = await _intakeFormResponseRepository
-                .GetByCampAndAssignmentAsync(campId, assignment.AssignmentId, assignment.AssignmentType, ct);
-
-            int row = 2;
-            foreach (var response in responses)
-            {
-                var user = response.Patient?.User;
-                int col = 1;
-
-                ws.Cells[row, col++].Value = response.CreatedAt.ToString("yyyy-MM-dd HH:mm");
-                ws.Cells[row, col++].Value = response.Patient?.PatientNumber ?? "";
-                ws.Cells[row, col++].Value = user?.FullName ?? "";
-                ws.Cells[row, col++].Value = user?.Gender?.Name ?? "";
-                ws.Cells[row, col++].Value = user?.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
-                ws.Cells[row, col++].Value = response.Status?.Name ?? "";
-
-                foreach (var field in fields)
-                {
-                    var fieldResponse = response.FieldResponses
-                        .FirstOrDefault(fr => fr.FieldId == field.Id);
-                    ws.Cells[row, col++].Value = fieldResponse?.Value ?? "";
-                }
-
-                row++;
-            }
-
-            // 6. Format worksheet
-            if (ws.Dimension != null)
-            {
-                ws.Cells[ws.Dimension.Address].AutoFitColumns();
-                ws.View.FreezePanes(2, 1);
-            }
+            worksheet.Cell(1, i + 1).Value = headers[i];
+            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
         }
 
-        var content = package.GetAsByteArray();
-        var fileName = $"Camp_{campId}_Responses_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+        int currentRow = 2;
 
-        _logger.LogInformation("Excel export completed for camp {CampId}", campId);
-
-        return new IntakeFormResponseExportDto
+        foreach (var participantGroup in participantResponses)
         {
-            Content = content,
-            ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            FileName = fileName
-        };
+            var participant = participantGroup.First().Patient;
+            if (participant?.User == null) continue;
+
+            // Collect all field responses for this participant across all their forms
+            var allFieldResponses = participantGroup
+                .SelectMany(r => r.FieldResponses)
+                .GroupBy(fr => fr.Field.Label, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First().Value ?? "-", StringComparer.OrdinalIgnoreCase);
+
+            // Calculate age from date of birth
+            var age = participant.User.DateOfBirth.HasValue
+                ? DateTime.Now.Year - participant.User.DateOfBirth.Value.Year
+                : (int?)null;
+
+            // Populate row data
+            var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Name"] = $"{participant.User.FirstName} {participant.User.MiddleName} {participant.User.LastName}".Replace("  ", " ").Trim(),
+                ["Sex"] = GetFieldValue(allFieldResponses, "Sex", "Gender", "M/F"),
+                ["YOB"] = participant.User.DateOfBirth?.Year.ToString() ?? "-",
+                ["Age (yrs)"] = age?.ToString() ?? "-",
+                ["Workplace"] = GetFieldValue(allFieldResponses, "Workplace", "Work Place", "Company"),
+                ["Lifestyle Risk"] = GetFieldValue(allFieldResponses, "Lifestyle Risk"),
+                ["Sys BP (mmHg)"] = GetFieldValue(allFieldResponses, "Sys BP (mmHg)", "Systolic BP", "SBP", "Systolic Blood Pressure"),
+                ["Dia BP (mmHg)"] = GetFieldValue(allFieldResponses, "Dia BP (mmHg)", "Diastolic BP", "DBP", "Diastolic Blood Pressure"),
+                ["BP Risk"] = GetFieldValue(allFieldResponses, "BP Risk", "Blood Pressure Risk"),
+                ["HR"] = GetFieldValue(allFieldResponses, "HR", "Heart Rate", "Pulse"),
+                ["Temp"] = GetFieldValue(allFieldResponses, "Temp", "Temperature"),
+                ["RBS (mmol/L)"] = GetFieldValue(allFieldResponses, "RBS (mmol/L)", "RBS", "Random Blood Sugar"),
+                ["Diabetes Mellitus Risk"] = GetFieldValue(allFieldResponses, "Diabetes Mellitus Risk", "Diabetes Risk"),
+                ["Height (m)"] = GetFieldValue(allFieldResponses, "Height (m)", "Height"),
+                ["Weight (kg)"] = GetFieldValue(allFieldResponses, "Weight (kg)", "Weight"),
+                ["BMI (kg/m2)"] = GetFieldValue(allFieldResponses, "BMI (kg/m2)", "BMI"),
+                ["BMI Risk"] = GetFieldValue(allFieldResponses, "BMI Risk"),
+                ["SPO2"] = GetFieldValue(allFieldResponses, "SPO2", "Oxygen Saturation"),
+                ["RS"] = GetFieldValue(allFieldResponses, "RS", "Respiratory System"),
+                ["CVS"] = GetFieldValue(allFieldResponses, "CVS", "Cardiovascular System"),
+                ["MSS"] = GetFieldValue(allFieldResponses, "MSS", "Musculoskeletal System"),
+                ["CNS"] = GetFieldValue(allFieldResponses, "CNS", "Central Nervous System"),
+                ["Mental health screen"] = GetFieldValue(allFieldResponses, "Mental health screen", "Mental Health"),
+                ["Skin"] = GetFieldValue(allFieldResponses, "Skin"),
+                ["Breast"] = GetFieldValue(allFieldResponses, "Breast"),
+                ["Pap"] = GetFieldValue(allFieldResponses, "Pap", "Pap Smear"),
+                ["ECG"] = GetFieldValue(allFieldResponses, "ECG"),
+                ["Visual acuity"] = GetFieldValue(allFieldResponses, "Visual acuity", "Vision"),
+                ["Colour vision"] = GetFieldValue(allFieldResponses, "Colour vision", "Color Vision"),
+                ["Audiometry"] = GetFieldValue(allFieldResponses, "Audiometry", "Hearing"),
+                ["Dental"] = GetFieldValue(allFieldResponses, "Dental"),
+                ["Body Fat%"] = GetFieldValue(allFieldResponses, "Body Fat%", "Body Fat"),
+                ["Body Water%"] = GetFieldValue(allFieldResponses, "Body Water%", "Body Water"),
+                ["Muscle Mass (%)"] = GetFieldValue(allFieldResponses, "Muscle Mass (%)", "Muscle Mass"),
+                ["Bone Density (%)"] = GetFieldValue(allFieldResponses, "Bone Density (%)", "Bone Density"),
+                ["BMR Kcl/day"] = GetFieldValue(allFieldResponses, "BMR Kcl/day", "BMR"),
+                ["Metabolic Age"] = GetFieldValue(allFieldResponses, "Metabolic Age"),
+                ["Nutrition Review"] = GetFieldValue(allFieldResponses, "Nutrition Review", "Nutrition"),
+                ["FHG"] = GetFieldValue(allFieldResponses, "FHG", "Fasting Blood Glucose"),
+                ["HbA1c"] = GetFieldValue(allFieldResponses, "HbA1c"),
+                ["HbA1c Flags"] = GetFieldValue(allFieldResponses, "HbA1c Flags", "HbA1c Flag"),
+                ["TSH"] = GetFieldValue(allFieldResponses, "TSH"),
+                ["TSH FLAG"] = GetFieldValue(allFieldResponses, "TSH FLAG", "TSH Flag"),
+                ["Urinalysis"] = GetFieldValue(allFieldResponses, "Urinalysis"),
+                ["Occult blood"] = GetFieldValue(allFieldResponses, "Occult blood"),
+                ["PSA"] = GetFieldValue(allFieldResponses, "PSA"),
+                ["PSA Risk"] = GetFieldValue(allFieldResponses, "PSA Risk"),
+                ["Cholesterol (mg/dL)"] = GetFieldValue(allFieldResponses, "Cholesterol (mg/dL)", "Cholesterol"),
+                ["Lipid Risk"] = GetFieldValue(allFieldResponses, "Lipid Risk"),
+                ["HDL (mg/dL)"] = GetFieldValue(allFieldResponses, "HDL (mg/dL)", "HDL"),
+                ["HDL Risk"] = GetFieldValue(allFieldResponses, "HDL Risk"),
+                ["TG (mg/dL)"] = GetFieldValue(allFieldResponses, "TG (mg/dL)", "TG", "Triglycerides"),
+                ["TG Risk"] = GetFieldValue(allFieldResponses, "TG Risk", "Triglycerides Risk"),
+                ["LDL (mg/dL)"] = GetFieldValue(allFieldResponses, "LDL (mg/dL)", "LDL"),
+                ["LDL Risk"] = GetFieldValue(allFieldResponses, "LDL Risk"),
+                ["Creatinine (mg/dL)"] = GetFieldValue(allFieldResponses, "Creatinine (mg/dL)", "Creatinine"),
+                ["Creat flag"] = GetFieldValue(allFieldResponses, "Creat flag", "Creatinine Flag"),
+                ["GGT (u/L)"] = GetFieldValue(allFieldResponses, "GGT (u/L)", "GGT"),
+                ["GGT flag"] = GetFieldValue(allFieldResponses, "GGT flag", "GGT Flag"),
+                ["Pertinent History"] = GetFieldValue(allFieldResponses, "Pertinent History", "Pertinent History Findings"),
+                ["Clinical findings"] = GetFieldValue(allFieldResponses, "Clinical findings", "Pertinent Clinical Findings"),
+                ["Conclusion"] = GetFieldValue(allFieldResponses, "Conclusion"),
+                ["Recommendation"] = GetFieldValue(allFieldResponses, "Recommendation"),
+                ["Specific Instructions"] = GetFieldValue(allFieldResponses, "Specific Instructions", "Instructions"),
+                ["CDMP"] = GetFieldValue(allFieldResponses, "CDMP")
+            };
+
+            // Write data to Excel row
+            //for (int i = 0; i < headers.Length; i++)
+            //{
+            //    var value = rowData.TryGetValue(headers[i], out var cellValue) ? cellValue : "-";
+            //    worksheet.Cell(currentRow, i + 1).Value = value;
+            //    worksheet.Cell(currentRow, i + 1).DataType = XLDataType.Text;
+            //}
+
+            for (int i = 0; i < headers.Length; i++)
+            {
+                var value = rowData.TryGetValue(headers[i], out var cellValue) ? cellValue : "-";
+                worksheet.Cell(currentRow, i + 1).SetValue($"'{value}"); // Adding single quote forces text format
+            }
+
+            currentRow++;
+        }
+
+        // Auto-fit columns
+        worksheet.ColumnsUsed().AdjustToContents();
+
+        // Convert to byte array
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
-
+    private static string GetFieldValue(Dictionary<string, string> fieldResponses, params string[] possibleLabels)
+    {
+        foreach (var label in possibleLabels)
+        {
+            if (fieldResponses.TryGetValue(label, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+        return "-";
+    }
 }

@@ -228,10 +228,28 @@ namespace Salubrity.Application.Services.Subcontractor
             return _mapper.Map<List<SubcontractorDto>>(subs);
         }
 
+        //public async Task<SubcontractorDto> UpdateAsync(Guid id, UpdateSubcontractorDto dto)
+        //{
+        //    var sub = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Subcontractor not found");
+
+        //    sub.LicenseNumber = dto.LicenseNumber;
+        //    sub.Bio = dto.Bio;
+
+        //    if (dto.StatusId is null)
+        //        throw new ValidationException(["Status is required"]);
+
+        //    sub.StatusId = dto.StatusId.Value;
+
+        //    await _repo.UpdateSubAsync(sub, CancellationToken.None);
+        //    return _mapper.Map<SubcontractorDto>(sub);
+        //}
+
+        // Fixes for update subcontractor
         public async Task<SubcontractorDto> UpdateAsync(Guid id, UpdateSubcontractorDto dto)
         {
-            var sub = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Subcontractor not found");
+            var sub = await _repo.GetByIdWithDetailsAsync(id) ?? throw new NotFoundException("Subcontractor not found");
 
+            // Update basic subcontractor fields
             sub.LicenseNumber = dto.LicenseNumber;
             sub.Bio = dto.Bio;
 
@@ -240,8 +258,57 @@ namespace Salubrity.Application.Services.Subcontractor
 
             sub.StatusId = dto.StatusId.Value;
 
+            // Update industry if provided
+            if (dto.IndustryId.HasValue)
+            {
+                var industry = await _industryService.GetByIdAsync(dto.IndustryId.Value);
+                if (industry == null)
+                    throw new NotFoundException("Industry not found");
+                sub.IndustryId = dto.IndustryId.Value;
+            }
+
+            // Update user information if provided
+            if (dto.User != null && sub.User != null)
+            {
+                sub.User.FirstName = dto.User.FirstName?.Trim();
+                sub.User.MiddleName = dto.User.MiddleName?.Trim();
+                sub.User.LastName = dto.User.LastName?.Trim();
+                sub.User.Email = dto.User.Email?.Trim().ToLowerInvariant();
+                sub.User.Phone = dto.User.Phone?.Trim();
+                sub.User.GenderId = dto.User.GenderId;
+                sub.User.DateOfBirth = dto.User.DateOfBirth;
+                sub.User.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // Update specialties
+            if (dto.SpecialtyIds.Any())
+            {
+                // Remove existing specialties
+                await _repo.RemoveAllSpecialtiesAsync(sub.Id);
+
+                // Add new specialties
+                await _repo.AddSpecialtiesAsync(sub.Id, dto.SpecialtyIds);
+            }
+
+            // Update role assignments
+            if (dto.SubcontractorRoleIds.Any())
+            {
+                // Remove existing role assignments
+                await _repo.RemoveAllRoleAssignmentsAsync(sub.Id);
+
+                // Add new role assignments
+                foreach (var roleId in dto.SubcontractorRoleIds)
+                {
+                    var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
+                    await _repo.AssignRoleAsync(sub.Id, roleId, isPrimary);
+                }
+            }
+
             await _repo.UpdateSubAsync(sub, CancellationToken.None);
-            return _mapper.Map<SubcontractorDto>(sub);
+
+            // Fetch updated entity with all details for mapping
+            var updatedSub = await _repo.GetByIdWithDetailsAsync(id);
+            return _mapper.Map<SubcontractorDto>(updatedSub);
         }
 
         public async Task<SubcontractorDto> GetByIdAsync(Guid id)

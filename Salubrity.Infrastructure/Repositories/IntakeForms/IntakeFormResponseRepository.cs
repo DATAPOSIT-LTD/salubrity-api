@@ -170,5 +170,39 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             .ToListAsync(ct);
     }
 
+    //Download Findings Implementation
+
+    //public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
+    //{
+    //    return await _db.IntakeFormResponses
+    //        .Include(r => r.Patient)
+    //            .ThenInclude(p => p.User)
+    //        .Include(r => r.FieldResponses)
+    //            .ThenInclude(fr => fr.Field)
+    //        .Where(r => r.PatientId != null &&
+    //                   _db.HealthCampParticipants.Any(p => p.Id == r.PatientId && p.HealthCampId == campId) &&
+    //                   !r.IsDeleted)
+    //        .OrderBy(r => r.Patient.User.FirstName)
+    //        .ThenBy(r => r.Patient.User.LastName)
+    //        .ToListAsync(ct);
+    //}
+
+    public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
+    {
+        return await _db.IntakeFormResponses
+            .Include(r => r.Patient)
+                .ThenInclude(p => p.User)
+            .Include(r => r.FieldResponses)
+                .ThenInclude(fr => fr.Field)
+            .Where(r => r.PatientId != null &&
+                       !r.IsDeleted &&
+                       // Join through Organization: Patient -> Organization <- HealthCamp
+                       _db.HealthCamps
+                           .Where(hc => hc.Id == campId)
+                           .Any(hc => hc.OrganizationId == r.Patient.PrimaryOrganizationId))
+            .OrderBy(r => r.Patient.User.FirstName)
+            .ThenBy(r => r.Patient.User.LastName)
+            .ToListAsync(ct);
+    }
 }
 

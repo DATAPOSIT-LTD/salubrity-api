@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DocumentFormat.OpenXml.InkML;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Concierge;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Concierge;
@@ -250,6 +251,53 @@ namespace Salubrity.Infrastructure.Repositories.Concierge
                 return $"{(int)timeSpan.TotalHours}h {(int)timeSpan.Minutes % 60}m";
             }
             return $"{(int)timeSpan.TotalMinutes}m";
+        }
+
+        public async Task<PatientDetailDto?> GetPatientDetailByIdAsync(Guid patientId, CancellationToken ct = default)
+        {
+            var query = from patient in _db.Patients
+                        join user in _db.Users on patient.UserId equals user.Id
+                        where patient.Id == patientId
+                        select new
+                        {
+                            Patient = patient,
+                            User = user,
+                            Gender = user.Gender,
+                            Organization = user.Organization,
+                            LatestIntakeFormResponse = _db.IntakeFormResponses
+                                .Where(ifr => ifr.PatientId == patient.Id)
+                                .OrderByDescending(ifr => ifr.CreatedAt)
+                                .FirstOrDefault()
+                        };
+
+            var result = await query.AsNoTracking().FirstOrDefaultAsync(ct);
+
+            if (result == null)
+            {
+                return null;
+            }
+
+            int? age = null;
+            if (result.User.DateOfBirth.HasValue)
+            {
+                var today = DateTime.Today;
+                age = today.Year - result.User.DateOfBirth.Value.Year;
+                if (result.User.DateOfBirth.Value.Date > today.AddYears(-age.Value))
+                {
+                    age--;
+                }
+            }
+
+            return new PatientDetailDto
+            {
+                ProfilePictureUrl = result.User.ProfileImage,
+                FullName = $"{result.User.FirstName} {result.User.LastName}",
+                Phone = result.User.Phone,
+                Email = result.User.Email,
+                Gender = result.Gender?.Name,
+                Age = age,
+                Organization = result.Organization?.BusinessName,
+            };
         }
     }
 }

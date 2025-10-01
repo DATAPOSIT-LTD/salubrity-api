@@ -37,4 +37,22 @@
         public string AssignedSubcontractor { get; set; } = default!;
         public List<QueuedParticipantDto> Queue { get; set; } = [];
     }
+
+    public class PatientDetailDto
+    {
+        // Part 1: Contact details
+        public string? ProfilePictureUrl { get; set; }
+        public string FullName { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        //public string? Residence { get; set; }
+        //public string? NextOfKin { get; set; }
+        //public string? Relationship { get; set; }
+
+        // Part 2: General Overview
+        public string? Gender { get; set; }
+        public int? Age { get; set; }
+        public string? Organization { get; set; }
+        //public string? Allergies { get; set; }
+    }
 }

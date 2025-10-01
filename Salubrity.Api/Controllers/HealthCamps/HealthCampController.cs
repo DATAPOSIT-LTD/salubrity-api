@@ -213,6 +213,16 @@ public class CampController : BaseController
         return File(bytes, "image/png", fileName);
     }
 
+    [AllowAnonymous] // or restrict if needed
+    [HttpPost("posters/details")]
+    [ProducesResponseType(typeof(ApiResponse<QrEncodingDetailDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPosterDetails([FromBody] DecodePosterTokenRequest request, CancellationToken ct)
+    {
+        var result = await _service.DecodePosterTokenAsync(request.Token, ct);
+        return Success(result);
+    }
+
+
 
     [Authorize(Roles = "Concierge,Subcontractor,Admin")]
     [HttpGet("my-camp-services/{status:regex(^upcoming$|^complete$|^canceled$|^ongoing$)}")]

@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using AutoMapper;
 using Microsoft.IdentityModel.Tokens;
 using Salubrity.Application.Common.Interfaces.Repositories;
@@ -683,4 +685,36 @@ public class HealthCampService : IHealthCampService
             Name = participant.BillingStatus.Name
         };
     }
+
+    public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct)
+    {
+        var principal = _jwt.ValidateToken(token, "salubrity-api", "camp-signin");
+        if (principal == null)
+            throw new ValidationException(["Invalid or expired token."]);
+
+        var claims = principal.Claims.ToList();
+
+        var campId = Guid.Parse(claims.First(c => c.Type == "campId").Value);
+        var role = claims.First(c => c.Type == ClaimTypes.Role).Value;
+        var userId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+        var jti = claims.First(c => c.Type == "jti").Value;
+
+        // parse exp as unix time
+        var expClaim = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+        var expiresAt = expClaim != null
+            ? DateTimeOffset.FromUnixTimeSeconds(long.Parse(expClaim))
+            : DateTimeOffset.MinValue;
+
+        return new QrEncodingDetailDto
+        {
+            Token = token,
+            CampId = campId,
+            Role = role,
+            UserId = userId,
+            IsPoster = claims.Any(c => c.Type == "poster"),
+            ExpiresAt = expiresAt,
+            Jti = jti
+        };
+    }
+
 }

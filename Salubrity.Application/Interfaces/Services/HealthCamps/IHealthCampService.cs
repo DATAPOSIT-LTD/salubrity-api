@@ -21,6 +21,8 @@ public interface IHealthCampService
     Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize);
     Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize);
 
+    Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct);
+
     // This also needs to support nullable
     Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct);
 

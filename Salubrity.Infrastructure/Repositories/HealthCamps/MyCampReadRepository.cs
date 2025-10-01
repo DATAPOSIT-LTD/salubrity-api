@@ -99,20 +99,20 @@ public class MyCampReadRepository : IMyCampReadRepository
             .AsNoTracking()
             .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
 
-        if (!isParticipant) return Array.Empty<MyCampServiceDto>();
+        if (!isParticipant) return [];
 
         var participant = await _db.HealthCampParticipants
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.UserId == userId, ct);
 
         if (participant == null)
-            return Array.Empty<MyCampServiceDto>();
+            return [];
 
         var patientId = await _healthCampParticipantRepository
             .GetPatientIdByParticipantIdAsync(participant.Id, ct);
 
         if (patientId == null)
-            return Array.Empty<MyCampServiceDto>();
+            return [];
 
         // Step 2: Load assignments
         var assignments = await _db.Set<HealthCampServiceAssignment>()

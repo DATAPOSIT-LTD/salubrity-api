@@ -189,6 +189,17 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
 
     public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
     {
+        // Get patient IDs for participants in this specific camp
+        var campPatientIds = await _db.HealthCampParticipants
+            .Where(p => p.HealthCampId == campId && !p.IsDeleted)
+            .Select(p => p.PatientId)
+            .Where(patientId => patientId.HasValue)
+            .Select(patientId => patientId.Value)
+            .ToListAsync(ct);
+
+        if (!campPatientIds.Any())
+            return new List<IntakeFormResponse>();
+
         return await _db.IntakeFormResponses
             .Include(r => r.Patient)
                 .ThenInclude(p => p.User)
@@ -199,9 +210,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 .ThenInclude(v => v.IntakeForm)
             .Include(r => r.Status)
             .Include(r => r.ResolvedService)
-            .Where(r => r.PatientId != null &&
-                       _db.HealthCampParticipants.Any(p => p.Id == r.PatientId && p.HealthCampId == campId) &&
-                       !r.IsDeleted)
+            .Where(r => campPatientIds.Contains(r.PatientId) && !r.IsDeleted)
             .OrderBy(r => r.Patient.User.FirstName)
             .ThenBy(r => r.Patient.User.LastName)
             .ToListAsync(ct);

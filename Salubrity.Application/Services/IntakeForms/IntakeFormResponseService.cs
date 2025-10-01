@@ -280,7 +280,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     // Download Findings Implementation
 
-    public async Task<(byte[] ExcelData, string CampName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
+    public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
         // Verify camp exists
         var camp = await _healthCampRepository.GetByIdAsync(campId);
@@ -439,7 +439,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         // Convert to byte array
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return (stream.ToArray(), camp.Name);
+        return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
     }
 
     private static string GetFieldValue(Dictionary<string, string> fieldResponses, params string[] possibleLabels)

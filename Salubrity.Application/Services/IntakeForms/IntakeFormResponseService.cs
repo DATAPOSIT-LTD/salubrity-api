@@ -280,6 +280,197 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     // Download Findings Implementation
 
+    //public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
+    //{
+    //    // Verify camp exists
+    //    var camp = await _healthCampRepository.GetByIdAsync(campId);
+
+    //    if (camp == null)
+    //        throw new NotFoundException($"Health camp with ID {campId} not found.");
+
+    //    // Get all participants for this specific camp
+    //    var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
+
+    //    if (!participants.Any())
+    //        throw new NotFoundException("No participants found for this camp.");
+
+    //    // Get all intake form responses for this camp
+    //    var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+
+    //    // Create a comprehensive dataset by combining participants with their responses
+    //    var participantData = participants.Select(participant => new
+    //    {
+    //        Participant = participant,
+    //        Patient = participant.Patient,
+    //        User = participant.User,
+    //        Responses = responses.Where(r => r.PatientId == participant.PatientId).ToList()
+    //    }).ToList();
+
+    //    using var workbook = new XLWorkbook();
+    //    var worksheet = workbook.Worksheets.Add($"Camp Data - {camp.Name}");
+
+    //    // Define comprehensive column headers
+    //    var headers = new[]
+    //    {
+    //    "Participant ID", "Patient ID", "Name", "Email", "Phone", "Sex", "Date of Birth", "Age (yrs)",
+    //    "Workplace", "Lifestyle Risk", "Sys BP (mmHg)", "Dia BP (mmHg)", "BP Risk", "HR", "Temp",
+    //    "RBS (mmol/L)", "Diabetes Mellitus Risk", "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk",
+    //    "SPO2", "RS", "CVS", "MSS", "CNS", "Mental health screen", "Skin", "Breast", "Pap", "ECG",
+    //    "Visual acuity", "Colour vision", "Audiometry", "Dental", "Body Fat%", "Body Water%",
+    //    "Muscle Mass (%)", "Bone Density (%)", "BMR Kcl/day", "Metabolic Age", "Nutrition Review",
+    //    "FHG", "HbA1c", "HbA1c Flags", "TSH", "TSH FLAG", "Urinalysis", "Occult blood", "PSA",
+    //    "PSA Risk", "Cholesterol (mg/dL)", "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)",
+    //    "TG Risk", "LDL (mg/dL)", "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)",
+    //    "GGT flag", "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
+    //    "Specific Instructions", "CDMP", "Participation Date", "Status"
+    //};
+
+    //    // Add headers to worksheet
+    //    for (int i = 0; i < headers.Length; i++)
+    //    {
+    //        worksheet.Cell(1, i + 1).Value = headers[i];
+    //        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+    //        worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+    //    }
+
+    //    // Populate data rows
+    //    int row = 2;
+    //    foreach (var participantInfo in participantData)
+    //    {
+    //        var participant = participantInfo.Participant;
+    //        var user = participantInfo.User;
+    //        var responses = participantInfo.Responses;
+
+    //        // Create a field value lookup from all responses for this participant
+    //        var fieldValues = new Dictionary<string, string>();
+    //        foreach (var response in responses)
+    //        {
+    //            foreach (var fieldResponse in response.FieldResponses)
+    //            {
+    //                var fieldKey = fieldResponse.Field?.Label?.ToLowerInvariant().Trim() ?? "";
+    //                if (!string.IsNullOrEmpty(fieldKey) && !fieldValues.ContainsKey(fieldKey))
+    //                {
+    //                    fieldValues[fieldKey] = fieldResponse.Value ?? "";
+    //                }
+    //            }
+    //        }
+
+    //        // Helper function to get field value by various possible field names
+    //        string GetFieldValue(params string[] possibleNames)
+    //        {
+    //            foreach (var name in possibleNames)
+    //            {
+    //                var key = name.ToLowerInvariant().Trim();
+    //                if (fieldValues.ContainsKey(key))
+    //                    return fieldValues[key];
+    //            }
+    //            return "";
+    //        }
+
+    //        // Calculate age if date of birth is available
+    //        var ageText = "";
+    //        if (user.DateOfBirth.HasValue)
+    //        {
+    //            var age = DateTime.Now.Year - user.DateOfBirth.Value.Year;
+    //            if (DateTime.Now.DayOfYear < user.DateOfBirth.Value.DayOfYear)
+    //                age--;
+    //            ageText = age.ToString();
+    //        }
+
+    //        // Populate row data
+    //        var rowData = new object[]
+    //        {
+    //        participant.Id.ToString(),
+    //        participant.PatientId?.ToString() ?? "",
+    //        user.FullName ?? "",
+    //        user.Email ?? "",
+    //        user.Phone ?? "",
+    //        GetFieldValue("sex", "gender"),
+    //        user.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
+    //        ageText,
+    //        GetFieldValue("workplace", "company", "employer"),
+    //        GetFieldValue("lifestyle risk", "lifestyle"),
+    //        GetFieldValue("systolic bp", "sys bp", "systolic blood pressure"),
+    //        GetFieldValue("diastolic bp", "dia bp", "diastolic blood pressure"),
+    //        GetFieldValue("bp risk", "blood pressure risk"),
+    //        GetFieldValue("hr", "heart rate", "pulse"),
+    //        GetFieldValue("temp", "temperature"),
+    //        GetFieldValue("rbs", "random blood sugar", "blood sugar"),
+    //        GetFieldValue("diabetes mellitus risk", "diabetes risk"),
+    //        GetFieldValue("height"),
+    //        GetFieldValue("weight"),
+    //        GetFieldValue("bmi"),
+    //        GetFieldValue("bmi risk"),
+    //        GetFieldValue("spo2", "oxygen saturation"),
+    //        GetFieldValue("rs", "respiratory system"),
+    //        GetFieldValue("cvs", "cardiovascular system"),
+    //        GetFieldValue("mss", "musculoskeletal system"),
+    //        GetFieldValue("cns", "central nervous system"),
+    //        GetFieldValue("mental health screen", "mental health"),
+    //        GetFieldValue("skin"),
+    //        GetFieldValue("breast"),
+    //        GetFieldValue("pap", "pap smear"),
+    //        GetFieldValue("ecg", "electrocardiogram"),
+    //        GetFieldValue("visual acuity", "vision"),
+    //        GetFieldValue("colour vision", "color vision"),
+    //        GetFieldValue("audiometry", "hearing"),
+    //        GetFieldValue("dental"),
+    //        GetFieldValue("body fat", "body fat%"),
+    //        GetFieldValue("body water", "body water%"),
+    //        GetFieldValue("muscle mass"),
+    //        GetFieldValue("bone density"),
+    //        GetFieldValue("bmr", "basal metabolic rate"),
+    //        GetFieldValue("metabolic age"),
+    //        GetFieldValue("nutrition review", "nutrition"),
+    //        GetFieldValue("fhg", "fasting glucose"),
+    //        GetFieldValue("hba1c"),
+    //        GetFieldValue("hba1c flags", "hba1c flag"),
+    //        GetFieldValue("tsh"),
+    //        GetFieldValue("tsh flag"),
+    //        GetFieldValue("urinalysis", "urine analysis"),
+    //        GetFieldValue("occult blood"),
+    //        GetFieldValue("psa"),
+    //        GetFieldValue("psa risk"),
+    //        GetFieldValue("cholesterol"),
+    //        GetFieldValue("lipid risk"),
+    //        GetFieldValue("hdl"),
+    //        GetFieldValue("hdl risk"),
+    //        GetFieldValue("tg", "triglycerides"),
+    //        GetFieldValue("tg risk", "triglyceride risk"),
+    //        GetFieldValue("ldl"),
+    //        GetFieldValue("ldl risk"),
+    //        GetFieldValue("creatinine"),
+    //        GetFieldValue("creat flag", "creatinine flag"),
+    //        GetFieldValue("ggt"),
+    //        GetFieldValue("ggt flag"),
+    //        GetFieldValue("pertinent history", "medical history"),
+    //        GetFieldValue("clinical findings", "findings"),
+    //        GetFieldValue("conclusion"),
+    //        GetFieldValue("recommendation", "recommendations"),
+    //        GetFieldValue("specific instructions", "instructions"),
+    //        GetFieldValue("cdmp"),
+    //        participant.ParticipatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "",
+    //        participant.ParticipatedAt != null ? "Participated" : "Registered"
+    //        };
+
+    //        // Write row data
+    //        for (int col = 0; col < rowData.Length; col++)
+    //        {
+    //            worksheet.Cell(row, col + 1).Value = rowData[col]?.ToString() ?? "";
+    //        }
+
+    //        row++;
+    //    }
+
+    //    // Auto-fit columns
+    //    worksheet.ColumnsUsed().AdjustToContents();
+
+    //    // Save to memory stream
+    //    using var stream = new MemoryStream();
+    //    workbook.SaveAs(stream);
+    //    return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
+    //}
+
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
         // Verify camp exists
@@ -287,40 +478,44 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (camp == null)
             throw new NotFoundException($"Health camp with ID {campId} not found.");
 
-        // Get all responses for this camp with participant and field details
-        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+        // Get all participants for this specific camp
+        var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
 
-        if (!responses.Any())
-            throw new NotFoundException("No intake form responses found for this camp.");
+        if (!participants.Any())
+            throw new NotFoundException("No participants found for this camp.");
 
-        // Group responses by participant to consolidate multiple forms per participant
-        var participantResponses = responses
-            .GroupBy(r => r.PatientId)
-            .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
-            .ThenBy(g => g.First().Patient?.User?.LastName ?? "")
-            .ToList();
+        // Get all intake form responses for this camp
+        var campResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+
+        // Create a comprehensive dataset by combining participants with their responses
+        var participantData = participants.Select(participant => new
+        {
+            Participant = participant,
+            Patient = participant.Patient,
+            User = participant.User,
+            FormResponses = campResponses.Where(r => r.PatientId == participant.PatientId).ToList()
+        }).ToList();
 
         using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Camp Data Export");
+        var worksheet = workbook.Worksheets.Add($"Camp Data - {camp.Name}");
 
-        // Define column headers in the exact order specified
+        // Define comprehensive column headers
         var headers = new[]
         {
-        "Name", "Sex", "YOB", "Age (yrs)", "Workplace", "Lifestyle Risk",
-        "Sys BP (mmHg)", "Dia BP (mmHg)", "BP Risk", "HR", "Temp", "RBS (mmol/L)",
-        "Diabetes Mellitus Risk", "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk",
-        "SPO2", "RS", "CVS", "MSS", "CNS", "Mental health screen", "Skin", "Breast",
-        "Pap", "ECG", "Visual acuity", "Colour vision", "Audiometry", "Dental",
-        "Body Fat%", "Body Water%", "Muscle Mass (%)", "Bone Density (%)", "BMR Kcl/day",
-        "Metabolic Age", "Nutrition Review", "FHG", "HbA1c", "HbA1c Flags", "TSH",
-        "TSH FLAG", "Urinalysis", "Occult blood", "PSA", "PSA Risk", "Cholesterol (mg/dL)",
-        "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)", "TG Risk", "LDL (mg/dL)",
-        "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)", "GGT flag",
-        "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
-        "Specific Instructions", "CDMP"
+        "Participant ID", "Patient ID", "Name", "Email", "Phone", "Sex", "Date of Birth", "Age (yrs)",
+        "Workplace", "Lifestyle Risk", "Sys BP (mmHg)", "Dia BP (mmHg)", "BP Risk", "HR", "Temp",
+        "RBS (mmol/L)", "Diabetes Mellitus Risk", "Height (m)", "Weight (kg)", "BMI (kg/m2)", "BMI Risk",
+        "SPO2", "RS", "CVS", "MSS", "CNS", "Mental health screen", "Skin", "Breast", "Pap", "ECG",
+        "Visual acuity", "Colour vision", "Audiometry", "Dental", "Body Fat%", "Body Water%",
+        "Muscle Mass (%)", "Bone Density (%)", "BMR Kcl/day", "Metabolic Age", "Nutrition Review",
+        "FHG", "HbA1c", "HbA1c Flags", "TSH", "TSH FLAG", "Urinalysis", "Occult blood", "PSA",
+        "PSA Risk", "Cholesterol (mg/dL)", "Lipid Risk", "HDL (mg/dL)", "HDL Risk", "TG (mg/dL)",
+        "TG Risk", "LDL (mg/dL)", "LDL Risk", "Creatinine (mg/dL)", "Creat flag", "GGT (u/L)",
+        "GGT flag", "Pertinent History", "Clinical findings", "Conclusion", "Recommendation",
+        "Specific Instructions", "CDMP", "Participation Date", "Status"
     };
 
-        // Set headers
+        // Add headers to worksheet
         for (int i = 0; i < headers.Length; i++)
         {
             worksheet.Cell(1, i + 1).Value = headers[i];
@@ -328,119 +523,144 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
         }
 
-        int currentRow = 2;
-
-        foreach (var participantGroup in participantResponses)
+        // Populate data rows
+        int row = 2;
+        foreach (var participantInfo in participantData)
         {
-            var participant = participantGroup.First().Patient;
-            if (participant?.User == null) continue;
+            var participant = participantInfo.Participant;
+            var user = participantInfo.User;
+            var participantResponses = participantInfo.FormResponses;
 
-            // Collect all field responses for this participant across all their forms
-            var allFieldResponses = participantGroup
-                .SelectMany(r => r.FieldResponses)
-                .GroupBy(fr => fr.Field.Label, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Value ?? "-", StringComparer.OrdinalIgnoreCase);
-
-            // Calculate age from date of birth
-            var age = participant.User.DateOfBirth.HasValue
-                ? DateTime.Now.Year - participant.User.DateOfBirth.Value.Year
-                : (int?)null;
-
-            // Populate row data
-            var rowData = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            // Create a field value lookup from all responses for this participant
+            var fieldValues = new Dictionary<string, string>();
+            foreach (var response in participantResponses)
             {
-                ["Name"] = $"{participant.User.FirstName} {participant.User.MiddleName} {participant.User.LastName}".Replace("  ", " ").Trim(),
-                ["Sex"] = GetFieldValue(allFieldResponses, "Sex", "Gender", "M/F"),
-                ["YOB"] = participant.User.DateOfBirth?.Year.ToString() ?? "-",
-                ["Age (yrs)"] = age?.ToString() ?? "-",
-                ["Workplace"] = GetFieldValue(allFieldResponses, "Workplace", "Work Place", "Company"),
-                ["Lifestyle Risk"] = GetFieldValue(allFieldResponses, "Lifestyle Risk"),
-                ["Sys BP (mmHg)"] = GetFieldValue(allFieldResponses, "Sys BP (mmHg)", "Systolic BP", "SBP", "Systolic Blood Pressure"),
-                ["Dia BP (mmHg)"] = GetFieldValue(allFieldResponses, "Dia BP (mmHg)", "Diastolic BP", "DBP", "Diastolic Blood Pressure"),
-                ["BP Risk"] = GetFieldValue(allFieldResponses, "BP Risk", "Blood Pressure Risk"),
-                ["HR"] = GetFieldValue(allFieldResponses, "HR", "Heart Rate", "Pulse"),
-                ["Temp"] = GetFieldValue(allFieldResponses, "Temp", "Temperature"),
-                ["RBS (mmol/L)"] = GetFieldValue(allFieldResponses, "RBS (mmol/L)", "RBS", "Random Blood Sugar"),
-                ["Diabetes Mellitus Risk"] = GetFieldValue(allFieldResponses, "Diabetes Mellitus Risk", "Diabetes Risk"),
-                ["Height (m)"] = GetFieldValue(allFieldResponses, "Height (m)", "Height"),
-                ["Weight (kg)"] = GetFieldValue(allFieldResponses, "Weight (kg)", "Weight"),
-                ["BMI (kg/m2)"] = GetFieldValue(allFieldResponses, "BMI (kg/m2)", "BMI"),
-                ["BMI Risk"] = GetFieldValue(allFieldResponses, "BMI Risk"),
-                ["SPO2"] = GetFieldValue(allFieldResponses, "SPO2", "Oxygen Saturation"),
-                ["RS"] = GetFieldValue(allFieldResponses, "RS", "Respiratory System"),
-                ["CVS"] = GetFieldValue(allFieldResponses, "CVS", "Cardiovascular System"),
-                ["MSS"] = GetFieldValue(allFieldResponses, "MSS", "Musculoskeletal System"),
-                ["CNS"] = GetFieldValue(allFieldResponses, "CNS", "Central Nervous System"),
-                ["Mental health screen"] = GetFieldValue(allFieldResponses, "Mental health screen", "Mental Health"),
-                ["Skin"] = GetFieldValue(allFieldResponses, "Skin"),
-                ["Breast"] = GetFieldValue(allFieldResponses, "Breast"),
-                ["Pap"] = GetFieldValue(allFieldResponses, "Pap", "Pap Smear"),
-                ["ECG"] = GetFieldValue(allFieldResponses, "ECG"),
-                ["Visual acuity"] = GetFieldValue(allFieldResponses, "Visual acuity", "Vision"),
-                ["Colour vision"] = GetFieldValue(allFieldResponses, "Colour vision", "Color Vision"),
-                ["Audiometry"] = GetFieldValue(allFieldResponses, "Audiometry", "Hearing"),
-                ["Dental"] = GetFieldValue(allFieldResponses, "Dental"),
-                ["Body Fat%"] = GetFieldValue(allFieldResponses, "Body Fat%", "Body Fat"),
-                ["Body Water%"] = GetFieldValue(allFieldResponses, "Body Water%", "Body Water"),
-                ["Muscle Mass (%)"] = GetFieldValue(allFieldResponses, "Muscle Mass (%)", "Muscle Mass"),
-                ["Bone Density (%)"] = GetFieldValue(allFieldResponses, "Bone Density (%)", "Bone Density"),
-                ["BMR Kcl/day"] = GetFieldValue(allFieldResponses, "BMR Kcl/day", "BMR"),
-                ["Metabolic Age"] = GetFieldValue(allFieldResponses, "Metabolic Age"),
-                ["Nutrition Review"] = GetFieldValue(allFieldResponses, "Nutrition Review", "Nutrition"),
-                ["FHG"] = GetFieldValue(allFieldResponses, "FHG", "Fasting Blood Glucose"),
-                ["HbA1c"] = GetFieldValue(allFieldResponses, "HbA1c"),
-                ["HbA1c Flags"] = GetFieldValue(allFieldResponses, "HbA1c Flags", "HbA1c Flag"),
-                ["TSH"] = GetFieldValue(allFieldResponses, "TSH"),
-                ["TSH FLAG"] = GetFieldValue(allFieldResponses, "TSH FLAG", "TSH Flag"),
-                ["Urinalysis"] = GetFieldValue(allFieldResponses, "Urinalysis"),
-                ["Occult blood"] = GetFieldValue(allFieldResponses, "Occult blood"),
-                ["PSA"] = GetFieldValue(allFieldResponses, "PSA"),
-                ["PSA Risk"] = GetFieldValue(allFieldResponses, "PSA Risk"),
-                ["Cholesterol (mg/dL)"] = GetFieldValue(allFieldResponses, "Cholesterol (mg/dL)", "Cholesterol"),
-                ["Lipid Risk"] = GetFieldValue(allFieldResponses, "Lipid Risk"),
-                ["HDL (mg/dL)"] = GetFieldValue(allFieldResponses, "HDL (mg/dL)", "HDL"),
-                ["HDL Risk"] = GetFieldValue(allFieldResponses, "HDL Risk"),
-                ["TG (mg/dL)"] = GetFieldValue(allFieldResponses, "TG (mg/dL)", "TG", "Triglycerides"),
-                ["TG Risk"] = GetFieldValue(allFieldResponses, "TG Risk", "Triglycerides Risk"),
-                ["LDL (mg/dL)"] = GetFieldValue(allFieldResponses, "LDL (mg/dL)", "LDL"),
-                ["LDL Risk"] = GetFieldValue(allFieldResponses, "LDL Risk"),
-                ["Creatinine (mg/dL)"] = GetFieldValue(allFieldResponses, "Creatinine (mg/dL)", "Creatinine"),
-                ["Creat flag"] = GetFieldValue(allFieldResponses, "Creat flag", "Creatinine Flag"),
-                ["GGT (u/L)"] = GetFieldValue(allFieldResponses, "GGT (u/L)", "GGT"),
-                ["GGT flag"] = GetFieldValue(allFieldResponses, "GGT flag", "GGT Flag"),
-                ["Pertinent History"] = GetFieldValue(allFieldResponses, "Pertinent History", "Pertinent History Findings"),
-                ["Clinical findings"] = GetFieldValue(allFieldResponses, "Clinical findings", "Pertinent Clinical Findings"),
-                ["Conclusion"] = GetFieldValue(allFieldResponses, "Conclusion"),
-                ["Recommendation"] = GetFieldValue(allFieldResponses, "Recommendation"),
-                ["Specific Instructions"] = GetFieldValue(allFieldResponses, "Specific Instructions", "Instructions"),
-                ["CDMP"] = GetFieldValue(allFieldResponses, "CDMP")
-            };
-
-            // Write data to Excel row
-            //for (int i = 0; i < headers.Length; i++)
-            //{
-            //    var value = rowData.TryGetValue(headers[i], out var cellValue) ? cellValue : "-";
-            //    worksheet.Cell(currentRow, i + 1).Value = value;
-            //    worksheet.Cell(currentRow, i + 1).DataType = XLDataType.Text;
-            //}
-
-            for (int i = 0; i < headers.Length; i++)
-            {
-                var value = rowData.TryGetValue(headers[i], out var cellValue) ? cellValue : "-";
-                worksheet.Cell(currentRow, i + 1).SetValue($"'{value}"); // Adding single quote forces text format
+                foreach (var fieldResponse in response.FieldResponses)
+                {
+                    var fieldKey = fieldResponse.Field?.Label?.ToLowerInvariant().Trim() ?? "";
+                    if (!string.IsNullOrEmpty(fieldKey) && !fieldValues.ContainsKey(fieldKey))
+                    {
+                        fieldValues[fieldKey] = fieldResponse.Value ?? "";
+                    }
+                }
             }
 
-            currentRow++;
+            // Helper function to get field value by various possible field names
+            string GetFieldValue(params string[] possibleNames)
+            {
+                foreach (var name in possibleNames)
+                {
+                    var key = name.ToLowerInvariant().Trim();
+                    if (fieldValues.ContainsKey(key))
+                        return fieldValues[key];
+                }
+                return "";
+            }
+
+            // Calculate age if date of birth is available
+            var ageText = "";
+            if (user.DateOfBirth.HasValue)
+            {
+                var age = DateTime.Now.Year - user.DateOfBirth.Value.Year;
+                if (DateTime.Now.DayOfYear < user.DateOfBirth.Value.DayOfYear)
+                    age--;
+                ageText = age.ToString();
+            }
+
+            // Populate row data
+            var rowData = new object[]
+            {
+            participant.Id.ToString(),
+            participant.PatientId?.ToString() ?? "",
+            user.FullName ?? "",
+            user.Email ?? "",
+            user.Phone ?? "",
+            GetFieldValue("sex", "gender"),
+            user.DateOfBirth?.ToString("yyyy-MM-dd") ?? "",
+            ageText,
+            GetFieldValue("workplace", "company", "employer"),
+            GetFieldValue("lifestyle risk", "lifestyle"),
+            GetFieldValue("systolic bp", "sys bp", "systolic blood pressure"),
+            GetFieldValue("diastolic bp", "dia bp", "diastolic blood pressure"),
+            GetFieldValue("bp risk", "blood pressure risk"),
+            GetFieldValue("hr", "heart rate", "pulse"),
+            GetFieldValue("temp", "temperature"),
+            GetFieldValue("rbs", "random blood sugar", "blood sugar"),
+            GetFieldValue("diabetes mellitus risk", "diabetes risk"),
+            GetFieldValue("height"),
+            GetFieldValue("weight"),
+            GetFieldValue("bmi"),
+            GetFieldValue("bmi risk"),
+            GetFieldValue("spo2", "oxygen saturation"),
+            GetFieldValue("rs", "respiratory system"),
+            GetFieldValue("cvs", "cardiovascular system"),
+            GetFieldValue("mss", "musculoskeletal system"),
+            GetFieldValue("cns", "central nervous system"),
+            GetFieldValue("mental health screen", "mental health"),
+            GetFieldValue("skin"),
+            GetFieldValue("breast"),
+            GetFieldValue("pap", "pap smear"),
+            GetFieldValue("ecg", "electrocardiogram"),
+            GetFieldValue("visual acuity", "vision"),
+            GetFieldValue("colour vision", "color vision"),
+            GetFieldValue("audiometry", "hearing"),
+            GetFieldValue("dental"),
+            GetFieldValue("body fat", "body fat%"),
+            GetFieldValue("body water", "body water%"),
+            GetFieldValue("muscle mass"),
+            GetFieldValue("bone density"),
+            GetFieldValue("bmr", "basal metabolic rate"),
+            GetFieldValue("metabolic age"),
+            GetFieldValue("nutrition review", "nutrition"),
+            GetFieldValue("fhg", "fasting glucose"),
+            GetFieldValue("hba1c"),
+            GetFieldValue("hba1c flags", "hba1c flag"),
+            GetFieldValue("tsh"),
+            GetFieldValue("tsh flag"),
+            GetFieldValue("urinalysis", "urine analysis"),
+            GetFieldValue("occult blood"),
+            GetFieldValue("psa"),
+            GetFieldValue("psa risk"),
+            GetFieldValue("cholesterol"),
+            GetFieldValue("lipid risk"),
+            GetFieldValue("hdl"),
+            GetFieldValue("hdl risk"),
+            GetFieldValue("tg", "triglycerides"),
+            GetFieldValue("tg risk", "triglyceride risk"),
+            GetFieldValue("ldl"),
+            GetFieldValue("ldl risk"),
+            GetFieldValue("creatinine"),
+            GetFieldValue("creat flag", "creatinine flag"),
+            GetFieldValue("ggt"),
+            GetFieldValue("ggt flag"),
+            GetFieldValue("pertinent history", "medical history"),
+            GetFieldValue("clinical findings", "findings"),
+            GetFieldValue("conclusion"),
+            GetFieldValue("recommendation", "recommendations"),
+            GetFieldValue("specific instructions", "instructions"),
+            GetFieldValue("cdmp"),
+            participant.ParticipatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "",
+            participant.ParticipatedAt != null ? "Participated" : "Registered"
+            };
+
+            // Write row data
+            for (int col = 0; col < rowData.Length; col++)
+            {
+                worksheet.Cell(row, col + 1).Value = rowData[col]?.ToString() ?? "";
+            }
+
+            row++;
         }
 
         // Auto-fit columns
         worksheet.ColumnsUsed().AdjustToContents();
 
-        // Convert to byte array
+        // Save to memory stream
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
     }
+
 
     private static string GetFieldValue(Dictionary<string, string> fieldResponses, params string[] possibleLabels)
     {

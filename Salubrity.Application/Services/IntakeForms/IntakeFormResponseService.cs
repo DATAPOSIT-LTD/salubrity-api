@@ -579,6 +579,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
     }
 
+
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelSheetStyledAsync(Guid campId, CancellationToken ct = default)
     {
         // Verify camp exists and get camp details with organization
@@ -592,19 +593,38 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (!responses.Any())
             throw new NotFoundException("No intake form responses found for this camp.");
 
+        // Get DTO responses that have section names populated
+        var dtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(null, campId, ct);
+
+        // Build field-to-section mapping from DTO data
+        var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dtoResponse in dtoResponses)
+        {
+            foreach (var fieldResponse in dtoResponse.FieldResponses)
+            {
+                var fieldLabel = fieldResponse.Field.Label;
+                var sectionName = fieldResponse.Field.SectionName ?? "General";
+
+                if (!fieldToSectionMap.ContainsKey(fieldLabel))
+                {
+                    fieldToSectionMap[fieldLabel] = sectionName;
+                }
+            }
+        }
+
         // Get all unique fields from all forms used in this camp
         var allFields = responses
             .SelectMany(r => r.FieldResponses)
             .Select(fr => fr.Field)
             .GroupBy(f => f.Id)
             .Select(g => g.First())
-            .OrderBy(f => f.Section?.Name ?? "General")
+            .OrderBy(f => fieldToSectionMap.TryGetValue(f.Label, out var section) ? section : "General")
             .ThenBy(f => f.Order)
             .ToList();
 
         // Group fields by section for better organization
         var fieldsBySection = allFields
-            .GroupBy(f => f.Section?.Name ?? "General")
+            .GroupBy(f => fieldToSectionMap.TryGetValue(f.Label, out var section) ? section : "General")
             .OrderBy(g => g.Key)
             .ToList();
 
@@ -626,7 +646,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         {
             foreach (var field in sectionGroup.OrderBy(f => f.Order))
             {
-                headers.Add($"{sectionGroup.Key} - {field.Label}");
+                var sectionName = fieldToSectionMap.TryGetValue(field.Label, out var section) ? section : "General";
+                headers.Add($"{sectionName} - {field.Label}");
                 fieldMapping.Add(field);
             }
         }
@@ -637,35 +658,13 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-            var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            // Use the DTO responses that already have section names populated
-            var dtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(null, campId, ct);
-
-            foreach (var dtoResponse in dtoResponses)
-            {
-                foreach (var fieldResponse in dtoResponse.FieldResponses)
-                {
-                    var fieldLabel = fieldResponse.Field.Label;
-                    var sectionName = fieldResponse.Field.SectionName ?? "General";
-
-                    if (!fieldToSectionMap.ContainsKey(fieldLabel))
-                    {
-                        fieldToSectionMap[fieldLabel] = sectionName;
-                    }
-                }
-            }
-
-            // Then in your header styling section:
             if (i >= 3) // Skip basic info columns
             {
-                var fieldLabel = headers[i];
-                var sectionName = fieldToSectionMap.TryGetValue(fieldLabel, out var section) ? section : "General";
+                // Extract section name from the header (it's already in the format "SectionName - FieldLabel")
+                var headerParts = headers[i].Split(" - ", 2);
+                var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
                 var color = GetSectionColor(sectionName);
                 worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
-
-                // Optional: Add section name to header for clarity
-                worksheet.Cell(1, i + 1).Value = $"{sectionName} - {fieldLabel}";
             }
             else
             {
@@ -795,7 +794,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
 
         // Freeze the header row and first 3 columns for better navigation
-        worksheet.Cell(2, 4).Select(); // Select the cell where the freeze should start (row 2, column 4)
         worksheet.SheetView.Freeze(1, 3);
 
         using var stream = new MemoryStream();

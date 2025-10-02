@@ -453,4 +453,129 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
         return "-";
     }
+
+    public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelSheetAsync(Guid campId, CancellationToken ct = default)
+    {
+        // Verify camp exists and get camp details with organization
+        var camp = await _healthCampRepository.GetByIdAsync(campId);
+        if (camp == null)
+            throw new NotFoundException($"Health camp with ID {campId} not found.");
+
+        // Get all responses for this camp with participant and field details
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+
+        if (!responses.Any())
+            throw new NotFoundException("No intake form responses found for this camp.");
+
+        // Get all unique fields from all forms used in this camp
+        var allFields = responses
+            .SelectMany(r => r.FieldResponses)
+            .Select(fr => fr.Field)
+            .GroupBy(f => f.Id)
+            .Select(g => g.First())
+            .OrderBy(f => f.Section?.Name ?? "")
+            .ThenBy(f => f.Order)
+            .ToList();
+
+        // Group responses by participant
+        var participantResponses = responses
+            .GroupBy(r => r.PatientId)
+            .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
+            .ThenBy(g => g.First().Patient?.User?.LastName ?? "")
+            .ToList();
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Camp Data Export");
+
+        // Create dynamic headers based on actual fields in the system
+        var headers = new List<string> { "Participant Name", "Email", "Phone" };
+
+        // Add field labels as headers
+        foreach (var field in allFields)
+        {
+            var sectionPrefix = !string.IsNullOrEmpty(field.Section?.Name) ? $"{field.Section.Name} - " : "";
+            headers.Add($"{sectionPrefix}{field.Label}");
+        }
+
+        // Set headers in Excel
+        for (int i = 0; i < headers.Count; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = headers[i];
+            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+        }
+
+        // Populate data rows
+        int currentRow = 2;
+        foreach (var participantGroup in participantResponses)
+        {
+            var participant = participantGroup.First().Patient;
+            if (participant?.User == null) continue;
+
+            // Basic participant info
+            worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
+            worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
+            worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
+
+            // Create a lookup for all field responses for this participant
+            var fieldResponseLookup = participantGroup
+                .SelectMany(r => r.FieldResponses)
+                .GroupBy(fr => fr.FieldId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First()); // Get latest response if multiple
+
+            // Fill field values
+            int columnIndex = 4; // Start after basic info columns
+            foreach (var field in allFields)
+            {
+                string value = "";
+                if (fieldResponseLookup.TryGetValue(field.Id, out var fieldResponse))
+                {
+                    value = fieldResponse.Value ?? "";
+
+                    // Handle different field types for better display
+                    value = field.FieldType?.ToLowerInvariant() switch
+                    {
+                        "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
+                        "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
+                        "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
+                        _ => value
+                    };
+                }
+
+                worksheet.Cell(currentRow, columnIndex).Value = value;
+                columnIndex++;
+            }
+
+            currentRow++;
+        }
+
+        // Auto-fit columns
+        worksheet.Columns().AdjustToContents();
+
+        // Add some formatting
+        var headerRange = worksheet.Range(1, 1, 1, headers.Count);
+        headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
+        headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+
+        // Add data borders
+        if (currentRow > 2)
+        {
+            var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
+            dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+        }
+
+        // Add summary information
+        worksheet.Cell(currentRow + 2, 1).Value = "Export Summary:";
+        worksheet.Cell(currentRow + 2, 1).Style.Font.Bold = true;
+        worksheet.Cell(currentRow + 3, 1).Value = $"Camp: {camp.Name}";
+        worksheet.Cell(currentRow + 4, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
+        worksheet.Cell(currentRow + 5, 1).Value = $"Total Participants: {participantResponses.Count}";
+        worksheet.Cell(currentRow + 6, 1).Value = $"Total Fields: {allFields.Count}";
+        worksheet.Cell(currentRow + 7, 1).Value = $"Export Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
+    }
 }

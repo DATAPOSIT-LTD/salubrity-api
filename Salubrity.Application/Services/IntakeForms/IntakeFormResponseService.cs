@@ -587,24 +587,33 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (camp == null)
             throw new NotFoundException($"Health camp with ID {campId} not found.");
 
-        // Get all responses for this camp with participant and field details
-        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
-
-        if (!responses.Any())
-            throw new NotFoundException("No intake form responses found for this camp.");
-
-        // Get DTO responses that have section names populated
+        // Get DTO responses that have section names populated - this is our primary data source
         var dtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(null, campId, ct);
 
-        // Build field-to-section mapping from DTO data
+        if (!dtoResponses.Any())
+            throw new NotFoundException("No intake form responses found for this camp.");
+
+        // Build comprehensive field information from DTO data
+        var allFieldsInfo = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType)>();
         var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var dtoResponse in dtoResponses)
         {
             foreach (var fieldResponse in dtoResponse.FieldResponses)
             {
+                var fieldId = fieldResponse.FieldId.ToString();
                 var fieldLabel = fieldResponse.Field.Label;
                 var sectionName = fieldResponse.Field.SectionName ?? "General";
+                var order = fieldResponse.Field.Order;
+                var fieldType = fieldResponse.Field.FieldType ?? "text";
 
+                // Add to field info if not already present
+                if (!allFieldsInfo.Any(f => f.FieldId == fieldId))
+                {
+                    allFieldsInfo.Add((fieldId, fieldLabel, sectionName, order, fieldType));
+                }
+
+                // Build field-to-section mapping
                 if (!fieldToSectionMap.ContainsKey(fieldLabel))
                 {
                     fieldToSectionMap[fieldLabel] = sectionName;
@@ -612,43 +621,37 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
         }
 
-        // Get all unique fields from all forms used in this camp
-        var allFields = responses
-            .SelectMany(r => r.FieldResponses)
-            .Select(fr => fr.Field)
-            .GroupBy(f => f.Id)
-            .Select(g => g.First())
-            .OrderBy(f => fieldToSectionMap.TryGetValue(f.Label, out var section) ? section : "General")
-            .ThenBy(f => f.Order)
-            .ToList();
-
-        // Group fields by section for better organization
-        var fieldsBySection = allFields
-            .GroupBy(f => fieldToSectionMap.TryGetValue(f.Label, out var section) ? section : "General")
+        // Group and order fields by section and order
+        var fieldsBySection = allFieldsInfo
+            .GroupBy(f => f.SectionName)
             .OrderBy(g => g.Key)
             .ToList();
 
-        // Group responses by participant
-        var participantResponses = responses
+        // Group responses by participant - we need to get participant info from the original entity data
+        var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+        var participantResponses = entityResponses
             .GroupBy(r => r.PatientId)
             .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
-            .ThenBy(g => g.First().Patient?.User?.LastName ?? "")
             .ToList();
+
+        // Create a lookup from DTO responses for field values
+        var dtoResponseLookup = dtoResponses
+            .GroupBy(r => r.PatientId)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
         // Create headers with section grouping
         var headers = new List<string> { "Participant Name", "Email", "Phone" };
-        var fieldMapping = new List<IntakeFormField>(); // To maintain field order for data population
+        var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType)>();
 
         foreach (var sectionGroup in fieldsBySection)
         {
             foreach (var field in sectionGroup.OrderBy(f => f.Order))
             {
-                var sectionName = fieldToSectionMap.TryGetValue(field.Label, out var section) ? section : "General";
-                headers.Add($"{sectionName} - {field.Label}");
-                fieldMapping.Add(field);
+                headers.Add($"{field.SectionName} - {field.Label}");
+                orderedFields.Add((field.FieldId, field.Label, field.SectionName, field.FieldType));
             }
         }
 
@@ -660,7 +663,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
             if (i >= 3) // Skip basic info columns
             {
-                // Extract section name from the header (it's already in the format "SectionName - FieldLabel")
+                // Extract section name from the header
                 var headerParts = headers[i].Split(" - ", 2);
                 var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
                 var color = GetSectionColor(sectionName);
@@ -679,28 +682,31 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             var participant = participantGroup.First().Patient;
             if (participant?.User == null) continue;
 
-            // Basic participant info
+            // Basic participant info from entity
             worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
             worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
             worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
 
-            // Create a lookup for all field responses for this participant
-            var fieldResponseLookup = participantGroup
+            // Get DTO responses for this participant
+            var patientDtoResponses = dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) ? dtoList : new List<IntakeFormResponseDetailDto>();
+
+            // Create a lookup for all field responses for this participant from DTO data
+            var fieldResponseLookup = patientDtoResponses
                 .SelectMany(r => r.FieldResponses)
-                .GroupBy(fr => fr.FieldId)
+                .GroupBy(fr => fr.FieldId.ToString())
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First()); // Get latest response if multiple
 
-            // Fill field values using fieldMapping order
+            // Fill field values using ordered fields
             int columnIndex = 4; // Start after basic info columns
-            foreach (var field in fieldMapping)
+            foreach (var field in orderedFields)
             {
                 string value = "";
-                if (fieldResponseLookup.TryGetValue(field.Id, out var fieldResponse))
+                if (fieldResponseLookup.TryGetValue(field.FieldId, out var fieldResponse))
                 {
                     value = fieldResponse.Value ?? "";
 
                     // Handle different field types for better display
-                    value = field.FieldType?.ToLowerInvariant() switch
+                    value = field.FieldType.ToLowerInvariant() switch
                     {
                         "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
                         "radio" => value,
@@ -769,7 +775,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
         worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
         worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
-        worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {fieldMapping.Count}";
+        worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {orderedFields.Count}";
         worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Sections: {fieldsBySection.Count}";
         worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
 

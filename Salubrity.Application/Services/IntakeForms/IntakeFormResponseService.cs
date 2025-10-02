@@ -637,29 +637,35 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-            if (i >= 3) // Skip basic info columns
+            var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Use the DTO responses that already have section names populated
+            var dtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(null, campId, ct);
+
+            foreach (var dtoResponse in dtoResponses)
             {
-                // Get the field label from the header
-                var fieldLabel = headers[i];
-
-                // Find the section name from the actual response data
-                var sectionName = "General"; // Default fallback
-
-                // Look through all responses to find this field's section
-                foreach (var response in participantResponses.SelectMany(r => r))
+                foreach (var fieldResponse in dtoResponse.FieldResponses)
                 {
-                    var fieldResponse = response.FieldResponses
-                        .FirstOrDefault(fr => string.Equals(fr.Field.Label, fieldLabel, StringComparison.OrdinalIgnoreCase));
+                    var fieldLabel = fieldResponse.Field.Label;
+                    var sectionName = fieldResponse.Field.SectionName ?? "General";
 
-                    if (fieldResponse != null)
+                    if (!fieldToSectionMap.ContainsKey(fieldLabel))
                     {
-                        sectionName = fieldResponse.Field.Section?.Name ?? "General";
-                        break; // Found it, use this section name
+                        fieldToSectionMap[fieldLabel] = sectionName;
                     }
                 }
+            }
 
+            // Then in your header styling section:
+            if (i >= 3) // Skip basic info columns
+            {
+                var fieldLabel = headers[i];
+                var sectionName = fieldToSectionMap.TryGetValue(fieldLabel, out var section) ? section : "General";
                 var color = GetSectionColor(sectionName);
                 worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
+
+                // Optional: Add section name to header for clarity
+                worksheet.Cell(1, i + 1).Value = $"{sectionName} - {fieldLabel}";
             }
             else
             {

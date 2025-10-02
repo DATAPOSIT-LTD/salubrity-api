@@ -637,11 +637,30 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-            // Color code by section
+
+            // Add this before the header styling section:
+            var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Build the mapping from actual response data
+            foreach (var response in participantResponses.SelectMany(r => r))
+            {
+                foreach (var fieldResponse in response.FieldResponses)
+                {
+                    var fieldLabel = fieldResponse.Field.Label;
+                    var sectionName = fieldResponse.Field.Section?.Name ?? "General";
+
+                    if (!fieldToSectionMap.ContainsKey(fieldLabel))
+                    {
+                        fieldToSectionMap[fieldLabel] = sectionName;
+                    }
+                }
+            }
+
+            // Then use it in your header styling:
             if (i >= 3) // Skip basic info columns
             {
-                var field = fieldMapping[i - 3];
-                var sectionName = field.Section?.Name ?? "General";
+                var fieldLabel = headers[i];
+                var sectionName = fieldToSectionMap.TryGetValue(fieldLabel, out var section) ? section : "General";
                 var color = GetSectionColor(sectionName);
                 worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
             }

@@ -578,4 +578,225 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         workbook.SaveAs(stream);
         return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
     }
+
+    public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelSheetStyledAsync(Guid campId, CancellationToken ct = default)
+    {
+        // Verify camp exists and get camp details with organization
+        var camp = await _healthCampRepository.GetByIdAsync(campId);
+        if (camp == null)
+            throw new NotFoundException($"Health camp with ID {campId} not found.");
+
+        // Get all responses for this camp with participant and field details
+        var responses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+
+        if (!responses.Any())
+            throw new NotFoundException("No intake form responses found for this camp.");
+
+        // Get all unique fields from all forms used in this camp
+        var allFields = responses
+            .SelectMany(r => r.FieldResponses)
+            .Select(fr => fr.Field)
+            .GroupBy(f => f.Id)
+            .Select(g => g.First())
+            .OrderBy(f => f.Section?.Name ?? "General")
+            .ThenBy(f => f.Order)
+            .ToList();
+
+        // Group fields by section for better organization
+        var fieldsBySection = allFields
+            .GroupBy(f => f.Section?.Name ?? "General")
+            .OrderBy(g => g.Key)
+            .ToList();
+
+        // Group responses by participant
+        var participantResponses = responses
+            .GroupBy(r => r.PatientId)
+            .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
+            .ThenBy(g => g.First().Patient?.User?.LastName ?? "")
+            .ToList();
+
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Camp Data Export");
+
+        // Create headers with section grouping
+        var headers = new List<string> { "Participant Name", "Email", "Phone" };
+        var fieldMapping = new List<IntakeFormField>(); // To maintain field order for data population
+
+        foreach (var sectionGroup in fieldsBySection)
+        {
+            foreach (var field in sectionGroup.OrderBy(f => f.Order))
+            {
+                headers.Add($"{sectionGroup.Key} - {field.Label}");
+                fieldMapping.Add(field);
+            }
+        }
+
+        // Set headers with section styling
+        for (int i = 0; i < headers.Count; i++)
+        {
+            worksheet.Cell(1, i + 1).Value = headers[i];
+            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+
+            // Color code by section
+            if (i >= 3) // Skip basic info columns
+            {
+                var field = fieldMapping[i - 3];
+                var sectionName = field.Section?.Name ?? "General";
+                var color = GetSectionColor(sectionName);
+                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
+            }
+            else
+            {
+                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+            }
+        }
+
+        // Populate data rows
+        int currentRow = 2;
+        foreach (var participantGroup in participantResponses)
+        {
+            var participant = participantGroup.First().Patient;
+            if (participant?.User == null) continue;
+
+            // Basic participant info
+            worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
+            worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
+            worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
+
+            // Create a lookup for all field responses for this participant
+            var fieldResponseLookup = participantGroup
+                .SelectMany(r => r.FieldResponses)
+                .GroupBy(fr => fr.FieldId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First()); // Get latest response if multiple
+
+            // Fill field values using fieldMapping order
+            int columnIndex = 4; // Start after basic info columns
+            foreach (var field in fieldMapping)
+            {
+                string value = "";
+                if (fieldResponseLookup.TryGetValue(field.Id, out var fieldResponse))
+                {
+                    value = fieldResponse.Value ?? "";
+
+                    // Handle different field types for better display
+                    value = field.FieldType?.ToLowerInvariant() switch
+                    {
+                        "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
+                        "radio" => value,
+                        "select" => value,
+                        "multiselect" => value,
+                        "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
+                        "datetime" => DateTime.TryParse(value, out var datetime) ? datetime.ToString("yyyy-MM-dd HH:mm") : value,
+                        "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
+                        "email" => value,
+                        "phone" => value,
+                        "url" => value,
+                        "textarea" => value,
+                        "text" => value,
+                        _ => value
+                    };
+                }
+
+                worksheet.Cell(currentRow, columnIndex).Value = value;
+                columnIndex++;
+            }
+
+            currentRow++;
+        }
+
+        // Auto-fit columns with reasonable limits
+        foreach (var column in worksheet.Columns())
+        {
+            column.AdjustToContents();
+            // Set maximum column width to prevent extremely wide columns
+            if (column.Width > 50)
+                column.Width = 50;
+            // Set minimum column width for readability
+            if (column.Width < 10)
+                column.Width = 10;
+        }
+
+        // Add formatting to header row
+        var headerRange = worksheet.Range(1, 1, 1, headers.Count);
+        headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
+        headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        headerRange.Style.Font.Bold = true;
+
+        // Add data borders if there's data
+        if (currentRow > 2)
+        {
+            var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
+            dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+
+            // Add alternating row colors for better readability
+            for (int row = 2; row < currentRow; row++)
+            {
+                if (row % 2 == 0)
+                {
+                    worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
+                }
+            }
+        }
+
+        // Add summary information
+        int summaryStartRow = currentRow + 2;
+        worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
+        worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
+        worksheet.Cell(summaryStartRow, 1).Style.Font.FontSize = 12;
+
+        worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
+        worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
+        worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
+        worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {fieldMapping.Count}";
+        worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Sections: {fieldsBySection.Count}";
+        worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+
+        // Style the summary section
+        var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 6, 2);
+        summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
+
+        // Add section legend
+        int legendStartRow = summaryStartRow + 8;
+        worksheet.Cell(legendStartRow, 1).Value = "Section Color Legend:";
+        worksheet.Cell(legendStartRow, 1).Style.Font.Bold = true;
+
+        int legendRow = legendStartRow + 1;
+        var uniqueSections = fieldsBySection.Select(g => g.Key).Distinct().ToList();
+        foreach (var sectionName in uniqueSections)
+        {
+            worksheet.Cell(legendRow, 1).Value = sectionName;
+            worksheet.Cell(legendRow, 1).Style.Fill.BackgroundColor = GetSectionColor(sectionName);
+            worksheet.Cell(legendRow, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            legendRow++;
+        }
+
+        // Freeze the header row and first 3 columns for better navigation
+        worksheet.Cell(2, 4).Select(); // Select the cell where the freeze should start (row 2, column 4)
+        worksheet.SheetView.Freeze(1, 3);
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
+    }
+
+    private static XLColor GetSectionColor(string sectionName)
+    {
+        return sectionName.ToLowerInvariant() switch
+        {
+            var s when s.Contains("personal") || s.Contains("demographic") => XLColor.LightBlue,
+            var s when s.Contains("medical") || s.Contains("health") => XLColor.LightGreen,
+            var s when s.Contains("assessment") || s.Contains("evaluation") => XLColor.LightYellow,
+            var s when s.Contains("vitals") || s.Contains("vital") => XLColor.LightPink,
+            var s when s.Contains("lab") || s.Contains("laboratory") => XLColor.LightCyan,
+            var s when s.Contains("history") || s.Contains("background") => XLColor.Lavender,
+            var s when s.Contains("physical") || s.Contains("examination") => XLColor.LightSalmon,
+            var s when s.Contains("mental") || s.Contains("psychological") => XLColor.LightSteelBlue,
+            var s when s.Contains("nutrition") || s.Contains("dietary") => XLColor.LightGoldenrodYellow,
+            var s when s.Contains("recommendation") || s.Contains("advice") => XLColor.LightSeaGreen,
+            "general" => XLColor.WhiteSmoke,
+            _ => XLColor.LightGray
+        };
+    }
 }

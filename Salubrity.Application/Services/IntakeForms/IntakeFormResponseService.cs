@@ -637,30 +637,27 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-
-            // Add this before the header styling section:
-            var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            // Build the mapping from actual response data
-            foreach (var response in participantResponses.SelectMany(r => r))
-            {
-                foreach (var fieldResponse in response.FieldResponses)
-                {
-                    var fieldLabel = fieldResponse.Field.Label;
-                    var sectionName = fieldResponse.Field.Section?.Name ?? "General";
-
-                    if (!fieldToSectionMap.ContainsKey(fieldLabel))
-                    {
-                        fieldToSectionMap[fieldLabel] = sectionName;
-                    }
-                }
-            }
-
-            // Then use it in your header styling:
             if (i >= 3) // Skip basic info columns
             {
+                // Get the field label from the header
                 var fieldLabel = headers[i];
-                var sectionName = fieldToSectionMap.TryGetValue(fieldLabel, out var section) ? section : "General";
+
+                // Find the section name from the actual response data
+                var sectionName = "General"; // Default fallback
+
+                // Look through all responses to find this field's section
+                foreach (var response in participantResponses.SelectMany(r => r))
+                {
+                    var fieldResponse = response.FieldResponses
+                        .FirstOrDefault(fr => string.Equals(fr.Field.Label, fieldLabel, StringComparison.OrdinalIgnoreCase));
+
+                    if (fieldResponse != null)
+                    {
+                        sectionName = fieldResponse.Field.Section?.Name ?? "General";
+                        break; // Found it, use this section name
+                    }
+                }
+
                 var color = GetSectionColor(sectionName);
                 worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
             }

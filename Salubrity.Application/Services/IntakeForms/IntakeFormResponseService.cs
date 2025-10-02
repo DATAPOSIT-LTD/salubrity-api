@@ -587,17 +587,28 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (camp == null)
             throw new NotFoundException($"Health camp with ID {campId} not found.");
 
-        // Get DTO responses that have section names populated - this is our primary data source
-        var dtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(null, campId, ct);
+        // First, get all responses for this camp with participant and field details (entity data)
+        var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
 
-        if (!dtoResponses.Any())
+        if (!entityResponses.Any())
             throw new NotFoundException("No intake form responses found for this camp.");
+
+        // Get all unique patient IDs from the entity responses
+        var patientIds = entityResponses.Select(r => r.PatientId).Distinct().ToList();
+
+        // Get DTO responses for each patient to get section information
+        var allDtoResponses = new List<IntakeFormResponseDetailDto>();
+        foreach (var patientId in patientIds)
+        {
+            var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
+            allDtoResponses.AddRange(patientDtoResponses);
+        }
 
         // Build comprehensive field information from DTO data
         var allFieldsInfo = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType)>();
         var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var dtoResponse in dtoResponses)
+        foreach (var dtoResponse in allDtoResponses)
         {
             foreach (var fieldResponse in dtoResponse.FieldResponses)
             {
@@ -621,21 +632,48 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
         }
 
+        // If we still don't have field info from DTOs, fall back to entity data
+        if (!allFieldsInfo.Any())
+        {
+            foreach (var entityResponse in entityResponses)
+            {
+                foreach (var fieldResponse in entityResponse.FieldResponses)
+                {
+                    var fieldId = fieldResponse.FieldId.ToString();
+                    var fieldLabel = fieldResponse.Field.Label;
+                    var sectionName = fieldResponse.Field.Section?.Name ?? "General";
+                    var order = fieldResponse.Field.Order;
+                    var fieldType = fieldResponse.Field.FieldType ?? "text";
+
+                    // Add to field info if not already present
+                    if (!allFieldsInfo.Any(f => f.FieldId == fieldId))
+                    {
+                        allFieldsInfo.Add((fieldId, fieldLabel, sectionName, order, fieldType));
+                    }
+
+                    // Build field-to-section mapping
+                    if (!fieldToSectionMap.ContainsKey(fieldLabel))
+                    {
+                        fieldToSectionMap[fieldLabel] = sectionName;
+                    }
+                }
+            }
+        }
+
         // Group and order fields by section and order
         var fieldsBySection = allFieldsInfo
             .GroupBy(f => f.SectionName)
             .OrderBy(g => g.Key)
             .ToList();
 
-        // Group responses by participant - we need to get participant info from the original entity data
-        var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+        // Group responses by participant
         var participantResponses = entityResponses
             .GroupBy(r => r.PatientId)
             .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
             .ToList();
 
         // Create a lookup from DTO responses for field values
-        var dtoResponseLookup = dtoResponses
+        var dtoResponseLookup = allDtoResponses
             .GroupBy(r => r.PatientId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -687,23 +725,34 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
             worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
 
-            // Get DTO responses for this participant
-            var patientDtoResponses = dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) ? dtoList : new List<IntakeFormResponseDetailDto>();
+            // Try to get DTO responses for this participant, fall back to entity responses
+            Dictionary<string, string> fieldResponseLookup;
 
-            // Create a lookup for all field responses for this participant from DTO data
-            var fieldResponseLookup = patientDtoResponses
-                .SelectMany(r => r.FieldResponses)
-                .GroupBy(fr => fr.FieldId.ToString())
-                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First()); // Get latest response if multiple
+            if (dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) && dtoList.Any())
+            {
+                // Use DTO data if available
+                fieldResponseLookup = dtoList
+                    .SelectMany(r => r.FieldResponses)
+                    .GroupBy(fr => fr.FieldId.ToString())
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
+            }
+            else
+            {
+                // Fall back to entity data
+                fieldResponseLookup = participantGroup
+                    .SelectMany(r => r.FieldResponses)
+                    .GroupBy(fr => fr.FieldId.ToString())
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
+            }
 
             // Fill field values using ordered fields
             int columnIndex = 4; // Start after basic info columns
             foreach (var field in orderedFields)
             {
                 string value = "";
-                if (fieldResponseLookup.TryGetValue(field.FieldId, out var fieldResponse))
+                if (fieldResponseLookup.TryGetValue(field.FieldId, out var fieldValue))
                 {
-                    value = fieldResponse.Value ?? "";
+                    value = fieldValue;
 
                     // Handle different field types for better display
                     value = field.FieldType.ToLowerInvariant() switch

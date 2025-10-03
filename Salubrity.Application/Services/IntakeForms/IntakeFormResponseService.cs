@@ -579,356 +579,43 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
     }
 
-    //public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelSheetStyledAsync(Guid campId, CancellationToken ct = default)
-    //{
-    //    // Verify camp exists and get camp details with organization
-    //    var camp = await _healthCampRepository.GetByIdAsync(campId);
-    //    if (camp == null)
-    //        throw new NotFoundException($"Health camp with ID {campId} not found.");
-
-    //    // First, get all responses for this camp with participant and field details (entity data)
-    //    var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
-
-    //    if (!entityResponses.Any())
-    //        throw new NotFoundException("No intake form responses found for this camp.");
-
-    //    // Get camp participants using the health camp repository method
-    //    var campParticipants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
-    //    var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
-
-    //    // Filter entity responses to only include those from actual camp participants
-    //    var filteredEntityResponses = entityResponses
-    //        .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
-    //        .ToList();
-
-    //    if (!filteredEntityResponses.Any())
-    //        throw new NotFoundException("No intake form responses found for participants in this camp.");
-
-    //    // Get all unique patient IDs from the filtered entity responses
-    //    var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
-
-    //    // Get DTO responses for each patient to get section information
-    //    var allDtoResponses = new List<IntakeFormResponseDetailDto>();
-    //    foreach (var patientId in patientIds)
-    //    {
-    //        var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
-    //        allDtoResponses.AddRange(patientDtoResponses);
-    //    }
-
-    //    // Build comprehensive field information from DTO data
-    //    var allFieldsInfo = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType)>();
-    //    var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-    //    foreach (var dtoResponse in allDtoResponses)
-    //    {
-    //        foreach (var fieldResponse in dtoResponse.FieldResponses)
-    //        {
-    //            var fieldId = fieldResponse.FieldId.ToString();
-    //            var fieldLabel = fieldResponse.Field.Label;
-    //            var sectionName = fieldResponse.Field.SectionName ?? "General";
-    //            var order = fieldResponse.Field.Order;
-    //            var fieldType = fieldResponse.Field.FieldType ?? "text";
-
-    //            // Add to field info if not already present
-    //            if (!allFieldsInfo.Any(f => f.FieldId == fieldId))
-    //            {
-    //                allFieldsInfo.Add((fieldId, fieldLabel, sectionName, order, fieldType));
-    //            }
-
-    //            // Build field-to-section mapping
-    //            if (!fieldToSectionMap.ContainsKey(fieldLabel))
-    //            {
-    //                fieldToSectionMap[fieldLabel] = sectionName;
-    //            }
-    //        }
-    //    }
-
-    //    // If we still don't have field info from DTOs, fall back to entity data
-    //    if (!allFieldsInfo.Any())
-    //    {
-    //        foreach (var entityResponse in filteredEntityResponses)
-    //        {
-    //            foreach (var fieldResponse in entityResponse.FieldResponses)
-    //            {
-    //                var fieldId = fieldResponse.FieldId.ToString();
-    //                var fieldLabel = fieldResponse.Field.Label;
-    //                var sectionName = fieldResponse.Field.Section?.Name ?? "General";
-    //                var order = fieldResponse.Field.Order;
-    //                var fieldType = fieldResponse.Field.FieldType ?? "text";
-
-    //                // Add to field info if not already present
-    //                if (!allFieldsInfo.Any(f => f.FieldId == fieldId))
-    //                {
-    //                    allFieldsInfo.Add((fieldId, fieldLabel, sectionName, order, fieldType));
-    //                }
-
-    //                // Build field-to-section mapping
-    //                if (!fieldToSectionMap.ContainsKey(fieldLabel))
-    //                {
-    //                    fieldToSectionMap[fieldLabel] = sectionName;
-    //                }
-    //            }
-    //        }
-    //    }
-
-    //    // Group and order fields by section and order
-    //    var fieldsBySection = allFieldsInfo
-    //        .GroupBy(f => f.SectionName)
-    //        .OrderBy(g => g.Key)
-    //        .ToList();
-
-    //    // Group filtered responses by participant
-    //    var participantResponses = filteredEntityResponses
-    //        .GroupBy(r => r.PatientId)
-    //        .Where(g => g.First().Patient != null) // Ensure patient exists
-    //        .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
-    //        .ToList();
-
-    //    // Create a lookup from DTO responses for field values
-    //    var dtoResponseLookup = allDtoResponses
-    //        .GroupBy(r => r.PatientId)
-    //        .ToDictionary(g => g.Key, g => g.ToList());
-
-    //    using var workbook = new XLWorkbook();
-    //    var worksheet = workbook.Worksheets.Add("Camp Data Export");
-
-    //    // Create headers with section grouping
-    //    var headers = new List<string> { "Participant Name", "Email", "Phone" };
-    //    var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType)>();
-
-    //    foreach (var sectionGroup in fieldsBySection)
-    //    {
-    //        foreach (var field in sectionGroup.OrderBy(f => f.Order))
-    //        {
-    //            headers.Add($"{field.SectionName} - {field.Label}");
-    //            orderedFields.Add((field.FieldId, field.Label, field.SectionName, field.FieldType));
-    //        }
-    //    }
-
-    //    // Set headers with section styling
-    //    for (int i = 0; i < headers.Count; i++)
-    //    {
-    //        worksheet.Cell(1, i + 1).Value = headers[i];
-    //        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-
-    //        if (i >= 3) // Skip basic info columns
-    //        {
-    //            // Extract section name from the header
-    //            var headerParts = headers[i].Split(" - ", 2);
-    //            var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
-    //            var color = GetSectionColor(sectionName);
-    //            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
-    //        }
-    //        else
-    //        {
-    //            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-    //        }
-    //    }
-
-    //    // Populate data rows
-    //    int currentRow = 2;
-    //    foreach (var participantGroup in participantResponses)
-    //    {
-    //        var participant = participantGroup.First().Patient;
-    //        if (participant?.User == null) continue;
-
-    //        // Basic participant info from entity
-    //        worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
-    //        worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
-    //        worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
-
-    //        // Try to get DTO responses for this participant, fall back to entity responses
-    //        Dictionary<string, string> fieldResponseLookup;
-
-    //        if (dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) && dtoList.Any())
-    //        {
-    //            // Use DTO data if available
-    //            fieldResponseLookup = dtoList
-    //                .SelectMany(r => r.FieldResponses)
-    //                .GroupBy(fr => fr.FieldId.ToString())
-    //                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
-    //        }
-    //        else
-    //        {
-    //            // Fall back to entity data
-    //            fieldResponseLookup = participantGroup
-    //                .SelectMany(r => r.FieldResponses)
-    //                .GroupBy(fr => fr.FieldId.ToString())
-    //                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
-    //        }
-
-    //        // Fill field values using ordered fields
-    //        int columnIndex = 4; // Start after basic info columns
-    //        foreach (var field in orderedFields)
-    //        {
-    //            string value = "";
-    //            if (fieldResponseLookup.TryGetValue(field.FieldId, out var fieldValue))
-    //            {
-    //                value = fieldValue;
-
-    //                // Handle different field types for better display
-    //                value = field.FieldType.ToLowerInvariant() switch
-    //                {
-    //                    "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
-    //                    "radio" => value,
-    //                    "select" => value,
-    //                    "multiselect" => value,
-    //                    "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
-    //                    "datetime" => DateTime.TryParse(value, out var datetime) ? datetime.ToString("yyyy-MM-dd HH:mm") : value,
-    //                    "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
-    //                    "email" => value,
-    //                    "phone" => value,
-    //                    "url" => value,
-    //                    "textarea" => value,
-    //                    "text" => value,
-    //                    _ => value
-    //                };
-    //            }
-
-    //            worksheet.Cell(currentRow, columnIndex).Value = value;
-    //            columnIndex++;
-    //        }
-
-    //        currentRow++;
-    //    }
-
-    //    // Auto-fit columns with reasonable limits
-    //    foreach (var column in worksheet.Columns())
-    //    {
-    //        column.AdjustToContents();
-    //        // Set maximum column width to prevent extremely wide columns
-    //        if (column.Width > 50)
-    //            column.Width = 50;
-    //        // Set minimum column width for readability
-    //        if (column.Width < 10)
-    //            column.Width = 10;
-    //    }
-
-    //    // Add formatting to header row
-    //    var headerRange = worksheet.Range(1, 1, 1, headers.Count);
-    //    headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
-    //    headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-    //    headerRange.Style.Font.Bold = true;
-
-    //    // Add data borders if there's data
-    //    if (currentRow > 2)
-    //    {
-    //        var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
-    //        dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-    //        dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
-
-    //        // Add alternating row colors for better readability
-    //        for (int row = 2; row < currentRow; row++)
-    //        {
-    //            if (row % 2 == 0)
-    //            {
-    //                worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
-    //            }
-    //        }
-    //    }
-
-    //    // Add summary information
-    //    int summaryStartRow = currentRow + 2;
-    //    worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
-    //    worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
-    //    worksheet.Cell(summaryStartRow, 1).Style.Font.FontSize = 12;
-
-    //    worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
-    //    worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
-    //    worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
-    //    worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {orderedFields.Count}";
-    //    worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Sections: {fieldsBySection.Count}";
-    //    worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
-
-    //    // Style the summary section
-    //    var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 6, 2);
-    //    summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-    //    summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
-
-    //    // Add section legend
-    //    int legendStartRow = summaryStartRow + 8;
-    //    worksheet.Cell(legendStartRow, 1).Value = "Section Color Legend:";
-    //    worksheet.Cell(legendStartRow, 1).Style.Font.Bold = true;
-
-    //    int legendRow = legendStartRow + 1;
-    //    var uniqueSections = fieldsBySection.Select(g => g.Key).Distinct().ToList();
-    //    foreach (var sectionName in uniqueSections)
-    //    {
-    //        worksheet.Cell(legendRow, 1).Value = sectionName;
-    //        worksheet.Cell(legendRow, 1).Style.Fill.BackgroundColor = GetSectionColor(sectionName);
-    //        worksheet.Cell(legendRow, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-    //        legendRow++;
-    //    }
-
-    //    // Freeze the header row and first 3 columns for better navigation
-    //    worksheet.SheetView.Freeze(1, 3);
-
-    //    using var stream = new MemoryStream();
-    //    workbook.SaveAs(stream);
-    //    return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
-    //}
-
-
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelSheetStyledAsync(Guid campId, CancellationToken ct = default)
     {
-        // Verify camp exists and get camp details with organization - use a method that includes organization
-        var camp = await _healthCampRepository.GetCampDetailsByIdAsync(campId);
+        var camp = await _healthCampRepository.GetByIdAsync(campId);
         if (camp == null)
-        {
-            // Fallback to basic method if detailed method doesn't work
-            var basicCamp = await _healthCampRepository.GetByIdAsync(campId);
-            if (basicCamp == null)
-                throw new NotFoundException($"Health camp with ID {campId} not found.");
+            throw new NotFoundException($"Health camp with ID {campId} not found.");
 
-            // If we got the basic camp but no organization details, we'll handle it later
-            camp = new HealthCampDetailDto
+        string organizationName = camp.Organization?.BusinessName ?? "Unknown_Organization";
+
+        if (organizationName == "Unknown_Organization")
+        {
+            try
             {
-                Id = basicCamp.Id,
-                Name = basicCamp.Name,
-                // We'll try to get organization name separately if needed
-            };
-        }
-
-        // Get organization name - try multiple approaches
-        string organizationName = "Unknown_Organization";
-
-        if (!string.IsNullOrEmpty(camp.ClientName))
-        {
-            organizationName = camp.ClientName;
-        }
-        else
-        {
-            // If camp details don't have organization, try to get it directly
-            var basicCamp = await _healthCampRepository.GetByIdAsync(campId);
-            if (basicCamp?.Organization?.BusinessName != null)
-            {
-                organizationName = basicCamp.Organization.BusinessName;
+                var campDetails = await _healthCampRepository.GetCampDetailsByIdAsync(campId);
+                if (campDetails != null)
+                {
+                    organizationName = campDetails.ClientName ?? "Unknown_Organization";
+                }
             }
-            else if (basicCamp?.OrganizationId != null)
+            catch
             {
-                // If we have OrganizationId but Organization is not loaded, we might need to query it separately
-                // This would require an organization repository, but let's try the camp participants approach
                 var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
                 if (participants.Any())
                 {
-                    // Try to get organization name from camp participants if they have camp info
                     var firstParticipant = participants.First();
-                    // This might not work directly, but it's worth trying
+                    organizationName = firstParticipant.HealthCamp?.Organization?.BusinessName ?? "Unknown_Organization";
                 }
             }
         }
 
-        // First, get all responses for this camp with participant and field details (entity data)
         var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
 
         if (!entityResponses.Any())
             throw new NotFoundException("No intake form responses found for this camp.");
 
-        // Get camp participants using the health camp repository method
         var campParticipants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
         var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
 
-        // Filter entity responses to only include those from actual camp participants
         var filteredEntityResponses = entityResponses
             .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
             .ToList();
@@ -936,10 +623,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (!filteredEntityResponses.Any())
             throw new NotFoundException("No intake form responses found for participants in this camp.");
 
-        // Get all unique patient IDs from the filtered entity responses
         var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
 
-        // Get DTO responses for each patient to get section information
         var allDtoResponses = new List<IntakeFormResponseDetailDto>();
         foreach (var patientId in patientIds)
         {
@@ -947,7 +632,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             allDtoResponses.AddRange(patientDtoResponses);
         }
 
-        // Build comprehensive field information from DTO data
         var allFieldsInfo = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType)>();
         var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -961,13 +645,11 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 var order = fieldResponse.Field.Order;
                 var fieldType = fieldResponse.Field.FieldType ?? "text";
 
-                // Add to field info if not already present
                 if (!allFieldsInfo.Any(f => f.FieldId == fieldId))
                 {
                     allFieldsInfo.Add((fieldId, fieldLabel, sectionName, order, fieldType));
                 }
 
-                // Build field-to-section mapping
                 if (!fieldToSectionMap.ContainsKey(fieldLabel))
                 {
                     fieldToSectionMap[fieldLabel] = sectionName;
@@ -975,7 +657,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
         }
 
-        // If we still don't have field info from DTOs, fall back to entity data
         if (!allFieldsInfo.Any())
         {
             foreach (var entityResponse in filteredEntityResponses)
@@ -988,13 +669,11 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                     var order = fieldResponse.Field.Order;
                     var fieldType = fieldResponse.Field.FieldType ?? "text";
 
-                    // Add to field info if not already present
                     if (!allFieldsInfo.Any(f => f.FieldId == fieldId))
                     {
                         allFieldsInfo.Add((fieldId, fieldLabel, sectionName, order, fieldType));
                     }
 
-                    // Build field-to-section mapping
                     if (!fieldToSectionMap.ContainsKey(fieldLabel))
                     {
                         fieldToSectionMap[fieldLabel] = sectionName;
@@ -1003,20 +682,17 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
         }
 
-        // Group and order fields by section and order
         var fieldsBySection = allFieldsInfo
             .GroupBy(f => f.SectionName)
             .OrderBy(g => g.Key)
             .ToList();
 
-        // Group filtered responses by participant
         var participantResponses = filteredEntityResponses
             .GroupBy(r => r.PatientId)
-            .Where(g => g.First().Patient != null) // Ensure patient exists
+            .Where(g => g.First().Patient != null) 
             .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
             .ToList();
 
-        // Create a lookup from DTO responses for field values
         var dtoResponseLookup = allDtoResponses
             .GroupBy(r => r.PatientId)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -1024,7 +700,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
-        // Create headers with section grouping
         var headers = new List<string> { "Participant Name", "Email", "Phone" };
         var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType)>();
 
@@ -1037,15 +712,13 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
         }
 
-        // Set headers with section styling
         for (int i = 0; i < headers.Count; i++)
         {
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-            if (i >= 3) // Skip basic info columns
+            if (i >= 3) 
             {
-                // Extract section name from the header
                 var headerParts = headers[i].Split(" - ", 2);
                 var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
                 var color = GetSectionColor(sectionName);
@@ -1057,24 +730,20 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
         }
 
-        // Populate data rows
         int currentRow = 2;
         foreach (var participantGroup in participantResponses)
         {
             var participant = participantGroup.First().Patient;
             if (participant?.User == null) continue;
 
-            // Basic participant info from entity
             worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
             worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
             worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
 
-            // Try to get DTO responses for this participant, fall back to entity responses
             Dictionary<string, string> fieldResponseLookup;
 
             if (dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) && dtoList.Any())
             {
-                // Use DTO data if available
                 fieldResponseLookup = dtoList
                     .SelectMany(r => r.FieldResponses)
                     .GroupBy(fr => fr.FieldId.ToString())
@@ -1082,15 +751,13 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
             else
             {
-                // Fall back to entity data
                 fieldResponseLookup = participantGroup
                     .SelectMany(r => r.FieldResponses)
                     .GroupBy(fr => fr.FieldId.ToString())
                     .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
             }
 
-            // Fill field values using ordered fields
-            int columnIndex = 4; // Start after basic info columns
+            int columnIndex = 4; 
             foreach (var field in orderedFields)
             {
                 string value = "";
@@ -1098,7 +765,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     value = fieldValue;
 
-                    // Handle different field types for better display
                     value = field.FieldType.ToLowerInvariant() switch
                     {
                         "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
@@ -1124,48 +790,51 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             currentRow++;
         }
 
-        // Auto-fit columns with reasonable limits
         foreach (var column in worksheet.Columns())
         {
             column.AdjustToContents();
-            // Set maximum column width to prevent extremely wide columns
             if (column.Width > 50)
                 column.Width = 50;
-            // Set minimum column width for readability
             if (column.Width < 10)
                 column.Width = 10;
         }
 
-        // Add formatting to the data area
         var headerRange = worksheet.Range(1, 1, 1, headers.Count);
         headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
         headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        headerRange.Style.Font.Bold = true;
 
-        // Add data borders if we have data
         if (currentRow > 2)
         {
             var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
             dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+
+            for (int row = 2; row < currentRow; row++)
+            {
+                if (row % 2 == 0)
+                {
+                    worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
+                }
+            }
         }
 
-        // Add summary information
         int summaryStartRow = currentRow + 2;
         worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
         worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
-        worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name ?? "Unknown Camp"}";
-        worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {organizationName}";
+        worksheet.Cell(summaryStartRow, 1).Style.Font.FontSize = 12;
+
+        worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
+        worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
         worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
         worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {orderedFields.Count}";
         worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Sections: {fieldsBySection.Count}";
         worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
 
-        // Style the summary section
         var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 6, 2);
         summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
 
-        // Add section legend
         int legendStartRow = summaryStartRow + 8;
         worksheet.Cell(legendStartRow, 1).Value = "Section Color Legend:";
         worksheet.Cell(legendStartRow, 1).Style.Font.Bold = true;
@@ -1180,14 +849,11 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             legendRow++;
         }
 
-        // Freeze the header row and first 3 columns for better navigation
         worksheet.SheetView.Freeze(1, 3);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-
-        // Return with proper organization name
-        return (stream.ToArray(), camp.Name ?? "Unknown_Camp", organizationName);
+        return (stream.ToArray(), camp.Name, organizationName);
     }
 
     private static XLColor GetSectionColor(string sectionName)

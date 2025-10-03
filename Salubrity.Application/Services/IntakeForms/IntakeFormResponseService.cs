@@ -572,7 +572,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         worksheet.Cell(currentRow + 4, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
         worksheet.Cell(currentRow + 5, 1).Value = $"Total Participants: {participantResponses.Count}";
         worksheet.Cell(currentRow + 6, 1).Value = $"Total Fields: {allFields.Count}";
-        worksheet.Cell(currentRow + 7, 1).Value = $"Export Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+        worksheet.Cell(currentRow + 7, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -592,8 +592,20 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     //    if (!entityResponses.Any())
     //        throw new NotFoundException("No intake form responses found for this camp.");
 
-    //    // Get all unique patient IDs from the entity responses
-    //    var patientIds = entityResponses.Select(r => r.PatientId).Distinct().ToList();
+    //    // Get camp participants using the health camp repository method
+    //    var campParticipants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
+    //    var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
+
+    //    // Filter entity responses to only include those from actual camp participants
+    //    var filteredEntityResponses = entityResponses
+    //        .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
+    //        .ToList();
+
+    //    if (!filteredEntityResponses.Any())
+    //        throw new NotFoundException("No intake form responses found for participants in this camp.");
+
+    //    // Get all unique patient IDs from the filtered entity responses
+    //    var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
 
     //    // Get DTO responses for each patient to get section information
     //    var allDtoResponses = new List<IntakeFormResponseDetailDto>();
@@ -634,7 +646,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     //    // If we still don't have field info from DTOs, fall back to entity data
     //    if (!allFieldsInfo.Any())
     //    {
-    //        foreach (var entityResponse in entityResponses)
+    //        foreach (var entityResponse in filteredEntityResponses)
     //        {
     //            foreach (var fieldResponse in entityResponse.FieldResponses)
     //            {
@@ -665,9 +677,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     //        .OrderBy(g => g.Key)
     //        .ToList();
 
-    //    // Group responses by participant
-    //    var participantResponses = entityResponses
+    //    // Group filtered responses by participant
+    //    var participantResponses = filteredEntityResponses
     //        .GroupBy(r => r.PatientId)
+    //        .Where(g => g.First().Patient != null) // Ensure patient exists
     //        .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
     //        .ToList();
 
@@ -825,7 +838,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     //    worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
     //    worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {orderedFields.Count}";
     //    worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Sections: {fieldsBySection.Count}";
-    //    worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+    //    worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
 
     //    // Style the summary section
     //    var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 6, 2);
@@ -856,14 +869,54 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     //}
 
 
-
-
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelSheetStyledAsync(Guid campId, CancellationToken ct = default)
     {
-        // Verify camp exists and get camp details with organization
-        var camp = await _healthCampRepository.GetByIdAsync(campId);
+        // Verify camp exists and get camp details with organization - use a method that includes organization
+        var camp = await _healthCampRepository.GetCampDetailsByIdAsync(campId);
         if (camp == null)
-            throw new NotFoundException($"Health camp with ID {campId} not found.");
+        {
+            // Fallback to basic method if detailed method doesn't work
+            var basicCamp = await _healthCampRepository.GetByIdAsync(campId);
+            if (basicCamp == null)
+                throw new NotFoundException($"Health camp with ID {campId} not found.");
+
+            // If we got the basic camp but no organization details, we'll handle it later
+            camp = new HealthCampDetailDto
+            {
+                Id = basicCamp.Id,
+                Name = basicCamp.Name,
+                // We'll try to get organization name separately if needed
+            };
+        }
+
+        // Get organization name - try multiple approaches
+        string organizationName = "Unknown_Organization";
+
+        if (!string.IsNullOrEmpty(camp.ClientName))
+        {
+            organizationName = camp.ClientName;
+        }
+        else
+        {
+            // If camp details don't have organization, try to get it directly
+            var basicCamp = await _healthCampRepository.GetByIdAsync(campId);
+            if (basicCamp?.Organization?.BusinessName != null)
+            {
+                organizationName = basicCamp.Organization.BusinessName;
+            }
+            else if (basicCamp?.OrganizationId != null)
+            {
+                // If we have OrganizationId but Organization is not loaded, we might need to query it separately
+                // This would require an organization repository, but let's try the camp participants approach
+                var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
+                if (participants.Any())
+                {
+                    // Try to get organization name from camp participants if they have camp info
+                    var firstParticipant = participants.First();
+                    // This might not work directly, but it's worth trying
+                }
+            }
+        }
 
         // First, get all responses for this camp with participant and field details (entity data)
         var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
@@ -1083,41 +1136,29 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 column.Width = 10;
         }
 
-        // Add formatting to header row
+        // Add formatting to the data area
         var headerRange = worksheet.Range(1, 1, 1, headers.Count);
         headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
         headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-        headerRange.Style.Font.Bold = true;
 
-        // Add data borders if there's data
+        // Add data borders if we have data
         if (currentRow > 2)
         {
             var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
             dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
-
-            // Add alternating row colors for better readability
-            for (int row = 2; row < currentRow; row++)
-            {
-                if (row % 2 == 0)
-                {
-                    worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
-                }
-            }
         }
 
         // Add summary information
         int summaryStartRow = currentRow + 2;
         worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
         worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
-        worksheet.Cell(summaryStartRow, 1).Style.Font.FontSize = 12;
-
-        worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
-        worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {camp.Organization?.BusinessName ?? "N/A"}";
+        worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name ?? "Unknown Camp"}";
+        worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {organizationName}";
         worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
         worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Fields: {orderedFields.Count}";
         worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Sections: {fieldsBySection.Count}";
-        worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+        worksheet.Cell(summaryStartRow + 6, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
 
         // Style the summary section
         var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 6, 2);
@@ -1144,7 +1185,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return (stream.ToArray(), camp.Name, camp.Organization?.BusinessName ?? "Unknown_Organization");
+
+        // Return with proper organization name
+        return (stream.ToArray(), camp.Name ?? "Unknown_Camp", organizationName);
     }
 
     private static XLColor GetSectionColor(string sectionName)

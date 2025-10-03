@@ -250,13 +250,17 @@ namespace Salubrity.Application.Services.Subcontractor
             var sub = await _repo.GetByIdWithDetailsAsync(id) ?? throw new NotFoundException("Subcontractor not found");
 
             // Update basic subcontractor fields
-            sub.LicenseNumber = dto.LicenseNumber;
-            sub.Bio = dto.Bio;
+            if (!string.IsNullOrWhiteSpace(dto.LicenseNumber))
+                sub.LicenseNumber = dto.LicenseNumber;
 
-            if (dto.StatusId is null)
-                throw new ValidationException(["Status is required"]);
+            if (!string.IsNullOrWhiteSpace(dto.Bio))
+                sub.Bio = dto.Bio;
 
-            sub.StatusId = dto.StatusId.Value;
+            // Update status only if provided
+            if (dto.StatusId.HasValue)
+            {
+                sub.StatusId = dto.StatusId.Value;
+            }
 
             // Update industry if provided
             if (dto.IndustryId.HasValue)

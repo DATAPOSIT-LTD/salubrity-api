@@ -157,7 +157,7 @@ public class IntakeFormResponsesController : BaseController
         // Clean both names for filename (remove invalid characters)
         var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        var fileName = $"{safeOrgName}_Camp_Data_Export_{safeCampName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var fileName = $"{safeOrgName}_Camp: {safeCampName}_{DateTime.Now.AddHours(3):yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }

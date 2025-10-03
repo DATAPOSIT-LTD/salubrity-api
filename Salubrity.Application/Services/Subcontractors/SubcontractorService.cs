@@ -274,26 +274,36 @@ namespace Salubrity.Application.Services.Subcontractor
             // Update user information if provided
             if (dto.User != null && sub.User != null)
             {
-                // Check for email conflicts (excluding current user)
+                // Check for email conflicts (excluding current user) - only if email is being changed
                 if (!string.IsNullOrWhiteSpace(dto.User.Email))
                 {
                     var emailLower = dto.User.Email.Trim().ToLowerInvariant();
-                    var existingUserWithEmail = await _userRepository.FindUserByEmailAsync(emailLower);
-                    if (existingUserWithEmail != null && existingUserWithEmail.Id != sub.User.Id)
+
+                    // Only check for conflicts if the email is actually changing
+                    if (sub.User.Email?.ToLowerInvariant() != emailLower)
                     {
-                        throw new ValidationException(["A user with this email already exists."]);
+                        var existingUserWithEmail = await _userRepository.FindUserByEmailAsync(emailLower);
+                        if (existingUserWithEmail != null)
+                        {
+                            throw new ValidationException(["A user with this email already exists."]);
+                        }
                     }
                     sub.User.Email = emailLower;
                 }
 
-                // Check for phone conflicts (excluding current user)
+                // Check for phone conflicts (excluding current user) - only if phone is being changed
                 if (!string.IsNullOrWhiteSpace(dto.User.Phone))
                 {
                     var phoneTrimmed = dto.User.Phone.Trim();
-                    var existingUserWithPhone = await _userRepository.FindUserByPhoneAsync(phoneTrimmed);
-                    if (existingUserWithPhone != null && existingUserWithPhone.Id != sub.User.Id)
+
+                    // Only check for conflicts if the phone is actually changing
+                    if (sub.User.Phone?.Trim() != phoneTrimmed)
                     {
-                        throw new ValidationException(["A user with this phone number already exists."]);
+                        var existingUserWithPhone = await _userRepository.FindUserByPhoneAsync(phoneTrimmed);
+                        if (existingUserWithPhone != null)
+                        {
+                            throw new ValidationException(["A user with this phone number already exists."]);
+                        }
                     }
                     sub.User.Phone = phoneTrimmed;
                 }

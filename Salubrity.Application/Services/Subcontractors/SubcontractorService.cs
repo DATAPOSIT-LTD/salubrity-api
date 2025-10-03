@@ -274,18 +274,51 @@ namespace Salubrity.Application.Services.Subcontractor
             // Update user information if provided
             if (dto.User != null && sub.User != null)
             {
-                sub.User.FirstName = dto.User.FirstName?.Trim();
-                sub.User.MiddleName = dto.User.MiddleName?.Trim();
-                sub.User.LastName = dto.User.LastName?.Trim();
-                sub.User.Email = dto.User.Email?.Trim().ToLowerInvariant();
-                sub.User.Phone = dto.User.Phone?.Trim();
-                sub.User.GenderId = dto.User.GenderId;
-                sub.User.DateOfBirth = dto.User.DateOfBirth;
+                // Check for email conflicts (excluding current user)
+                if (!string.IsNullOrWhiteSpace(dto.User.Email))
+                {
+                    var emailLower = dto.User.Email.Trim().ToLowerInvariant();
+                    var existingUserWithEmail = await _userRepository.FindUserByEmailAsync(emailLower);
+                    if (existingUserWithEmail != null && existingUserWithEmail.Id != sub.User.Id)
+                    {
+                        throw new ValidationException(["A user with this email already exists."]);
+                    }
+                    sub.User.Email = emailLower;
+                }
+
+                // Check for phone conflicts (excluding current user)
+                if (!string.IsNullOrWhiteSpace(dto.User.Phone))
+                {
+                    var phoneTrimmed = dto.User.Phone.Trim();
+                    var existingUserWithPhone = await _userRepository.FindUserByPhoneAsync(phoneTrimmed);
+                    if (existingUserWithPhone != null && existingUserWithPhone.Id != sub.User.Id)
+                    {
+                        throw new ValidationException(["A user with this phone number already exists."]);
+                    }
+                    sub.User.Phone = phoneTrimmed;
+                }
+
+                // Update other user fields
+                if (!string.IsNullOrWhiteSpace(dto.User.FirstName))
+                    sub.User.FirstName = dto.User.FirstName.Trim();
+
+                if (!string.IsNullOrWhiteSpace(dto.User.MiddleName))
+                    sub.User.MiddleName = dto.User.MiddleName.Trim();
+
+                if (!string.IsNullOrWhiteSpace(dto.User.LastName))
+                    sub.User.LastName = dto.User.LastName.Trim();
+
+                if (dto.User.GenderId.HasValue)
+                    sub.User.GenderId = dto.User.GenderId;
+
+                if (dto.User.DateOfBirth.HasValue)
+                    sub.User.DateOfBirth = dto.User.DateOfBirth.Value;
+
                 sub.User.UpdatedAt = DateTime.UtcNow;
             }
 
-            // Update specialties
-            if (dto.SpecialtyIds.Any())
+            // Update specialties if provided
+            if (dto.SpecialtyIds != null && dto.SpecialtyIds.Any())
             {
                 // Remove existing specialties
                 await _repo.RemoveAllSpecialtiesAsync(sub.Id);
@@ -294,8 +327,8 @@ namespace Salubrity.Application.Services.Subcontractor
                 await _repo.AddSpecialtiesAsync(sub.Id, dto.SpecialtyIds);
             }
 
-            // Update role assignments
-            if (dto.SubcontractorRoleIds.Any())
+            // Update role assignments if provided
+            if (dto.SubcontractorRoleIds != null && dto.SubcontractorRoleIds.Any())
             {
                 // Remove existing role assignments
                 await _repo.RemoveAllRoleAssignmentsAsync(sub.Id);
@@ -308,12 +341,16 @@ namespace Salubrity.Application.Services.Subcontractor
                 }
             }
 
+            // Update the subcontractor entity
             await _repo.UpdateSubAsync(sub, CancellationToken.None);
+
+            // Save all changes
+            await _repo.SaveChangesAsync();
 
             // Fetch updated entity with all details for mapping
             var updatedSub = await _repo.GetByIdWithDetailsAsync(id);
             return _mapper.Map<SubcontractorDto>(updatedSub);
-        }
+        }y
 
         public async Task<SubcontractorDto> GetByIdAsync(Guid id)
         {

@@ -350,7 +350,7 @@ namespace Salubrity.Application.Services.Subcontractor
             // Fetch updated entity with all details for mapping
             var updatedSub = await _repo.GetByIdWithDetailsAsync(id);
             return _mapper.Map<SubcontractorDto>(updatedSub);
-        }y
+        }
 
         public async Task<SubcontractorDto> GetByIdAsync(Guid id)
         {

@@ -122,7 +122,6 @@ public class IntakeFormResponsesController : BaseController
     {
         var (excelData, campName, organizationName) = await _service.ExportCampDataToExcelAsync(campId, ct);
 
-        // Clean both names for filename (remove invalid characters)
         var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
         var fileName = $"{safeOrgName}_Camp_{safeCampName}_{DateTime.Now.AddHours(3):yyyyMMdd_HHmmss}.xlsx";

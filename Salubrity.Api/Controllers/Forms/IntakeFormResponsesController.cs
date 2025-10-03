@@ -114,7 +114,7 @@ public class IntakeFormResponsesController : BaseController
 
     // Download Findings Implmentation
 
-    [HttpGet("export-camp-data/{campId}")]
+    [HttpGet("camp/{campId}/data/export")]
     //[Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
@@ -125,39 +125,7 @@ public class IntakeFormResponsesController : BaseController
         // Clean both names for filename (remove invalid characters)
         var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        var fileName = $"{safeOrgName}_Camp_Data_Export_{safeCampName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-
-        return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-    }
-
-    [HttpGet("export-camps-data/{campId}")]
-    //[Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ExportCampsData(Guid campId, CancellationToken ct)
-    {
-        var (excelData, campName, organizationName) = await _service.ExportCampDataToExcelSheetAsync(campId, ct);
-
-        // Clean both names for filename (remove invalid characters)
-        var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
-        var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        var fileName = $"{safeOrgName}_Camp_Data_Export_{safeCampName}_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
-
-        return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-    }
-
-    [HttpGet("export-camps-data-styled/{campId}")]
-    //[Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ExportCampsDataStyled(Guid campId, CancellationToken ct)
-    {
-        var (excelData, campName, organizationName) = await _service.ExportCampDataToExcelSheetStyledAsync(campId, ct);
-
-        // Clean both names for filename (remove invalid characters)
-        var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
-        var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        var fileName = $"{safeOrgName}_Camp: {safeCampName}_{DateTime.Now.AddHours(3):yyyyMMdd_HHmmss}.xlsx";
+        var fileName = $"{safeOrgName}_Camp_{safeCampName}_{DateTime.Now.AddHours(3):yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }

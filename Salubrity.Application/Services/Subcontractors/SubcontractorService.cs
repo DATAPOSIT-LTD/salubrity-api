@@ -247,119 +247,134 @@ namespace Salubrity.Application.Services.Subcontractor
         // Fixes for update subcontractor
         public async Task<SubcontractorDto> UpdateAsync(Guid id, UpdateSubcontractorDto dto)
         {
-            var sub = await _repo.GetByIdWithDetailsAsync(id) ?? throw new NotFoundException("Subcontractor not found");
-
-            // Update basic subcontractor fields
-            if (!string.IsNullOrWhiteSpace(dto.LicenseNumber))
-                sub.LicenseNumber = dto.LicenseNumber;
-
-            if (!string.IsNullOrWhiteSpace(dto.Bio))
-                sub.Bio = dto.Bio;
-
-            // Update status only if provided
-            if (dto.StatusId.HasValue)
+            try
             {
-                sub.StatusId = dto.StatusId.Value;
-            }
+                var sub = await _repo.GetByIdWithDetailsAsync(id) ?? throw new NotFoundException("Subcontractor not found");
 
-            // Update industry if provided
-            if (dto.IndustryId.HasValue)
-            {
-                var industry = await _industryService.GetByIdAsync(dto.IndustryId.Value);
-                if (industry == null)
-                    throw new NotFoundException("Industry not found");
-                sub.IndustryId = dto.IndustryId.Value;
-            }
+                // Update basic subcontractor fields
+                if (!string.IsNullOrWhiteSpace(dto.LicenseNumber))
+                    sub.LicenseNumber = dto.LicenseNumber;
 
-            // Update user information if provided
-            if (dto.User != null && sub.User != null)
-            {
-                // Check for email conflicts (excluding current user) - only if email is being changed
-                if (!string.IsNullOrWhiteSpace(dto.User.Email))
+                if (!string.IsNullOrWhiteSpace(dto.Bio))
+                    sub.Bio = dto.Bio;
+
+                // Update status only if provided
+                if (dto.StatusId.HasValue)
                 {
-                    var emailLower = dto.User.Email.Trim().ToLowerInvariant();
+                    sub.StatusId = dto.StatusId.Value;
+                }
 
-                    // Only check for conflicts if the email is actually changing
-                    if (sub.User.Email?.ToLowerInvariant() != emailLower)
+                // Update industry if provided
+                if (dto.IndustryId.HasValue)
+                {
+                    var industry = await _industryService.GetByIdAsync(dto.IndustryId.Value);
+                    if (industry == null)
+                        throw new NotFoundException("Industry not found");
+                    sub.IndustryId = dto.IndustryId.Value;
+                }
+
+                // Update user information if provided
+                if (dto.User != null && sub.User != null)
+                {
+                    // Check for email conflicts (excluding current user) - only if email is being changed
+                    if (!string.IsNullOrWhiteSpace(dto.User.Email))
                     {
-                        var existingUserWithEmail = await _userRepository.FindUserByEmailAsync(emailLower);
-                        if (existingUserWithEmail != null)
+                        var emailLower = dto.User.Email.Trim().ToLowerInvariant();
+
+                        // Only check for conflicts if the email is actually changing
+                        if (sub.User.Email?.ToLowerInvariant() != emailLower)
                         {
-                            throw new ValidationException(["A user with this email already exists."]);
+                            var existingUserWithEmail = await _userRepository.FindUserByEmailAsync(emailLower);
+                            if (existingUserWithEmail != null)
+                            {
+                                throw new ValidationException(["A user with this email already exists."]);
+                            }
                         }
+                        sub.User.Email = emailLower;
                     }
-                    sub.User.Email = emailLower;
-                }
 
-                // Check for phone conflicts (excluding current user) - only if phone is being changed
-                if (!string.IsNullOrWhiteSpace(dto.User.Phone))
-                {
-                    var phoneTrimmed = dto.User.Phone.Trim();
-
-                    // Only check for conflicts if the phone is actually changing
-                    if (sub.User.Phone?.Trim() != phoneTrimmed)
+                    // Check for phone conflicts (excluding current user) - only if phone is being changed
+                    if (!string.IsNullOrWhiteSpace(dto.User.Phone))
                     {
-                        var existingUserWithPhone = await _userRepository.FindUserByPhoneAsync(phoneTrimmed);
-                        if (existingUserWithPhone != null)
+                        var phoneTrimmed = dto.User.Phone.Trim();
+
+                        // Only check for conflicts if the phone is actually changing
+                        if (sub.User.Phone?.Trim() != phoneTrimmed)
                         {
-                            throw new ValidationException(["A user with this phone number already exists."]);
+                            var existingUserWithPhone = await _userRepository.FindUserByPhoneAsync(phoneTrimmed);
+                            if (existingUserWithPhone != null)
+                            {
+                                throw new ValidationException(["A user with this phone number already exists."]);
+                            }
                         }
+                        sub.User.Phone = phoneTrimmed;
                     }
-                    sub.User.Phone = phoneTrimmed;
+
+                    // Update other user fields
+                    if (!string.IsNullOrWhiteSpace(dto.User.FirstName))
+                        sub.User.FirstName = dto.User.FirstName.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(dto.User.MiddleName))
+                        sub.User.MiddleName = dto.User.MiddleName.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(dto.User.LastName))
+                        sub.User.LastName = dto.User.LastName.Trim();
+
+                    if (dto.User.GenderId.HasValue)
+                        sub.User.GenderId = dto.User.GenderId;
+
+                    if (dto.User.DateOfBirth.HasValue)
+                        sub.User.DateOfBirth = dto.User.DateOfBirth.Value;
+
+                    sub.User.UpdatedAt = DateTime.UtcNow;
                 }
 
-                // Update other user fields
-                if (!string.IsNullOrWhiteSpace(dto.User.FirstName))
-                    sub.User.FirstName = dto.User.FirstName.Trim();
-
-                if (!string.IsNullOrWhiteSpace(dto.User.MiddleName))
-                    sub.User.MiddleName = dto.User.MiddleName.Trim();
-
-                if (!string.IsNullOrWhiteSpace(dto.User.LastName))
-                    sub.User.LastName = dto.User.LastName.Trim();
-
-                if (dto.User.GenderId.HasValue)
-                    sub.User.GenderId = dto.User.GenderId;
-
-                if (dto.User.DateOfBirth.HasValue)
-                    sub.User.DateOfBirth = dto.User.DateOfBirth.Value;
-
-                sub.User.UpdatedAt = DateTime.UtcNow;
-            }
-
-            // Update specialties if provided
-            if (dto.SpecialtyIds != null && dto.SpecialtyIds.Any())
-            {
-                // Remove existing specialties
-                await _repo.RemoveAllSpecialtiesAsync(sub.Id);
-
-                // Add new specialties
-                await _repo.AddSpecialtiesAsync(sub.Id, dto.SpecialtyIds);
-            }
-
-            // Update role assignments if provided
-            if (dto.SubcontractorRoleIds != null && dto.SubcontractorRoleIds.Any())
-            {
-                // Remove existing role assignments
-                await _repo.RemoveAllRoleAssignmentsAsync(sub.Id);
-
-                // Add new role assignments
-                foreach (var roleId in dto.SubcontractorRoleIds)
+                // Update specialties if provided
+                if (dto.SpecialtyIds != null && dto.SpecialtyIds.Any())
                 {
-                    var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
-                    await _repo.AssignRoleAsync(sub.Id, roleId, isPrimary);
+                    // Remove existing specialties
+                    await _repo.RemoveAllSpecialtiesAsync(sub.Id);
+
+                    // Add new specialties
+                    await _repo.AddSpecialtiesAsync(sub.Id, dto.SpecialtyIds);
                 }
+
+                // Update role assignments if provided
+                if (dto.SubcontractorRoleIds != null && dto.SubcontractorRoleIds.Any())
+                {
+                    // Remove existing role assignments
+                    await _repo.RemoveAllRoleAssignmentsAsync(sub.Id);
+
+                    // Add new role assignments
+                    foreach (var roleId in dto.SubcontractorRoleIds)
+                    {
+                        var isPrimary = dto.PrimaryRoleId.HasValue && dto.PrimaryRoleId.Value == roleId;
+                        await _repo.AssignRoleAsync(sub.Id, roleId, isPrimary);
+                    }
+                }
+
+                // Update the subcontractor entity
+                await _repo.UpdateSubAsync(sub, CancellationToken.None);
+
+                // Save all changes
+                await _repo.SaveChangesAsync();
+
+                // Clear the context to avoid tracking issues
+                // This ensures we get a fresh entity for mapping
+                var updatedSub = await _repo.GetByIdWithDetailsAsync(id);
+                if (updatedSub == null)
+                {
+                    throw new NotFoundException("Failed to retrieve updated subcontractor");
+                }
+
+                return _mapper.Map<SubcontractorDto>(updatedSub);
             }
-
-            // Update the subcontractor entity
-            await _repo.UpdateSubAsync(sub, CancellationToken.None);
-
-            // Save all changes
-            await _repo.SaveChangesAsync();
-
-            // Fetch updated entity with all details for mapping
-            var updatedSub = await _repo.GetByIdWithDetailsAsync(id);
-            return _mapper.Map<SubcontractorDto>(updatedSub);
+            catch (Exception ex)
+            {
+                // Log the exception details
+                // You might want to add proper logging here
+                throw;
+            }
         }
 
         public async Task<SubcontractorDto> GetByIdAsync(Guid id)

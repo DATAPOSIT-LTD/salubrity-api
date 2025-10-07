@@ -285,382 +285,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     // Download Findings Implementation
 
-    //public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
-    //{
-    //    var camp = await _healthCampRepository.GetByIdAsync(campId);
-    //    if (camp == null)
-    //        throw new NotFoundException($"Health camp with ID {campId} not found.");
-
-    //    string organizationName = camp.Organization?.BusinessName ?? "Unknown_Organization";
-
-    //    if (organizationName == "Unknown_Organization")
-    //    {
-    //        try
-    //        {
-    //            var campDetails = await _healthCampRepository.GetCampDetailsByIdAsync(campId);
-    //            if (campDetails != null)
-    //            {
-    //                organizationName = campDetails.ClientName ?? "Unknown_Organization";
-    //            }
-    //        }
-    //        catch
-    //        {
-    //            var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
-    //            if (participants.Any())
-    //            {
-    //                var firstParticipant = participants.First();
-    //                organizationName = firstParticipant.HealthCamp?.Organization?.BusinessName ?? "Unknown_Organization";
-    //            }
-    //        }
-    //    }
-
-    //    var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
-
-    //    if (!entityResponses.Any())
-    //        throw new NotFoundException("No intake form responses found for this camp.");
-
-    //    var campParticipants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
-    //    var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
-
-    //    var filteredEntityResponses = entityResponses
-    //        .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
-    //        .ToList();
-
-    //    if (!filteredEntityResponses.Any())
-    //        throw new NotFoundException("No intake form responses found for participants in this camp.");
-
-    //    var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
-
-    //    // Get Intake Form responses
-    //    var allDtoResponses = new List<IntakeFormResponseDetailDto>();
-    //    foreach (var patientId in patientIds)
-    //    {
-    //        var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
-    //        allDtoResponses.AddRange(patientDtoResponses);
-    //    }
-
-    //    // Get Health Assessment responses for the same patients
-    //    var allHealthAssessmentResponses = new List<HealthAssessmentResponseDto>();
-    //    foreach (var patientId in patientIds)
-    //    {
-    //        var healthAssessmentResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, campId, ct);
-    //        allHealthAssessmentResponses.AddRange(healthAssessmentResponses);
-    //    }
-
-    //    // Process Intake Form fields
-    //    var intakeFormFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource)>();
-    //    var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-    //    foreach (var dtoResponse in allDtoResponses)
-    //    {
-    //        foreach (var fieldResponse in dtoResponse.FieldResponses)
-    //        {
-    //            var fieldId = $"intake_{fieldResponse.FieldId}"; // Prefix to distinguish from health assessment
-    //            var fieldLabel = fieldResponse.Field.Label;
-    //            var sectionName = fieldResponse.Field.SectionName ?? "General";
-    //            var order = fieldResponse.Field.Order;
-    //            var fieldType = fieldResponse.Field.FieldType ?? "text";
-
-    //            if (!intakeFormFields.Any(f => f.FieldId == fieldId))
-    //            {
-    //                intakeFormFields.Add((fieldId, fieldLabel, sectionName, order, fieldType, "IntakeForm"));
-    //            }
-
-    //            if (!fieldToSectionMap.ContainsKey(fieldLabel))
-    //            {
-    //                fieldToSectionMap[fieldLabel] = sectionName;
-    //            }
-    //        }
-    //    }
-
-    //    // Process Health Assessment fields
-    //    var healthAssessmentFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource)>();
-
-    //    foreach (var assessmentResponse in allHealthAssessmentResponses)
-    //    {
-    //        foreach (var section in assessmentResponse.Sections)
-    //        {
-    //            foreach (var field in section.Fields)
-    //            {
-    //                var fieldId = $"health_{assessmentResponse.FormName}_{section.SectionName}_{field.FieldLabel}".Replace(" ", "_");
-    //                var fieldLabel = field.FieldLabel;
-    //                var sectionName = $"Health Assessment - {assessmentResponse.FormName} - {section.SectionName}";
-    //                var order = field.FieldOrder;
-
-    //                if (!healthAssessmentFields.Any(f => f.FieldId == fieldId))
-    //                {
-    //                    healthAssessmentFields.Add((fieldId, fieldLabel, sectionName, order, "text", "HealthAssessment"));
-    //                }
-
-    //                if (!fieldToSectionMap.ContainsKey($"{sectionName} - {fieldLabel}"))
-    //                {
-    //                    fieldToSectionMap[$"{sectionName} - {fieldLabel}"] = sectionName;
-    //                }
-    //            }
-    //        }
-    //    }
-
-    //    // Fallback to entity responses if no DTO responses
-    //    if (!intakeFormFields.Any())
-    //    {
-    //        foreach (var entityResponse in filteredEntityResponses)
-    //        {
-    //            foreach (var fieldResponse in entityResponse.FieldResponses)
-    //            {
-    //                var fieldId = $"intake_{fieldResponse.FieldId}";
-    //                var fieldLabel = fieldResponse.Field.Label;
-    //                var sectionName = fieldResponse.Field.Section?.Name ?? "General";
-    //                var order = fieldResponse.Field.Order;
-    //                var fieldType = fieldResponse.Field.FieldType ?? "text";
-
-    //                if (!intakeFormFields.Any(f => f.FieldId == fieldId))
-    //                {
-    //                    intakeFormFields.Add((fieldId, fieldLabel, sectionName, order, fieldType, "IntakeForm"));
-    //                }
-
-    //                if (!fieldToSectionMap.ContainsKey(fieldLabel))
-    //                {
-    //                    fieldToSectionMap[fieldLabel] = sectionName;
-    //                }
-    //            }
-    //        }
-    //    }
-
-    //    // Combine and organize all fields by section, maintaining order within sections
-    //    var allFields = intakeFormFields.Concat(healthAssessmentFields).ToList();
-
-    //    var fieldsBySection = allFields
-    //        .GroupBy(f => f.SectionName)
-    //        .OrderBy(g => g.Key.StartsWith("Health Assessment") ? 1 : 0) // Intake forms first, then health assessments
-    //        .ThenBy(g => g.Key)
-    //        .ToList();
-
-    //    var participantResponses = filteredEntityResponses
-    //        .GroupBy(r => r.PatientId)
-    //        .Where(g => g.First().Patient != null)
-    //        .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
-    //        .ToList();
-
-    //    var dtoResponseLookup = allDtoResponses
-    //        .GroupBy(r => r.PatientId)
-    //        .ToDictionary(g => g.Key, g => g.ToList());
-
-    //    // Create Health Assessment response lookup
-    //    var healthAssessmentLookup = new Dictionary<Guid, Dictionary<string, string>>();
-    //    foreach (var patientId in patientIds)
-    //    {
-    //        var patientHealthResponses = allHealthAssessmentResponses
-    //            .Where(r => patientIds.Contains(patientId)) // You might need to adjust this based on how you link patients
-    //            .ToList();
-
-    //        var fieldValueLookup = new Dictionary<string, string>();
-    //        foreach (var assessmentResponse in patientHealthResponses)
-    //        {
-    //            foreach (var section in assessmentResponse.Sections)
-    //            {
-    //                foreach (var field in section.Fields)
-    //                {
-    //                    var fieldId = $"health_{assessmentResponse.FormName}_{section.SectionName}_{field.FieldLabel}".Replace(" ", "_");
-    //                    fieldValueLookup[fieldId] = field.Value ?? field.SelectedOption ?? "";
-    //                }
-    //            }
-    //        }
-    //        healthAssessmentLookup[patientId] = fieldValueLookup;
-    //    }
-
-    //    using var workbook = new XLWorkbook();
-    //    var worksheet = workbook.Worksheets.Add("Camp Data Export");
-
-    //    var headers = new List<string> { "Participant Name", "Email", "Phone", "Gender", "ID Number", "Date of Birth", "Age" };
-    //    var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType, string DataSource)>();
-
-    //    foreach (var sectionGroup in fieldsBySection)
-    //    {
-    //        foreach (var field in sectionGroup.OrderBy(f => f.Order))
-    //        {
-    //            var headerName = field.DataSource == "HealthAssessment"
-    //                ? $"{field.SectionName} - {field.Label}"
-    //                : $"{field.SectionName} - {field.Label}";
-
-    //            headers.Add(headerName);
-    //            orderedFields.Add((field.FieldId, field.Label, field.SectionName, field.FieldType, field.DataSource));
-    //        }
-    //    }
-
-    //    for (int i = 0; i < headers.Count; i++)
-    //    {
-    //        worksheet.Cell(1, i + 1).Value = headers[i];
-    //        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
-
-    //        if (i >= 7)
-    //        {
-    //            var headerParts = headers[i].Split(" - ", 2);
-    //            var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
-    //            var color = GetSectionColor(sectionName);
-    //            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
-    //        }
-    //        else
-    //        {
-    //            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-    //        }
-    //    }
-
-    //    int currentRow = 2;
-    //    foreach (var participantGroup in participantResponses)
-    //    {
-    //        var participant = participantGroup.First().Patient;
-    //        if (participant?.User == null) continue;
-
-    //        worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
-    //        worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
-    //        worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
-    //        worksheet.Cell(currentRow, 4).Value = participant.User.Gender?.Name ?? "";
-    //        worksheet.Cell(currentRow, 5).Value = participant.User.NationalId ?? "";
-    //        worksheet.Cell(currentRow, 6).Value = participant.User.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
-    //        string ageValue = "";
-    //        if (participant.User.DateOfBirth.HasValue)
-    //        {
-    //            var age = CalculateAge(participant.User.DateOfBirth.Value, DateTime.Now);
-    //            ageValue = age.ToString();
-    //        }
-    //        worksheet.Cell(currentRow, 7).Value = ageValue;
-
-    //        // Get Intake Form responses
-    //        Dictionary<string, string> intakeFormResponseLookup;
-    //        if (dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) && dtoList.Any())
-    //        {
-    //            intakeFormResponseLookup = dtoList
-    //                .SelectMany(r => r.FieldResponses)
-    //                .GroupBy(fr => $"intake_{fr.FieldId}")
-    //                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
-    //        }
-
-    //        else
-    //        {
-    //            intakeFormResponseLookup = participantGroup
-    //                .SelectMany(r => r.FieldResponses)
-    //                .GroupBy(fr => $"intake_{fr.FieldId}")
-    //                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
-    //        }
-
-    //        // Get Health Assessment responses for this participant
-    //        var healthAssessmentResponseLookup = healthAssessmentLookup.TryGetValue(participant.Id, out var healthResponses)
-    //            ? healthResponses
-    //            : new Dictionary<string, string>();
-
-    //        int columnIndex = 8;
-    //        foreach (var field in orderedFields)
-    //        {
-    //            string value = "";
-
-    //            if (field.DataSource == "IntakeForm")
-    //            {
-    //                if (intakeFormResponseLookup.TryGetValue(field.FieldId, out var fieldValue))
-    //                {
-    //                    value = fieldValue;
-
-    //                    value = field.FieldType.ToLowerInvariant() switch
-    //                    {
-    //                        "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
-    //                        "radio" => value,
-    //                        "select" => value,
-    //                        "multiselect" => value,
-    //                        "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
-    //                        "datetime" => DateTime.TryParse(value, out var datetime) ? datetime.ToString("yyyy-MM-dd HH:mm") : value,
-    //                        "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
-    //                        "email" => value,
-    //                        "phone" => value,
-    //                        "url" => value,
-    //                        "textarea" => value,
-    //                        "text" => value,
-    //                        _ => value
-    //                    };
-    //                }
-    //            }
-    //            else if (field.DataSource == "HealthAssessment")
-    //            {
-    //                if (healthAssessmentResponseLookup.TryGetValue(field.FieldId, out var healthValue))
-    //                {
-    //                    value = healthValue;
-    //                }
-    //            }
-
-    //            worksheet.Cell(currentRow, columnIndex).Value = value;
-    //            columnIndex++;
-    //        }
-
-    //        currentRow++;
-    //    }
-
-    //    foreach (var column in worksheet.Columns())
-    //    {
-    //        column.AdjustToContents();
-    //        if (column.Width > 50)
-    //            column.Width = 50;
-    //        if (column.Width < 10)
-    //            column.Width = 10;
-    //    }
-
-    //    var headerRange = worksheet.Range(1, 1, 1, headers.Count);
-    //    headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
-    //    headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-    //    headerRange.Style.Font.Bold = true;
-
-    //    if (currentRow > 2)
-    //    {
-    //        var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
-    //        dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-    //        dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
-
-    //        for (int row = 2; row < currentRow; row++)
-    //        {
-    //            if (row % 2 == 0)
-    //            {
-    //                worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
-    //            }
-    //        }
-    //    }
-
-    //    int summaryStartRow = currentRow + 2;
-    //    worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
-    //    worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
-    //    worksheet.Cell(summaryStartRow, 1).Style.Font.FontSize = 12;
-
-    //    worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
-    //    worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {organizationName}";
-    //    worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
-    //    worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Intake Form Fields: {intakeFormFields.Count}";
-    //    worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Health Assessment Fields: {healthAssessmentFields.Count}";
-    //    worksheet.Cell(summaryStartRow + 6, 1).Value = $"Total Sections: {fieldsBySection.Count}";
-    //    worksheet.Cell(summaryStartRow + 7, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
-
-    //    var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 7, 2);
-    //    summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-    //    summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
-
-    //    int legendStartRow = summaryStartRow + 9;
-    //    worksheet.Cell(legendStartRow, 1).Value = "Section Color Legend:";
-    //    worksheet.Cell(legendStartRow, 1).Style.Font.Bold = true;
-
-    //    int legendRow = legendStartRow + 1;
-    //    var uniqueSections = fieldsBySection.Select(g => g.Key).Distinct().ToList();
-    //    foreach (var sectionName in uniqueSections)
-    //    {
-    //        worksheet.Cell(legendRow, 1).Value = sectionName;
-    //        worksheet.Cell(legendRow, 1).Style.Fill.BackgroundColor = GetSectionColor(sectionName);
-    //        worksheet.Cell(legendRow, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-    //        legendRow++;
-    //    }
-
-    //    worksheet.SheetView.Freeze(1, 7);
-
-    //    using var stream = new MemoryStream();
-    //    workbook.SaveAs(stream);
-    //    return (stream.ToArray(), camp.Name, organizationName);
-    //}
-
-
-
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
         var camp = await _healthCampRepository.GetByIdAsync(campId);
@@ -851,7 +475,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
         // Define headers in the proper order
-        var headers = new List<string> { "Participant Name", "Email", "Phone", "Gender", "ID Number", "Date of Birth", "Age" };
+        var headers = new List<string> { "Participant Name", "Email", "Phone", "Gender", "ID Number", "Date of Birth", "Age", "Lifestyle Risk" };
         var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType, string DataSource)>();
 
         foreach (var sectionGroup in fieldsBySection)
@@ -875,7 +499,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-            if (i >= 7)
+            if (i >= 8)
             {
                 var headerParts = headers[i].Split(" - ", 2);
                 var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
@@ -931,7 +555,15 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 ? healthResponses
                 : new Dictionary<string, string>();
 
-            int columnIndex = 8;
+            var lifestyleRisk = CalculateLifestyleRisk(intakeFormResponseLookup, healthAssessmentResponseLookup, orderedFields);
+            worksheet.Cell(currentRow, 8).Value = lifestyleRisk;
+
+            var riskColor = GetLifestyleRiskColor(lifestyleRisk);
+            worksheet.Cell(currentRow, 8).Style.Fill.BackgroundColor = riskColor;
+            worksheet.Cell(currentRow, 8).Style.Font.Bold = true;
+
+
+            int columnIndex = 9;
             foreach (var field in orderedFields)
             {
                 string value = "";
@@ -1035,7 +667,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             legendRow++;
         }
 
-        worksheet.SheetView.Freeze(1, 7);
+        worksheet.SheetView.Freeze(1, 8);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -1151,5 +783,272 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
 
         return Math.Max(0, age); // Ensure age is never negative
+    }
+
+
+
+    /// <summary>
+    /// Calculates the overall lifestyle risk based on BMI, Blood Pressure, Blood Glucose, and Cholesterol
+    /// </summary>
+    private static string CalculateLifestyleRisk(
+        Dictionary<string, string> intakeFormResponses,
+        Dictionary<string, string> healthAssessmentResponses,
+        List<(string FieldId, string Label, string SectionName, string FieldType, string DataSource)> orderedFields)
+    {
+        // Extract all available values from both data sources
+        var allValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Add intake form values
+        foreach (var kvp in intakeFormResponses)
+        {
+            var field = orderedFields.FirstOrDefault(f => f.FieldId == kvp.Key);
+            if (field.Label != null)
+            {
+                allValues[field.Label] = kvp.Value;
+            }
+        }
+
+        // Add health assessment values
+        foreach (var kvp in healthAssessmentResponses)
+        {
+            var field = orderedFields.FirstOrDefault(f => f.FieldId == kvp.Key);
+            if (field.Label != null)
+            {
+                allValues[field.Label] = kvp.Value;
+            }
+        }
+
+        // Calculate individual risk scores
+        var bmiRisk = CalculateBMIRisk(allValues);
+        var bloodPressureRisk = CalculateBloodPressureRisk(allValues);
+        var bloodGlucoseRisk = CalculateBloodGlucoseRisk(allValues);
+        var cholesterolRisk = CalculateCholesterolRisk(allValues);
+
+        // Convert risk levels to numeric scores for calculation
+        var riskScores = new List<int>
+    {
+        ConvertRiskToScore(bmiRisk),
+        ConvertRiskToScore(bloodPressureRisk),
+        ConvertRiskToScore(bloodGlucoseRisk),
+        ConvertRiskToScore(cholesterolRisk)
+    };
+
+        // Filter out invalid scores (0 means no data available)
+        var validScores = riskScores.Where(score => score > 0).ToList();
+
+        if (!validScores.Any())
+        {
+            return "No Data";
+        }
+
+        // Calculate average risk score
+        var averageScore = validScores.Average();
+
+        // Convert back to risk category
+        return ConvertScoreToRisk(averageScore);
+    }
+
+    private static string CalculateBMIRisk(Dictionary<string, string> values)
+    {
+        // First try to find direct BMI value
+        var bmiValue = FindValueByKeywords(values, new[] { "bmi", "body mass index" });
+
+        if (!string.IsNullOrEmpty(bmiValue) && decimal.TryParse(bmiValue, out var bmi))
+        {
+            return GetBMIRiskCategory(bmi);
+        }
+
+        // If no direct BMI, try to calculate from height and weight
+        var heightValue = FindValueByKeywords(values, new[] { "height" });
+        var weightValue = FindValueByKeywords(values, new[] { "weight" });
+
+        if (!string.IsNullOrEmpty(heightValue) && !string.IsNullOrEmpty(weightValue) &&
+            decimal.TryParse(heightValue, out var height) && decimal.TryParse(weightValue, out var weight))
+        {
+            if (height > 0)
+            {
+                // Convert height from cm to meters if needed
+                var heightInMeters = height > 10 ? height / 100 : height;
+                var calculatedBMI = weight / (heightInMeters * heightInMeters);
+                return GetBMIRiskCategory(calculatedBMI);
+            }
+        }
+
+        return "No Data";
+    }
+
+    private static string CalculateBloodPressureRisk(Dictionary<string, string> values)
+    {
+        // Look for blood pressure readings
+        var bpValue = FindValueByKeywords(values, new[] { "blood pressure", "bp reading", "systolic", "diastolic" });
+
+        if (string.IsNullOrEmpty(bpValue))
+        {
+            return "No Data";
+        }
+
+        // Parse blood pressure format (e.g., "120/80", "120", "80")
+        var systolic = 0m;
+        var diastolic = 0m;
+
+        if (bpValue.Contains("/"))
+        {
+            var parts = bpValue.Split('/');
+            if (parts.Length == 2 &&
+                decimal.TryParse(parts[0].Trim(), out systolic) &&
+                decimal.TryParse(parts[1].Trim(), out diastolic))
+            {
+                return GetBloodPressureRiskCategory(systolic, diastolic);
+            }
+        }
+        else if (decimal.TryParse(bpValue, out var singleValue))
+        {
+            // If only one value, assume it's systolic
+            systolic = singleValue;
+            return GetBloodPressureRiskCategory(systolic, 0);
+        }
+
+        return "No Data";
+    }
+
+    private static string CalculateBloodGlucoseRisk(Dictionary<string, string> values)
+    {
+        var glucoseValue = FindValueByKeywords(values, new[] { "blood sugar", "glucose", "rbs", "random blood sugar" });
+
+        if (!string.IsNullOrEmpty(glucoseValue) && decimal.TryParse(glucoseValue, out var glucose))
+        {
+            return GetBloodGlucoseRiskCategory(glucose);
+        }
+
+        return "No Data";
+    }
+
+    private static string CalculateCholesterolRisk(Dictionary<string, string> values)
+    {
+        var cholesterolValue = FindValueByKeywords(values, new[] { "cholesterol", "total cholesterol" });
+
+        if (!string.IsNullOrEmpty(cholesterolValue) && decimal.TryParse(cholesterolValue, out var cholesterol))
+        {
+            return GetCholesterolRiskCategory(cholesterol);
+        }
+
+        return "No Data";
+    }
+
+    private static string FindValueByKeywords(Dictionary<string, string> values, string[] keywords)
+    {
+        foreach (var keyword in keywords)
+        {
+            var matchingKey = values.Keys.FirstOrDefault(key =>
+                key.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+            if (matchingKey != null && !string.IsNullOrEmpty(values[matchingKey]))
+            {
+                return values[matchingKey];
+            }
+        }
+        return "";
+    }
+
+    private static string GetBMIRiskCategory(decimal bmi)
+    {
+        return bmi switch
+        {
+            >= 18 and <= 22.9m => "Very Low",
+            >= 23 and <= 24.9m => "Low",
+            >= 25 and <= 27.9m => "Medium",
+            >= 28 and <= 30m => "High",
+            > 30 => "Very High",
+            _ => "No Data"
+        };
+    }
+
+    private static string GetBloodPressureRiskCategory(decimal systolic, decimal diastolic)
+    {
+        // Use systolic as primary indicator if diastolic is 0 or not available
+        if (diastolic == 0)
+        {
+            return systolic switch
+            {
+                < 120 => "Very Low",
+                >= 120 and <= 139 => "Low",
+                >= 140 and <= 150 => "Medium",
+                >= 151 and <= 159 => "High",
+                >= 160 => "Very High",
+                _ => "No Data"
+            };
+        }
+
+        // Use both systolic and diastolic when available
+        if (systolic < 120 && diastolic < 80) return "Very Low";
+        if (systolic <= 139 && diastolic <= 89) return "Low";
+        if (systolic <= 150 && diastolic <= 95) return "Medium";
+        if (systolic <= 159 && diastolic <= 99) return "High";
+        if (systolic >= 160 || diastolic >= 100) return "Very High";
+
+        return "No Data";
+    }
+
+    private static string GetBloodGlucoseRiskCategory(decimal glucose)
+    {
+        return glucose switch
+        {
+            < 7 => "Very Low",
+            >= 7 and <= 10 => "Medium",
+            >= 10 and <= 10.9m => "High",
+            > 11 => "Very High",
+            _ => "No Data"
+        };
+    }
+
+    private static string GetCholesterolRiskCategory(decimal cholesterol)
+    {
+        return cholesterol switch
+        {
+            >= 2.3m and <= 4.9m => "Very Low",
+            >= 5 and <= 5.17m => "Low",
+            >= 5.18m and <= 6.19m => "Medium",
+            > 6.2m and <= 7m => "High",
+            > 7 => "Very High",
+            _ => "No Data"
+        };
+    }
+
+    private static int ConvertRiskToScore(string riskLevel)
+    {
+        return riskLevel switch
+        {
+            "Very Low" => 1,
+            "Low" => 2,
+            "Medium" => 3,
+            "High" => 4,
+            "Very High" => 5,
+            _ => 0 // No Data
+        };
+    }
+
+    private static string ConvertScoreToRisk(double averageScore)
+    {
+        return averageScore switch
+        {
+            <= 1.5 => "Very Low",
+            <= 2.5 => "Low",
+            <= 3.5 => "Medium",
+            <= 4.5 => "High",
+            _ => "Very High"
+        };
+    }
+
+    private static XLColor GetLifestyleRiskColor(string riskLevel)
+    {
+        return riskLevel switch
+        {
+            "Very Low" => XLColor.LightGreen,
+            "Low" => XLColor.LightYellow,
+            "Medium" => XLColor.Orange,
+            "High" => XLColor.LightCoral,
+            "Very High" => XLColor.Red,
+            _ => XLColor.LightGray // No Data
+        };
     }
 }

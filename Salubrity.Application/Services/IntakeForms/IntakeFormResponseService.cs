@@ -401,7 +401,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
-        var headers = new List<string> { "Participant Name", "Email", "Phone" };
+        var headers = new List<string> { "Participant Name", "Email", "Phone" , "Gender", "ID Number", "Date of Birth", "Age"};
         var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType)>();
 
         foreach (var sectionGroup in fieldsBySection)
@@ -418,7 +418,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(1, i + 1).Value = headers[i];
             worksheet.Cell(1, i + 1).Style.Font.Bold = true;
 
-            if (i >= 3) 
+            if (i >= 7) 
             {
                 var headerParts = headers[i].Split(" - ", 2);
                 var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
@@ -440,6 +440,16 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
             worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
             worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
+            worksheet.Cell(currentRow, 4).Value = participant.User.Gender?.Name ?? "";
+            worksheet.Cell(currentRow, 5).Value = participant.User.NationalId ?? "";
+            worksheet.Cell(currentRow, 6).Value = participant.User.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
+            string ageValue = "";
+            if (participant.User.DateOfBirth.HasValue)
+            {
+                var age = CalculateAge(participant.User.DateOfBirth.Value, DateTime.Now);
+                ageValue = age.ToString();
+            }
+            worksheet.Cell(currentRow, 7).Value = ageValue;
 
             Dictionary<string, string> fieldResponseLookup;
 
@@ -458,7 +468,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                     .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
             }
 
-            int columnIndex = 4; 
+            int columnIndex = 8; 
             foreach (var field in orderedFields)
             {
                 string value = "";
@@ -550,7 +560,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             legendRow++;
         }
 
-        worksheet.SheetView.Freeze(1, 3);
+        worksheet.SheetView.Freeze(1, 7);
 
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
@@ -574,5 +584,19 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             "general" => XLColor.WhiteSmoke,
             _ => XLColor.LightGray
         };
+    }
+
+    private static int CalculateAge(DateTime birthDate, DateTime currentDate)
+    {
+        int age = currentDate.Year - birthDate.Year;
+
+        // Check if birthday has occurred this year
+        if (currentDate.Month < birthDate.Month ||
+            (currentDate.Month == birthDate.Month && currentDate.Day < birthDate.Day))
+        {
+            age--;
+        }
+
+        return Math.Max(0, age); // Ensure age is never negative
     }
 }

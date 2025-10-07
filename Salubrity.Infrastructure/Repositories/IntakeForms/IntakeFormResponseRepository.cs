@@ -192,6 +192,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         return await (from r in _db.IntakeFormResponses
                           .Include(r => r.Patient)
                               .ThenInclude(p => p.User)
+                                .ThenInclude(u => u.Gender)
                           .Include(r => r.FieldResponses)
                               .ThenInclude(fr => fr.Field)
                       join a in _db.HealthCampServiceAssignments

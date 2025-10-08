@@ -114,7 +114,8 @@ public class IntakeFormResponsesController : BaseController
 
     // Download Findings Implmentation
 
-    [HttpGet("export-camp-data/{campId:guid}")]
+    [HttpGet("camp/{campId}/data/export")]
+    //[Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExportCampData(Guid campId, CancellationToken ct)
@@ -123,6 +124,7 @@ public class IntakeFormResponsesController : BaseController
 
         var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
+        // Use the timestamp from the service
         var fileName = $"{safeOrgName}_Camp_{safeCampName}_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);

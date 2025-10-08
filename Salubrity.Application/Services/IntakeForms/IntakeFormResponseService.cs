@@ -285,6 +285,396 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     // Download Findings Implementation
 
+    //public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
+    //{
+    //    var camp = await _healthCampRepository.GetByIdAsync(campId);
+    //    if (camp == null)
+    //        throw new NotFoundException($"Health camp with ID {campId} not found.");
+
+    //    string organizationName = camp.Organization?.BusinessName ?? "Unknown_Organization";
+
+    //    if (organizationName == "Unknown_Organization")
+    //    {
+    //        try
+    //        {
+    //            var campDetails = await _healthCampRepository.GetCampDetailsByIdAsync(campId);
+    //            if (campDetails != null)
+    //            {
+    //                organizationName = campDetails.ClientName ?? "Unknown_Organization";
+    //            }
+    //        }
+    //        catch
+    //        {
+    //            var participants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
+    //            if (participants.Any())
+    //            {
+    //                var firstParticipant = participants.First();
+    //                organizationName = firstParticipant.HealthCamp?.Organization?.BusinessName ?? "Unknown_Organization";
+    //            }
+    //        }
+    //    }
+
+    //    var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+
+    //    if (!entityResponses.Any())
+    //        throw new NotFoundException("No intake form responses found for this camp.");
+
+    //    var campParticipants = await _healthCampRepository.GetParticipantsAsync(campId, null, null, ct);
+    //    var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
+
+    //    var filteredEntityResponses = entityResponses
+    //        .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
+    //        .ToList();
+
+    //    if (!filteredEntityResponses.Any())
+    //        throw new NotFoundException("No intake form responses found for participants in this camp.");
+
+    //    var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
+
+    //    // Get Intake Form responses
+    //    var allDtoResponses = new List<IntakeFormResponseDetailDto>();
+    //    foreach (var patientId in patientIds)
+    //    {
+    //        var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
+    //        allDtoResponses.AddRange(patientDtoResponses);
+    //    }
+
+    //    var healthAssessmentFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority)>();
+    //    var healthAssessmentLookup = new Dictionary<Guid, Dictionary<string, string>>();
+
+    //    // Get sample health assessment structure for building headers (from first patient)
+    //    List<HealthAssessmentResponseDto> sampleHealthAssessmentResponses = new();
+    //    if (patientIds.Any())
+    //    {
+    //        sampleHealthAssessmentResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientIds.First(), campId, ct);
+    //    }
+
+    //    // Process Intake Form fields with structured ordering
+    //    var intakeFormFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority)>();
+    //    var fieldToSectionMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    //    foreach (var dtoResponse in allDtoResponses)
+    //    {
+    //        foreach (var fieldResponse in dtoResponse.FieldResponses)
+    //        {
+    //            var fieldId = $"intake_{fieldResponse.FieldId}";
+    //            var fieldLabel = fieldResponse.Field.Label;
+    //            var sectionName = fieldResponse.Field.SectionName ?? "General";
+    //            var order = fieldResponse.Field.Order;
+    //            var fieldType = fieldResponse.Field.FieldType ?? "text";
+    //            var sectionPriority = GetSectionPriority(sectionName, fieldLabel);
+
+    //            if (!intakeFormFields.Any(f => f.FieldId == fieldId))
+    //            {
+    //                intakeFormFields.Add((fieldId, fieldLabel, sectionName, order, fieldType, "IntakeForm", sectionPriority));
+    //            }
+
+    //            if (!fieldToSectionMap.ContainsKey(fieldLabel))
+    //            {
+    //                fieldToSectionMap[fieldLabel] = sectionName;
+    //            }
+    //        }
+    //    }
+
+    //    // Process Health Assessment fields
+    //    foreach (var assessmentResponse in sampleHealthAssessmentResponses)
+    //    {
+    //        foreach (var section in assessmentResponse.Sections)
+    //        {
+    //            foreach (var field in section.Fields)
+    //            {
+    //                var fieldId = $"health_{assessmentResponse.FormName}_{section.SectionName}_{field.FieldLabel}".Replace(" ", "_");
+    //                var fieldLabel = field.FieldLabel;
+    //                var sectionName = $"Health Assessment - {assessmentResponse.FormName} - {section.SectionName}";
+    //                var order = field.FieldOrder;
+    //                var sectionPriority = 1000; // Health assessments come after intake forms
+
+    //                if (!healthAssessmentFields.Any(f => f.FieldId == fieldId))
+    //                {
+    //                    healthAssessmentFields.Add((fieldId, fieldLabel, sectionName, order, "text", "HealthAssessment", sectionPriority));
+    //                }
+
+    //                if (!fieldToSectionMap.ContainsKey($"{sectionName} - {fieldLabel}"))
+    //                {
+    //                    fieldToSectionMap[$"{sectionName} - {fieldLabel}"] = sectionName;
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    // Fallback to entity responses if no DTO responses
+    //    if (!intakeFormFields.Any())
+    //    {
+    //        foreach (var entityResponse in filteredEntityResponses)
+    //        {
+    //            foreach (var fieldResponse in entityResponse.FieldResponses)
+    //            {
+    //                var fieldId = $"intake_{fieldResponse.FieldId}";
+    //                var fieldLabel = fieldResponse.Field.Label;
+    //                var sectionName = fieldResponse.Field.Section?.Name ?? "General";
+    //                var order = fieldResponse.Field.Order;
+    //                var fieldType = fieldResponse.Field.FieldType ?? "text";
+    //                var sectionPriority = GetSectionPriority(sectionName, fieldLabel);
+
+    //                if (!intakeFormFields.Any(f => f.FieldId == fieldId))
+    //                {
+    //                    intakeFormFields.Add((fieldId, fieldLabel, sectionName, order, fieldType, "IntakeForm", sectionPriority));
+    //                }
+
+    //                if (!fieldToSectionMap.ContainsKey(fieldLabel))
+    //                {
+    //                    fieldToSectionMap[fieldLabel] = sectionName;
+    //                }
+    //            }
+    //        }
+    //    }
+
+    //    // Combine and organize all fields with proper ordering
+    //    var allFields = intakeFormFields.Concat(healthAssessmentFields).ToList();
+
+    //    var fieldsBySection = allFields
+    //        .GroupBy(f => new { f.SectionName, f.SectionPriority })
+    //        .OrderBy(g => g.Key.SectionPriority)
+    //        .ThenBy(g => g.Key.SectionName)
+    //        .ToList();
+
+    //    var participantResponses = filteredEntityResponses
+    //        .GroupBy(r => r.PatientId)
+    //        .Where(g => g.First().Patient != null)
+    //        .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
+    //        .ToList();
+
+    //    var dtoResponseLookup = allDtoResponses
+    //        .GroupBy(r => r.PatientId)
+    //        .ToDictionary(g => g.Key, g => g.ToList());
+
+    //    // Create Health Assessment response lookup
+    //    foreach (var patientId in patientIds)
+    //    {
+    //        // Get this specific patient's health assessment responses
+    //        var patientHealthResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, campId, ct);
+
+    //        var fieldValueLookup = new Dictionary<string, string>();
+    //        foreach (var assessmentResponse in patientHealthResponses)
+    //        {
+    //            foreach (var section in assessmentResponse.Sections)
+    //            {
+    //                foreach (var field in section.Fields)
+    //                {
+    //                    var fieldId = $"health_{assessmentResponse.FormName}_{section.SectionName}_{field.FieldLabel}".Replace(" ", "_");
+    //                    fieldValueLookup[fieldId] = field.Value ?? field.SelectedOption ?? "";
+    //                }
+    //            }
+    //        }
+    //        healthAssessmentLookup[patientId] = fieldValueLookup;
+    //    }
+
+
+    //    using var workbook = new XLWorkbook();
+    //    var worksheet = workbook.Worksheets.Add("Camp Data Export");
+
+    //    // Define headers in the proper order
+    //    var headers = new List<string> { "Participant Name", "Email", "Phone", "Gender", "ID Number", "Date of Birth", "Age", "Lifestyle Risk" };
+    //    var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType, string DataSource)>();
+
+    //    foreach (var sectionGroup in fieldsBySection)
+    //    {
+    //        var fieldsInSection = sectionGroup.OrderBy(f => GetFieldPriority(f.Label)).ThenBy(f => f.Order).ToList();
+
+    //        foreach (var field in fieldsInSection)
+    //        {
+    //            var headerName = field.DataSource == "HealthAssessment"
+    //                ? $"{field.SectionName} - {field.Label}"
+    //                : $"{field.SectionName} - {field.Label}";
+
+    //            headers.Add(headerName);
+    //            orderedFields.Add((field.FieldId, field.Label, field.SectionName, field.FieldType, field.DataSource));
+    //        }
+    //    }
+
+    //    // Set up headers
+    //    for (int i = 0; i < headers.Count; i++)
+    //    {
+    //        worksheet.Cell(1, i + 1).Value = headers[i];
+    //        worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+
+    //        if (i >= 8)
+    //        {
+    //            var headerParts = headers[i].Split(" - ", 2);
+    //            var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
+    //            var color = GetSectionColor(sectionName);
+    //            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
+    //        }
+    //        else
+    //        {
+    //            worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+    //        }
+    //    }
+
+    //    int currentRow = 2;
+    //    foreach (var participantGroup in participantResponses)
+    //    {
+    //        var participant = participantGroup.First().Patient;
+    //        if (participant?.User == null) continue;
+
+    //        worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
+    //        worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
+    //        worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
+    //        worksheet.Cell(currentRow, 4).Value = participant.User.Gender?.Name ?? "";
+    //        worksheet.Cell(currentRow, 5).Value = participant.User.NationalId ?? "";
+    //        worksheet.Cell(currentRow, 6).Value = participant.User.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
+    //        string ageValue = "";
+    //        if (participant.User.DateOfBirth.HasValue)
+    //        {
+    //            var age = CalculateAge(participant.User.DateOfBirth.Value, DateTime.Now);
+    //            ageValue = age.ToString();
+    //        }
+    //        worksheet.Cell(currentRow, 7).Value = ageValue;
+
+    //        // Get Intake Form responses
+    //        Dictionary<string, string> intakeFormResponseLookup;
+    //        if (dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) && dtoList.Any())
+    //        {
+    //            intakeFormResponseLookup = dtoList
+    //                .SelectMany(r => r.FieldResponses)
+    //                .GroupBy(fr => $"intake_{fr.FieldId}")
+
+    //            .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
+    //        }
+    //        else
+    //        {
+    //            intakeFormResponseLookup = participantGroup
+    //                .SelectMany(r => r.FieldResponses)
+    //                .GroupBy(fr => $"intake_{fr.FieldId}")
+    //                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
+    //        }
+
+    //        // Get Health Assessment responses for this participant
+    //        var healthAssessmentResponseLookup = healthAssessmentLookup.TryGetValue(participant.Id, out var healthResponses)
+    //            ? healthResponses
+    //            : new Dictionary<string, string>();
+
+    //        var lifestyleRisk = CalculateLifestyleRisk(intakeFormResponseLookup, healthAssessmentResponseLookup, orderedFields);
+    //        worksheet.Cell(currentRow, 8).Value = lifestyleRisk;
+
+    //        var riskColor = GetLifestyleRiskColor(lifestyleRisk);
+    //        worksheet.Cell(currentRow, 8).Style.Fill.BackgroundColor = riskColor;
+    //        worksheet.Cell(currentRow, 8).Style.Font.Bold = true;
+
+
+    //        int columnIndex = 9;
+    //        foreach (var field in orderedFields)
+    //        {
+    //            string value = "";
+
+    //            if (field.DataSource == "IntakeForm")
+    //            {
+    //                if (intakeFormResponseLookup.TryGetValue(field.FieldId, out var fieldValue))
+    //                {
+    //                    value = fieldValue;
+
+    //                    value = field.FieldType.ToLowerInvariant() switch
+    //                    {
+    //                        "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
+    //                        "radio" => value,
+    //                        "select" => value,
+    //                        "multiselect" => value,
+    //                        "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
+    //                        "datetime" => DateTime.TryParse(value, out var datetime) ? datetime.ToString("yyyy-MM-dd HH:mm") : value,
+    //                        "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
+    //                        "email" => value,
+    //                        "phone" => value,
+    //                        "url" => value,
+    //                        "textarea" => value,
+    //                        "text" => value,
+    //                        _ => value
+    //                    };
+    //                }
+    //            }
+    //            else if (field.DataSource == "HealthAssessment")
+    //            {
+    //                if (healthAssessmentResponseLookup.TryGetValue(field.FieldId, out var healthValue))
+    //                {
+    //                    value = healthValue;
+    //                }
+    //            }
+
+    //            worksheet.Cell(currentRow, columnIndex).Value = value;
+    //            columnIndex++;
+    //        }
+
+    //        currentRow++;
+    //    }
+
+    //    foreach (var column in worksheet.Columns())
+    //    {
+    //        column.AdjustToContents();
+    //        if (column.Width > 50)
+    //            column.Width = 50;
+    //        if (column.Width < 10)
+    //            column.Width = 10;
+    //    }
+
+    //    var headerRange = worksheet.Range(1, 1, 1, headers.Count);
+    //    headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
+    //    headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+    //    headerRange.Style.Font.Bold = true;
+
+    //    if (currentRow > 2)
+    //    {
+    //        var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
+    //        dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+    //        dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+
+    //        for (int row = 2; row < currentRow; row++)
+    //        {
+    //            if (row % 2 == 0)
+    //            {
+    //                worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
+    //            }
+    //        }
+    //    }
+
+    //    int summaryStartRow = currentRow + 2;
+    //    worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
+    //    worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
+    //    worksheet.Cell(summaryStartRow, 1).Style.Font.FontSize = 12;
+
+    //    worksheet.Cell(summaryStartRow + 1, 1).Value = $"Camp: {camp.Name}";
+    //    worksheet.Cell(summaryStartRow + 2, 1).Value = $"Organization: {organizationName}";
+    //    worksheet.Cell(summaryStartRow + 3, 1).Value = $"Total Participants: {participantResponses.Count}";
+    //    worksheet.Cell(summaryStartRow + 4, 1).Value = $"Total Intake Form Fields: {intakeFormFields.Count}";
+    //    worksheet.Cell(summaryStartRow + 5, 1).Value = $"Total Health Assessment Fields: {healthAssessmentFields.Count}";
+    //    worksheet.Cell(summaryStartRow + 6, 1).Value = $"Total Sections: {fieldsBySection.Count}";
+    //    worksheet.Cell(summaryStartRow + 7, 1).Value = $"Export Date: {DateTime.Now.AddHours(3):yyyy-MM-dd HH:mm:ss}";
+
+    //    var summaryRange = worksheet.Range(summaryStartRow, 1, summaryStartRow + 7, 2);
+    //    summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+    //    summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
+
+    //    int legendStartRow = summaryStartRow + 9;
+    //    worksheet.Cell(legendStartRow, 1).Value = "Section Color Legend:";
+    //    worksheet.Cell(legendStartRow, 1).Style.Font.Bold = true;
+
+    //    int legendRow = legendStartRow + 1;
+    //    var uniqueSections = fieldsBySection.Select(g => g.Key.SectionName).Distinct().ToList();
+    //    foreach (var sectionName in uniqueSections)
+    //    {
+    //        worksheet.Cell(legendRow, 1).Value = sectionName;
+    //        worksheet.Cell(legendRow, 1).Style.Fill.BackgroundColor = GetSectionColor(sectionName);
+    //        worksheet.Cell(legendRow, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+    //        legendRow++;
+    //    }
+
+    //    worksheet.SheetView.Freeze(1, 4);
+
+    //    using var stream = new MemoryStream();
+    //    workbook.SaveAs(stream);
+    //    return (stream.ToArray(), camp.Name, organizationName);
+    //}
+
+
+
     public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
         var camp = await _healthCampRepository.GetByIdAsync(campId);
@@ -339,7 +729,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             allDtoResponses.AddRange(patientDtoResponses);
         }
 
-        // ✅ REPLACE WITH: Build health assessment fields and lookup separately
+        // Build field structures for both intake forms and health assessments
         var healthAssessmentFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority)>();
         var healthAssessmentLookup = new Dictionary<Guid, Dictionary<string, string>>();
 
@@ -449,11 +839,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             .GroupBy(r => r.PatientId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-
         // Create Health Assessment response lookup
         foreach (var patientId in patientIds)
         {
-            // Get this specific patient's health assessment responses
             var patientHealthResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, campId, ct);
 
             var fieldValueLookup = new Dictionary<string, string>();
@@ -471,60 +859,40 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             healthAssessmentLookup[patientId] = fieldValueLookup;
         }
 
-
-        using var workbook = new XLWorkbook();
-        var worksheet = workbook.Worksheets.Add("Camp Data Export");
-
-        // Define headers in the proper order
-        var headers = new List<string> { "Participant Name", "Email", "Phone", "Gender", "ID Number", "Date of Birth", "Age", "Lifestyle Risk" };
+        // Create ordered fields list for data population
         var orderedFields = new List<(string FieldId, string Label, string SectionName, string FieldType, string DataSource)>();
-
         foreach (var sectionGroup in fieldsBySection)
         {
             var fieldsInSection = sectionGroup.OrderBy(f => GetFieldPriority(f.Label)).ThenBy(f => f.Order).ToList();
-
             foreach (var field in fieldsInSection)
             {
-                var headerName = field.DataSource == "HealthAssessment"
-                    ? $"{field.SectionName} - {field.Label}"
-                    : $"{field.SectionName} - {field.Label}";
-
-                headers.Add(headerName);
                 orderedFields.Add((field.FieldId, field.Label, field.SectionName, field.FieldType, field.DataSource));
             }
         }
 
-        // Set up headers
-        for (int i = 0; i < headers.Count; i++)
-        {
-            worksheet.Cell(1, i + 1).Value = headers[i];
-            worksheet.Cell(1, i + 1).Style.Font.Bold = true;
+        // Create Excel workbook and worksheet
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Camp Data Export");
 
-            if (i >= 8)
-            {
-                var headerParts = headers[i].Split(" - ", 2);
-                var sectionName = headerParts.Length > 1 ? headerParts[0] : "General";
-                var color = GetSectionColor(sectionName);
-                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = color;
-            }
-            else
-            {
-                worksheet.Cell(1, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
-            }
-        }
+        // Create structured headers with multi-level approach
+        var headerStructure = CreateHeaderStructure(fieldsBySection, orderedFields);
+        var totalColumns = SetupStructuredHeaders(worksheet, headerStructure);
 
-        int currentRow = 2;
+        // Start data from row 4 (since we now have 3 header rows)
+        int currentRow = 4;
         foreach (var participantGroup in participantResponses)
         {
             var participant = participantGroup.First().Patient;
             if (participant?.User == null) continue;
 
+            // Fill participant basic info (columns 1-8)
             worksheet.Cell(currentRow, 1).Value = participant.User.FullName ?? "";
             worksheet.Cell(currentRow, 2).Value = participant.User.Email ?? "";
             worksheet.Cell(currentRow, 3).Value = participant.User.Phone ?? "";
             worksheet.Cell(currentRow, 4).Value = participant.User.Gender?.Name ?? "";
             worksheet.Cell(currentRow, 5).Value = participant.User.NationalId ?? "";
             worksheet.Cell(currentRow, 6).Value = participant.User.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
+
             string ageValue = "";
             if (participant.User.DateOfBirth.HasValue)
             {
@@ -533,15 +901,14 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
             worksheet.Cell(currentRow, 7).Value = ageValue;
 
-            // Get Intake Form responses
+            // Get response lookups for this participant
             Dictionary<string, string> intakeFormResponseLookup;
             if (dtoResponseLookup.TryGetValue(participant.Id, out var dtoList) && dtoList.Any())
             {
                 intakeFormResponseLookup = dtoList
                     .SelectMany(r => r.FieldResponses)
                     .GroupBy(fr => $"intake_{fr.FieldId}")
-
-                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
             }
             else
             {
@@ -551,19 +918,18 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                     .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
             }
 
-            // Get Health Assessment responses for this participant
             var healthAssessmentResponseLookup = healthAssessmentLookup.TryGetValue(participant.Id, out var healthResponses)
                 ? healthResponses
                 : new Dictionary<string, string>();
 
+            // Calculate and set lifestyle risk
             var lifestyleRisk = CalculateLifestyleRisk(intakeFormResponseLookup, healthAssessmentResponseLookup, orderedFields);
             worksheet.Cell(currentRow, 8).Value = lifestyleRisk;
-
             var riskColor = GetLifestyleRiskColor(lifestyleRisk);
             worksheet.Cell(currentRow, 8).Style.Fill.BackgroundColor = riskColor;
             worksheet.Cell(currentRow, 8).Style.Font.Bold = true;
 
-
+            // Fill dynamic field data starting from column 9
             int columnIndex = 9;
             foreach (var field in orderedFields)
             {
@@ -573,24 +939,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     if (intakeFormResponseLookup.TryGetValue(field.FieldId, out var fieldValue))
                     {
-                        value = fieldValue;
-
-                        value = field.FieldType.ToLowerInvariant() switch
-                        {
-                            "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
-                            "radio" => value,
-                            "select" => value,
-                            "multiselect" => value,
-                            "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
-                            "datetime" => DateTime.TryParse(value, out var datetime) ? datetime.ToString("yyyy-MM-dd HH:mm") : value,
-                            "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
-                            "email" => value,
-                            "phone" => value,
-                            "url" => value,
-                            "textarea" => value,
-                            "text" => value,
-                            _ => value
-                        };
+                        value = FormatFieldValue(fieldValue, field.FieldType);
                     }
                 }
                 else if (field.DataSource == "HealthAssessment")
@@ -608,6 +957,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             currentRow++;
         }
 
+        // Apply styling and formatting
+        ApplyWorksheetStyling(worksheet, totalColumns, currentRow - 1, headerStructure);
+
+        // Auto-adjust column widths with limits
         foreach (var column in worksheet.Columns())
         {
             column.AdjustToContents();
@@ -617,26 +970,24 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 column.Width = 10;
         }
 
-        var headerRange = worksheet.Range(1, 1, 1, headers.Count);
-        headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
-        headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-        headerRange.Style.Font.Bold = true;
-
-        if (currentRow > 2)
+        // Apply borders and alternating row colors for data
+        if (currentRow > 4)
         {
-            var dataRange = worksheet.Range(2, 1, currentRow - 1, headers.Count);
+            var dataRange = worksheet.Range(4, 1, currentRow - 1, totalColumns);
             dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
             dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
 
-            for (int row = 2; row < currentRow; row++)
+            // Alternating row colors
+            for (int row = 4; row < currentRow; row++)
             {
-                if (row % 2 == 0)
+                if ((row - 4) % 2 == 0)
                 {
-                    worksheet.Range(row, 1, row, headers.Count).Style.Fill.BackgroundColor = XLColor.AliceBlue;
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.AliceBlue;
                 }
             }
         }
 
+        // Add export summary section
         int summaryStartRow = currentRow + 2;
         worksheet.Cell(summaryStartRow, 1).Value = "Export Summary:";
         worksheet.Cell(summaryStartRow, 1).Style.Font.Bold = true;
@@ -654,6 +1005,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         summaryRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
         summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
 
+        // Add section color legend
         int legendStartRow = summaryStartRow + 9;
         worksheet.Cell(legendStartRow, 1).Value = "Section Color Legend:";
         worksheet.Cell(legendStartRow, 1).Style.Font.Bold = true;
@@ -668,8 +1020,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             legendRow++;
         }
 
-        worksheet.SheetView.Freeze(1, 8);
+        // Freeze panes: 3 header rows and 8 basic info columns
+        worksheet.SheetView.Freeze(3, 8);
 
+        // Save and return
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
         return (stream.ToArray(), camp.Name, organizationName);
@@ -752,7 +1106,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return 50; // Default priority for other fields
     }
 
-
     private static XLColor GetSectionColor(string sectionName)
     {
         return sectionName.ToLowerInvariant() switch
@@ -786,11 +1139,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return Math.Max(0, age); // Ensure age is never negative
     }
 
-
-
-    /// <summary>
-    /// Calculates the overall lifestyle risk based on BMI, Blood Pressure, Blood Glucose, and Cholesterol
-    /// </summary>
     private static string CalculateLifestyleRisk(
         Dictionary<string, string> intakeFormResponses,
         Dictionary<string, string> healthAssessmentResponses,
@@ -1051,5 +1399,294 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             "Very High" => XLColor.Red,
             _ => XLColor.LightGray // No Data
         };
+    }
+
+    private HeaderStructure CreateHeaderStructure(
+    IEnumerable<IGrouping<dynamic, (string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority)>> fieldsBySection,
+    List<(string FieldId, string Label, string SectionName, string FieldType, string DataSource)> orderedFields)
+    {
+        var structure = new HeaderStructure();
+
+        // Add fixed participant columns
+        structure.AddSection("Participant Information", new List<HeaderColumn>
+        {
+            new("Name", "Name"),
+            new("Email", "Email"),
+            new("Phone", "Phone"),
+            new("Gender", "Gender"),
+            new("ID Number", "ID"),
+            new("Date of Birth", "DOB"),
+            new("Age", "Age"),
+            new("Lifestyle Risk", "Risk")
+        });
+
+        // Group fields by main section and subsection
+        foreach (var sectionGroup in fieldsBySection)
+        {
+            var fieldsInSection = sectionGroup.OrderBy(f => GetFieldPriority(f.Label)).ThenBy(f => f.Order).ToList();
+
+            var mainSectionName = GetMainSectionName(sectionGroup.Key.SectionName);
+            var subSectionName = GetSubSectionName(sectionGroup.Key.SectionName);
+
+            var columns = fieldsInSection.Select(field => new HeaderColumn(
+                field.Label,
+                TruncateFieldName(field.Label), // Shortened version for display
+                subSectionName
+            )).ToList();
+
+            structure.AddSection(mainSectionName, columns);
+        }
+
+        return structure;
+    }
+
+    private int SetupStructuredHeaders(IXLWorksheet worksheet, HeaderStructure headerStructure)
+    {
+        int currentCol = 1;
+
+        foreach (var section in headerStructure.Sections)
+        {
+            int sectionStartCol = currentCol;
+
+            foreach (var subSection in section.SubSections)
+            {
+                int subSectionStartCol = currentCol;
+
+                foreach (var column in subSection.Columns)
+                {
+                    // Row 3: Field names (shortened)
+                    worksheet.Cell(3, currentCol).Value = column.ShortName;
+                    worksheet.Cell(3, currentCol).Style.Font.Bold = true;
+                    worksheet.Cell(3, currentCol).Style.Alignment.WrapText = true;
+                    worksheet.Cell(3, currentCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                    currentCol++;
+                }
+
+                // Row 2: Sub-section headers (if applicable)
+                if (subSection.Columns.Count > 1 && !string.IsNullOrEmpty(subSection.Name))
+                {
+                    worksheet.Range(2, subSectionStartCol, 2, currentCol - 1).Merge();
+                    worksheet.Cell(2, subSectionStartCol).Value = subSection.Name;
+                    worksheet.Cell(2, subSectionStartCol).Style.Font.Bold = true;
+                    worksheet.Cell(2, subSectionStartCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    worksheet.Cell(2, subSectionStartCol).Style.Fill.BackgroundColor = GetSectionColor(subSection.Name);
+                }
+                else if (subSection.Columns.Count == 1)
+                {
+                    worksheet.Cell(2, subSectionStartCol).Value = subSection.Name ?? "";
+                    worksheet.Cell(2, subSectionStartCol).Style.Font.Bold = true;
+                    worksheet.Cell(2, subSectionStartCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                    worksheet.Cell(2, subSectionStartCol).Style.Fill.BackgroundColor = GetSectionColor(subSection.Name ?? "");
+                }
+            }
+
+            // Row 1: Main section headers
+            if (currentCol - sectionStartCol > 1)
+            {
+                worksheet.Range(1, sectionStartCol, 1, currentCol - 1).Merge();
+                worksheet.Cell(1, sectionStartCol).Value = section.Name;
+                worksheet.Cell(1, sectionStartCol).Style.Font.Bold = true;
+                worksheet.Cell(1, sectionStartCol).Style.Font.FontSize = 12;
+                worksheet.Cell(1, sectionStartCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(1, sectionStartCol).Style.Fill.BackgroundColor = GetMainSectionColor(section.Name);
+            }
+            else
+            {
+                worksheet.Cell(1, sectionStartCol).Value = section.Name;
+                worksheet.Cell(1, sectionStartCol).Style.Font.Bold = true;
+                worksheet.Cell(1, sectionStartCol).Style.Font.FontSize = 12;
+                worksheet.Cell(1, sectionStartCol).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                worksheet.Cell(1, sectionStartCol).Style.Fill.BackgroundColor = GetMainSectionColor(section.Name);
+            }
+        }
+
+        return currentCol - 1;
+    }
+
+    private void ApplyWorksheetStyling(IXLWorksheet worksheet, int totalColumns, int totalRows, HeaderStructure headerStructure)
+    {
+        // Style header rows
+        var headerRange = worksheet.Range(1, 1, 3, totalColumns);
+        headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
+        headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        headerRange.Style.Font.Bold = true;
+
+        // Style data rows
+        if (totalRows > 3)
+        {
+            var dataRange = worksheet.Range(4, 1, totalRows, totalColumns);
+            dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+            dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+
+            // Alternate row colors
+            for (int row = 4; row <= totalRows; row++)
+            {
+                if ((row - 4) % 2 == 0)
+                {
+                    worksheet.Range(row, 1, row, totalColumns).Style.Fill.BackgroundColor = XLColor.AliceBlue;
+                }
+            }
+        }
+
+        // Auto-fit columns with limits
+        foreach (var column in worksheet.Columns())
+        {
+            column.AdjustToContents();
+            if (column.Width > 25) column.Width = 25;
+            if (column.Width < 8) column.Width = 8;
+        }
+
+        // Set header row heights
+        worksheet.Row(1).Height = 25;
+        worksheet.Row(2).Height = 20;
+        worksheet.Row(3).Height = 30;
+    }
+
+    private string GetMainSectionName(string fullSectionName)
+    {
+        if (fullSectionName.Contains("Health Assessment"))
+        {
+            return "Health Assessments";
+        }
+
+        return fullSectionName.Split('-')[0].Trim();
+    }
+
+    private string GetSubSectionName(string fullSectionName)
+    {
+        if (fullSectionName.Contains("Health Assessment"))
+        {
+            var parts = fullSectionName.Split(" - ");
+            if (parts.Length >= 3)
+            {
+                return $"{parts[1]} - {parts[2]}"; // FormName - SectionName
+            }
+            return parts.Length > 1 ? parts[1] : fullSectionName;
+        }
+
+        return fullSectionName;
+    }
+
+    private string TruncateFieldName(string fieldName)
+    {
+        // Create shorter, more readable field names
+        var commonReplacements = new Dictionary<string, string>
+    {
+        { "Do you have", "Have" },
+        { "Have you ever", "Ever" },
+        { "Are you currently", "Currently" },
+        { "Please specify", "Specify" },
+        { "How many", "Count" },
+        { "What is your", "Your" },
+        { "Date of Birth", "DOB" },
+        { "Blood Pressure", "BP" },
+        { "Heart Rate", "HR" },
+        { "Body Mass Index", "BMI" },
+        { "Temperature", "Temp" }
+    };
+
+        string shortened = fieldName;
+        foreach (var replacement in commonReplacements)
+        {
+            shortened = shortened.Replace(replacement.Key, replacement.Value);
+        }
+
+        // If still too long, truncate and add ellipsis
+        if (shortened.Length > 15)
+        {
+            shortened = shortened.Substring(0, 12) + "...";
+        }
+
+        return shortened;
+    }
+
+    private XLColor GetMainSectionColor(string sectionName)
+    {
+        return sectionName.ToLowerInvariant() switch
+        {
+            "participant information" => XLColor.LightGray,
+            "health assessments" => XLColor.LightBlue,
+            "personal information" => XLColor.LightGreen,
+            "medical history" => XLColor.LightCoral,
+            "lifestyle" => XLColor.LightYellow,
+            "emergency contact" => XLColor.LightPink,
+            _ => XLColor.LightCyan
+        };
+    }
+
+    private string FormatFieldValue(string value, string fieldType)
+    {
+        return fieldType.ToLowerInvariant() switch
+        {
+            "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value,
+            "radio" => value,
+            "select" => value,
+            "multiselect" => value,
+            "date" => DateTime.TryParse(value, out var date) ? date.ToString("yyyy-MM-dd") : value,
+            "datetime" => DateTime.TryParse(value, out var datetime) ? datetime.ToString("yyyy-MM-dd HH:mm") : value,
+            "number" => decimal.TryParse(value, out var number) ? number.ToString("0.##") : value,
+            "email" => value,
+            "phone" => value,
+            "url" => value,
+            "textarea" => value,
+            "text" => value,
+            _ => value
+        };
+    }
+
+    // Supporting classes for header structure
+    public class HeaderStructure
+    {
+        public List<HeaderSection> Sections { get; set; } = new();
+
+        public void AddSection(string name, List<HeaderColumn> columns)
+        {
+            var section = Sections.FirstOrDefault(s => s.Name == name);
+            if (section == null)
+            {
+                section = new HeaderSection { Name = name };
+                Sections.Add(section);
+            }
+
+            // Group columns by subsection
+            var groupedColumns = columns.GroupBy(c => c.SubSection ?? "General").ToList();
+
+            foreach (var group in groupedColumns)
+            {
+                var subSection = new HeaderSubSection
+                {
+                    Name = group.Key == "General" ? "" : group.Key,
+                    Columns = group.ToList()
+                };
+                section.SubSections.Add(subSection);
+            }
+        }
+    }
+
+    public class HeaderSection
+    {
+        public string Name { get; set; } = "";
+        public List<HeaderSubSection> SubSections { get; set; } = new();
+    }
+
+    public class HeaderSubSection
+    {
+        public string Name { get; set; } = "";
+        public List<HeaderColumn> Columns { get; set; } = new();
+    }
+
+    public class HeaderColumn
+    {
+        public string FullName { get; set; }
+        public string ShortName { get; set; }
+        public string? SubSection { get; set; }
+
+        public HeaderColumn(string fullName, string shortName, string? subSection = null)
+        {
+            FullName = fullName;
+            ShortName = shortName;
+            SubSection = subSection;
+        }
     }
 }

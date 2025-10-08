@@ -285,8 +285,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     // Download Findings Implementation
 
-    public async Task<(byte[] ExcelData, string CampName, string OrganizationName)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
+    public async Task<(byte[] ExcelData, string CampName, string OrganizationName, DateTime ExportTimestamp)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
     {
+        var exportTimestamp = DateTime.Now.AddHours(3);
         var camp = await _healthCampRepository.GetByIdAsync(campId);
         if (camp == null)
             throw new NotFoundException($"Health camp with ID {campId} not found.");
@@ -636,7 +637,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         // Save and return
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return (stream.ToArray(), camp.Name, organizationName);
+        return (stream.ToArray(), camp.Name, organizationName, exportTimestamp);
     }
 
     private static int GetSectionPriority(string sectionName, string fieldLabel)

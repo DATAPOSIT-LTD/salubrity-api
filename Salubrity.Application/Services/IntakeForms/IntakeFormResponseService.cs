@@ -339,12 +339,15 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             allDtoResponses.AddRange(patientDtoResponses);
         }
 
-        // Get Health Assessment responses for the same patients
-        var allHealthAssessmentResponses = new List<HealthAssessmentResponseDto>();
-        foreach (var patientId in patientIds)
+        // ✅ REPLACE WITH: Build health assessment fields and lookup separately
+        var healthAssessmentFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority)>();
+        var healthAssessmentLookup = new Dictionary<Guid, Dictionary<string, string>>();
+
+        // Get sample health assessment structure for building headers (from first patient)
+        List<HealthAssessmentResponseDto> sampleHealthAssessmentResponses = new();
+        if (patientIds.Any())
         {
-            var healthAssessmentResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, campId, ct);
-            allHealthAssessmentResponses.AddRange(healthAssessmentResponses);
+            sampleHealthAssessmentResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientIds.First(), campId, ct);
         }
 
         // Process Intake Form fields with structured ordering
@@ -375,9 +378,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
 
         // Process Health Assessment fields
-        var healthAssessmentFields = new List<(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority)>();
-
-        foreach (var assessmentResponse in allHealthAssessmentResponses)
+        foreach (var assessmentResponse in sampleHealthAssessmentResponses)
         {
             foreach (var section in assessmentResponse.Sections)
             {
@@ -448,13 +449,12 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             .GroupBy(r => r.PatientId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
+
         // Create Health Assessment response lookup
-        var healthAssessmentLookup = new Dictionary<Guid, Dictionary<string, string>>();
         foreach (var patientId in patientIds)
         {
-            var patientHealthResponses = allHealthAssessmentResponses
-                .Where(r => patientIds.Contains(patientId))
-                .ToList();
+            // Get this specific patient's health assessment responses
+            var patientHealthResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, campId, ct);
 
             var fieldValueLookup = new Dictionary<string, string>();
             foreach (var assessmentResponse in patientHealthResponses)
@@ -470,6 +470,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             }
             healthAssessmentLookup[patientId] = fieldValueLookup;
         }
+
 
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add("Camp Data Export");

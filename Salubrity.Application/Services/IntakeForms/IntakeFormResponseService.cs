@@ -575,10 +575,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         foreach (var column in worksheet.Columns())
         {
             column.AdjustToContents();
-            if (column.Width > 50)
-                column.Width = 50;
-            if (column.Width < 10)
-                column.Width = 10;
+            if (column.Width > 40)
+                column.Width = 40;
+            if (column.Width < 12)
+                column.Width = 12;
         }
 
         // Apply borders and alternating row colors for data
@@ -1179,9 +1179,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return fullSectionName;
     }
 
+
     private string TruncateFieldName(string fieldName)
     {
-        // Create shorter, more readable field names
+        // Create shorter, more readable field names without truncating
         var commonReplacements = new Dictionary<string, string>
     {
         { "Do you have", "Have" },
@@ -1194,20 +1195,22 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         { "Blood Pressure", "BP" },
         { "Heart Rate", "HR" },
         { "Body Mass Index", "BMI" },
-        { "Temperature", "Temp" }
+        { "Temperature", "Temp" },
+        { "medication", "meds" },
+        { "family history", "family hist" },
+        { "medical history", "med hist" }
     };
 
         string shortened = fieldName;
         foreach (var replacement in commonReplacements)
         {
-            shortened = shortened.Replace(replacement.Key, replacement.Value);
+            shortened = shortened.Replace(replacement.Key, replacement.Value, StringComparison.OrdinalIgnoreCase);
         }
 
-        // If still too long, truncate and add ellipsis
-        if (shortened.Length > 15)
-        {
-            shortened = shortened.Substring(0, 12) + "...";
-        }
+        // Clean up spacing
+        shortened = shortened
+            .Replace("  ", " ")
+            .Trim();
 
         return shortened;
     }

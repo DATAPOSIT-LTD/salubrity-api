@@ -688,7 +688,7 @@ public class HealthCampService : IHealthCampService
 
     public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct)
     {
-        var principal = _jwt.ValidateToken(token, "salubrity-api", "camp-signin");
+        var principal = _jwt.ValidateToken(token, "camp-signin", "salubrity-api");
         if (principal == null)
             throw new ValidationException(["Invalid or expired token."]);
 

@@ -750,7 +750,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return Math.Max(0, age); // Ensure age is never negative
     }
 
-
     private static string CalculateLifestyleRisk(
         Dictionary<string, string> intakeFormResponses,
         Dictionary<string, string> healthAssessmentResponses,
@@ -787,12 +786,12 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         // Convert risk levels to numeric scores for calculation
         var riskScores = new List<int>
-        {
-            ConvertRiskToScore(bmiRisk),
-            ConvertRiskToScore(bloodPressureRisk),
-            ConvertRiskToScore(bloodGlucoseRisk),
-            ConvertRiskToScore(cholesterolRisk)
-        };
+    {
+        ConvertRiskToScore(bmiRisk),
+        ConvertRiskToScore(bloodPressureRisk),
+        ConvertRiskToScore(bloodGlucoseRisk),
+        ConvertRiskToScore(cholesterolRisk)
+    };
 
         // Filter out invalid scores (0 means no data available)
         var validScores = riskScores.Where(score => score > 0).ToList();
@@ -806,23 +805,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         var averageScore = validScores.Average();
 
         // Convert back to risk category
-        var calculatedRisk = ConvertScoreToRisk(averageScore);
-
-        // Check for high-risk factors that prevent Very Low or Low risk classification
-        var hasChronicDisease = CheckForChronicDisease(allValues);
-        var hasAlcoholUse = CheckForAlcoholUse(allValues);
-        var hasSmokingHabit = CheckForSmokingHabit(allValues);
-
-        // If any of the three high-risk factors are present, minimum risk is Medium
-        if (hasChronicDisease || hasAlcoholUse || hasSmokingHabit)
-        {
-            if (calculatedRisk == "Very Low" || calculatedRisk == "Low")
-            {
-                return "Medium";
-            }
-        }
-
-        return calculatedRisk;
+        return ConvertScoreToRisk(averageScore);
     }
 
     private static string CalculateBMIRisk(Dictionary<string, string> values)
@@ -910,55 +893,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
 
         return "No Data";
-    }
-
-    private static bool CheckForChronicDisease(Dictionary<string, string> allValues)
-    {
-        // Check for chronic disease response
-        var chronicDiseaseKey = "Do you suffer from any chronic disease? Diabetes, hypertension, thyroid, cancer, heart disease, stroke. If others, which one?";
-
-        if (allValues.TryGetValue(chronicDiseaseKey, out var chronicResponse))
-        {
-            // If response is not empty, null, "No", or "None", consider it as having chronic disease
-            return !string.IsNullOrWhiteSpace(chronicResponse) &&
-                   !chronicResponse.Equals("No", StringComparison.OrdinalIgnoreCase) &&
-                   !chronicResponse.Equals("None", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return false;
-    }
-
-    private static bool CheckForAlcoholUse(Dictionary<string, string> allValues)
-    {
-        // Check for alcohol use response
-        var alcoholKey = "Do you take alcohol?";
-
-        if (allValues.TryGetValue(alcoholKey, out var alcoholResponse))
-        {
-            // If response is "Yes" or any positive indication, consider it as alcohol use
-            return !string.IsNullOrWhiteSpace(alcoholResponse) &&
-                   !alcoholResponse.Equals("No", StringComparison.OrdinalIgnoreCase) &&
-                   !alcoholResponse.Equals("None", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return false;
-    }
-
-    private static bool CheckForSmokingHabit(Dictionary<string, string> allValues)
-    {
-        // Check for smoking response
-        var smokingKey = "Do you smoke? If yes, Count sticks per day?";
-
-        if (allValues.TryGetValue(smokingKey, out var smokingResponse))
-        {
-            // If response is not empty, null, "No", or "0", consider it as smoking
-            return !string.IsNullOrWhiteSpace(smokingResponse) &&
-                   !smokingResponse.Equals("No", StringComparison.OrdinalIgnoreCase) &&
-                   !smokingResponse.Equals("0", StringComparison.OrdinalIgnoreCase) &&
-                   !smokingResponse.Equals("None", StringComparison.OrdinalIgnoreCase);
-        }
-
-        return false;
     }
 
     private static string FindValueByKeywords(Dictionary<string, string> values, string[] keywords)

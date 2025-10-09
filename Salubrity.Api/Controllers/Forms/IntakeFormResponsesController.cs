@@ -124,7 +124,6 @@ public class IntakeFormResponsesController : BaseController
 
         var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        // Use the timestamp from the service
         var fileName = $"{safeOrgName}_Camp_{safeCampName}_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);

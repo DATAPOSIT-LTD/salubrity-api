@@ -1,5 +1,3 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using AutoMapper;
 using Microsoft.IdentityModel.Tokens;
 using Salubrity.Application.Common.Interfaces.Repositories;
@@ -11,6 +9,7 @@ using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Lookups;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Application.Interfaces.Repositories.Rbac;
 using Salubrity.Application.Interfaces.Security;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthcareServices;
@@ -22,6 +21,8 @@ using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Shared.Exceptions;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace Salubrity.Application.Services.HealthCamps;
 
@@ -45,8 +46,10 @@ public class HealthCampService : IHealthCampService
     private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
     private readonly INotificationService _notificationService;
     private readonly IHealthCampParticipantRepository _campParticipantRepository;
+    private readonly IRoleRepository _roleRepository;
 
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt)
+
+    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository)
     {
         _repo = repo;
         _mapper = mapper;
@@ -63,6 +66,8 @@ public class HealthCampService : IHealthCampService
         _notificationService = notificationService;
         _campParticipantRepository = campParticipantRepository ?? throw new ArgumentNullException(nameof(campParticipantRepository));
         _jwt = jwt ?? throw new ArgumentNullException(nameof(jwt));
+        _roleRepository = roleRepository ?? throw new ArgumentNullException(nameof(roleRepository));
+
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -271,12 +276,17 @@ public class HealthCampService : IHealthCampService
 
         // Assign new JTI and expiry
         camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");
-        camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");
+        camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");   
         camp.PosterTokensExpireAt = closeUtc;
 
+        var participantRole = await _roleRepository.FindByNameAsync("participant") ?? await _roleRepository.FindByNameAsync("patient");
+        var subcontractorRole = await _roleRepository.FindByNameAsync("subcontractor");
+        if (participantRole == null || subcontractorRole == null)
+            throw new InvalidOperationException("Role not found.");
+
         // Generate QR codes early
-        var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", camp.ParticipantPosterJti!, closeUtc);
-        var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", camp.SubcontractorPosterJti!, closeUtc);
+        var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", participantRole.Id, camp.ParticipantPosterJti!, closeUtc);
+        var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", subcontractorRole.Id, camp.SubcontractorPosterJti!, closeUtc);
 
         var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);
         var subcontractorPosterUrl = _tokenFactory.BuildSignInUrl(subcontractorPosterToken);

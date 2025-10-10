@@ -128,8 +128,9 @@ namespace Salubrity.Application.Services.Auth
                 }
             }
 
-            var role = await _roleRepository.GetByIdAsync(input.RoleId)
-                ?? throw new NotFoundException("Role", input.RoleId.ToString());
+            var role = await _roleRepository.GetByIdAsync(
+                input.RoleId ?? throw new ValidationException(["RoleId is required."])
+            ) ?? throw new NotFoundException("Role", input.RoleId?.ToString() ?? "null");
 
             // If OrganizationId is provided, make sure it exists
             if (input.OrganizationId.HasValue)
@@ -153,7 +154,7 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles = [new() { UserId = userId, RoleId = input.RoleId }],
+                UserRoles = [new() { UserId = userId, RoleId = input.RoleId ?? throw new ValidationException(["RoleId is required."]) }],
                 OrganizationId = input.OrganizationId
             };
 

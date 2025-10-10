@@ -285,7 +285,7 @@ public class HealthCampService : IHealthCampService
             throw new InvalidOperationException("Role not found.");
 
         // Generate QR codes early
-        var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", participantRole.Id, camp.ParticipantPosterJti!, closeUtc);
+        var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", participantRole.Id, camp.ParticipantPosterJti!, closeUtc, camp.OrganizationId);
         var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", subcontractorRole.Id, camp.SubcontractorPosterJti!, closeUtc);
 
         var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);

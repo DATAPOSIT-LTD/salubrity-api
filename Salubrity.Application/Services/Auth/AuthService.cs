@@ -109,6 +109,16 @@ namespace Salubrity.Application.Services.Auth
             if (existingUser is not null)
                 throw new ValidationException(["A user with this email already exists."]);
 
+            // --- Extract roleId from camp token if present ---
+            if (!string.IsNullOrWhiteSpace(input.CampToken))
+            {
+                var principal = _jwtService.ValidateToken(input.CampToken, "camp-signin", "salubrity-api");
+                var roleIdClaim = principal?.Claims.FirstOrDefault(c => c.Type == "roleId")?.Value;
+                if (!Guid.TryParse(roleIdClaim, out var tokenRoleId))
+                    throw new ValidationException(["Invalid or missing roleId in camp token."]);
+                input.RoleId = tokenRoleId;
+            }
+
             var role = await _roleRepository.GetByIdAsync(input.RoleId)
                 ?? throw new NotFoundException("Role", input.RoleId.ToString());
 

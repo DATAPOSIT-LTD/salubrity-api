@@ -53,6 +53,16 @@ public class UserService : IUserService
         if (user is null)
             return ApiResponse<string>.CreateFailure("User not found.");
 
+        // Check for duplicate phone number
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            var existingWithPhone = await _userRepository.FindUserByPhoneAsync(request.Phone);
+            if (existingWithPhone != null && existingWithPhone.Id != id)
+            {
+                return ApiResponse<string>.CreateFailure("A user with this phone number already exists.");
+            }
+        }
+
         _mapper.Map(request, user);
         await _userRepository.UpdateUserAsync(user);
 

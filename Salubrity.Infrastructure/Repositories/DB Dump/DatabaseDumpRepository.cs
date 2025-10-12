@@ -23,6 +23,15 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
 
         public async Task<string> CreateDumpAsync()
         {
+            // Use configured directory or fallback to a writable directory inside the app folder
+            var directory = string.IsNullOrWhiteSpace(_options.Directory)
+                ? Path.Combine(AppContext.BaseDirectory, "dbdumps")
+                : _options.Directory;
+
+            // Ensure the directory exists
+            if (!Directory.Exists(directory))
+                Directory.CreateDirectory(directory);
+
             var builder = new NpgsqlConnectionStringBuilder(_connectionString);
             var database = builder.Database;
             var host = builder.Host;
@@ -30,17 +39,8 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
             var username = builder.Username;
             var password = builder.Password;
 
-            var fileName = $"Salubrity_dump_{DateTime.UtcNow.AddHours(3):yyyyMMdd_HHmmss}.sql";
-            var filePath = Path.Combine(_options.Directory, fileName);
-
-            if (string.IsNullOrWhiteSpace(_options.Directory))
-                throw new InvalidOperationException("Database dump directory is not configured. Please set DatabaseDump:Directory in your configuration.");
-
-            Directory.CreateDirectory(_options.Directory);
-
-            var directory = string.IsNullOrWhiteSpace(_options.Directory)
-                ? "/var/dbdumps"
-                : _options.Directory;
+            var fileName = $"dbdump_{DateTime.UtcNow:yyyyMMdd_HHmmss}.sql";
+            var filePath = Path.Combine(directory, fileName);
 
             // Build the pg_dump command
             var args = $"-h {host} -p {port} -U {username} -F p -d {database} -f \"{filePath}\"";

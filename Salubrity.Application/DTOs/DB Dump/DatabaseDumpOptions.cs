@@ -2,6 +2,6 @@
 {
     public class DatabaseDumpOptions
     {
-        public string Directory { get; set; } = string.Empty;
+        public string Directory { get; set; } = "/var/dbdumps";
     }
 }

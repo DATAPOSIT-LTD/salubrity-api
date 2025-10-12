@@ -38,6 +38,10 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
 
             Directory.CreateDirectory(_options.Directory);
 
+            var directory = string.IsNullOrWhiteSpace(_options.Directory)
+                ? "/var/dbdumps"
+                : _options.Directory;
+
             // Build the pg_dump command
             var args = $"-h {host} -p {port} -U {username} -F p -d {database} -f \"{filePath}\"";
 

@@ -3,10 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Salubrity.Application.Common.Interfaces.Repositories;
+using Salubrity.Application.DTOs.DB_Dump;
 using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Application.Interfaces.Repositories.Clinical;
 using Salubrity.Application.Interfaces.Repositories.Concierge;
+using Salubrity.Application.Interfaces.Repositories.DB_Dump;
 using Salubrity.Application.Interfaces.Repositories.HealthAssesment;
 using Salubrity.Application.Interfaces.Repositories.HealthAssessment;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
@@ -33,6 +35,7 @@ using Salubrity.Infrastructure.Repositories;
 using Salubrity.Infrastructure.Repositories.Camps;
 using Salubrity.Infrastructure.Repositories.Clinical;
 using Salubrity.Infrastructure.Repositories.Concierge;
+using Salubrity.Infrastructure.Repositories.DB_Dump;
 using Salubrity.Infrastructure.Repositories.Employees;
 using Salubrity.Infrastructure.Repositories.HealthAssesment;
 using Salubrity.Infrastructure.Repositories.HealthAssessments;
@@ -124,6 +127,11 @@ public static class DependencyInjection
         services.AddScoped<IFormFieldMappingRepository, FormFieldMappingRepository>();
         services.AddScoped<IPatientNumberRepository, PatientNumberRepository>();
         services.AddScoped<IDoctorRecommendationRepository, DoctorRecommendationRepository>();
+
+        // DB Dump Service
+        services.Configure<DatabaseDumpOptions>(config.GetSection("DatabaseDump"));
+        services.AddScoped<IDatabaseDumpRepository, DatabaseDumpRepository>();
+
 
 
         services.AddDbContext<AppDbContext>(options =>

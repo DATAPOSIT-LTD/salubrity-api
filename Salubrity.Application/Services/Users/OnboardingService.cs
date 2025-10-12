@@ -88,15 +88,14 @@ namespace Salubrity.Application.Services.Users
         private static bool CheckProfileCompletion(User user)
         {
             return !string.IsNullOrWhiteSpace(user.FirstName) &&
-                   //!string.IsNullOrWhiteSpace(user.LastName) && // middle name not required
                    !string.IsNullOrWhiteSpace(user.Email) &&
                    !string.IsNullOrWhiteSpace(user.Phone) &&
                    !string.IsNullOrWhiteSpace(user.NationalId) &&
-                   user.DateOfBirth != default &&
+                   user.DateOfBirth.HasValue &&
                    !string.IsNullOrWhiteSpace(user.PrimaryLanguage) &&
                    !string.IsNullOrWhiteSpace(user.ProfileImage) &&
-                   user.GenderId != Guid.Empty &&
-                   user.OrganizationId != Guid.Empty;
+                   user.GenderId.HasValue && user.GenderId.Value != Guid.Empty &&
+                   user.OrganizationId.HasValue && user.OrganizationId.Value != Guid.Empty;
         }
 
         private async Task<bool> CheckRoleSpecificCompletionAsync(User user, CancellationToken ct)

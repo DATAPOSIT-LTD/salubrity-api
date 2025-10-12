@@ -12,12 +12,15 @@ public class UserService : IUserService
     private readonly IUserRepository _userRepository;
     private readonly IUserRoleReadRepository _userRoleReadRepository;
     private readonly IMapper _mapper;
+    private readonly IOnboardingService _onboardingService;
 
-    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository)
+
+    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository, IOnboardingService onboardingService)
     {
         _userRepository = userRepository;
         _mapper = mapper;
         _userRoleReadRepository = userRoleRepository;
+        _onboardingService = onboardingService;
     }
 
     public async Task<ApiResponse<UserResponse>> GetByIdAsync(Guid id)
@@ -65,6 +68,8 @@ public class UserService : IUserService
 
         _mapper.Map(request, user);
         await _userRepository.UpdateUserAsync(user);
+
+        await _onboardingService.CheckAndUpdateOnboardingStatusAsync(id);
 
         return ApiResponse<string>.CreateSuccessMessage("User updated successfully.");
     }

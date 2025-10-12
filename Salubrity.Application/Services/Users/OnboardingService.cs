@@ -87,6 +87,14 @@ namespace Salubrity.Application.Services.Users
 
         private static bool CheckProfileCompletion(User user)
         {
+            if (string.IsNullOrWhiteSpace(user.FirstName)) Console.WriteLine("FirstName missing");
+            if (string.IsNullOrWhiteSpace(user.Email)) Console.WriteLine("Email missing");
+            if (string.IsNullOrWhiteSpace(user.Phone)) Console.WriteLine("Phone missing");
+            if (string.IsNullOrWhiteSpace(user.NationalId)) Console.WriteLine("NationalId missing");
+            if (!user.DateOfBirth.HasValue) Console.WriteLine("DateOfBirth missing");
+            if (!user.GenderId.HasValue || user.GenderId.Value == Guid.Empty) Console.WriteLine("GenderId missing");
+            if (!user.OrganizationId.HasValue || user.OrganizationId.Value == Guid.Empty) Console.WriteLine("OrganizationId missing");
+
             return !string.IsNullOrWhiteSpace(user.FirstName) &&
                    !string.IsNullOrWhiteSpace(user.Email) &&
                    !string.IsNullOrWhiteSpace(user.Phone) &&

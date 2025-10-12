@@ -33,6 +33,9 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
             var fileName = $"Salubrity_dump_{DateTime.UtcNow.AddHours(3):yyyyMMdd_HHmmss}.sql";
             var filePath = Path.Combine(_options.Directory, fileName);
 
+            if (string.IsNullOrWhiteSpace(_options.Directory))
+                throw new InvalidOperationException("Database dump directory is not configured. Please set DatabaseDump:Directory in your configuration.");
+
             Directory.CreateDirectory(_options.Directory);
 
             // Build the pg_dump command

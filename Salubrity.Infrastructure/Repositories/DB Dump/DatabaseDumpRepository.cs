@@ -10,25 +10,20 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
 {
     public class DatabaseDumpRepository : IDatabaseDumpRepository
     {
-        private readonly DatabaseDumpOptions _options;
         private readonly string _connectionString;
 
         public DatabaseDumpRepository(
-            IOptions<DatabaseDumpOptions> options,
+            IOptions<DatabaseDumpOptions> options, // still required for DI, but not used
             IConfiguration configuration)
         {
-            _options = options.Value;
             _connectionString = configuration.GetConnectionString("DefaultConnection")!;
         }
 
         public async Task<string> CreateDumpAsync()
         {
-            // Use configured directory or fallback to a writable directory inside the app folder
-            var directory = string.IsNullOrWhiteSpace(_options.Directory)
-                ? Path.Combine(AppContext.BaseDirectory, "dbdumps")
-                : _options.Directory;
+            // Hardcoded writable directory inside the app's base directory
+            var directory = Path.Combine(AppContext.BaseDirectory, "dbdumps");
 
-            // Ensure the directory exists
             if (!Directory.Exists(directory))
                 Directory.CreateDirectory(directory);
 

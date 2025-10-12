@@ -13,7 +13,7 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
         private readonly string _connectionString;
 
         public DatabaseDumpRepository(
-            IOptions<DatabaseDumpOptions> options, // still required for DI, but not used
+            IOptions<DatabaseDumpOptions> options, // required for DI, not used
             IConfiguration configuration)
         {
             _connectionString = configuration.GetConnectionString("DefaultConnection")!;
@@ -21,11 +21,21 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
 
         public async Task<string> CreateDumpAsync()
         {
-            // Hardcoded writable directory inside the app's base directory
-            var directory = Path.Combine(AppContext.BaseDirectory, "dbdumps");
+            // Use a folder called "dbdumps" in the current working directory
+            var directory = Path.Combine(Directory.GetCurrentDirectory(), "dbdumps");
 
-            if (!Directory.Exists(directory))
-                Directory.CreateDirectory(directory);
+            try
+            {
+                if (!Directory.Exists(directory))
+                    Directory.CreateDirectory(directory);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    $"Could not create or access the dump directory '{directory}'. " +
+                    $"Error: {ex.Message}. " +
+                    $"Make sure the application has write permissions to its own folder.");
+            }
 
             var builder = new NpgsqlConnectionStringBuilder(_connectionString);
             var database = builder.Database;
@@ -34,10 +44,9 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
             var username = builder.Username;
             var password = builder.Password;
 
-            var fileName = $"dbdump_{DateTime.UtcNow:yyyyMMdd_HHmmss}.sql";
+            var fileName = $"Salubrity_{DateTime.UtcNow.AddHours(3):yyyyMMdd_HHmmss}.sql";
             var filePath = Path.Combine(directory, fileName);
 
-            // Build the pg_dump command
             var args = $"-h {host} -p {port} -U {username} -F p -d {database} -f \"{filePath}\"";
 
             var startInfo = new ProcessStartInfo
@@ -50,7 +59,6 @@ namespace Salubrity.Infrastructure.Repositories.DB_Dump
                 CreateNoWindow = true,
             };
 
-            // Pass the password via environment variable
             startInfo.Environment["PGPASSWORD"] = password;
 
             using var process = new Process { StartInfo = startInfo };

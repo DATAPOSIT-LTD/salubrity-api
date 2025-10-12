@@ -69,7 +69,7 @@ public class UserService : IUserService
         _mapper.Map(request, user);
         await _userRepository.UpdateUserAsync(user);
 
-        await _onboardingService.CheckAndUpdateOnboardingStatusAsync(id);
+        await _onboardingService.CheckAndUpdateOnboardingStatusAsync(user.Id);
 
         return ApiResponse<string>.CreateSuccessMessage("User updated successfully.");
     }

@@ -138,7 +138,7 @@ namespace Salubrity.Application.Services.Users
             if (string.IsNullOrWhiteSpace(user.NationalId)) Console.WriteLine("NationalId missing");
             if (!user.DateOfBirth.HasValue) Console.WriteLine("DateOfBirth missing");
             if (!user.GenderId.HasValue || user.GenderId.Value == Guid.Empty) Console.WriteLine("GenderId missing");
-            if (!user.OrganizationId.HasValue || user.OrganizationId.Value == Guid.Empty) Console.WriteLine("OrganizationId missing");
+            //if (!user.OrganizationId.HasValue || user.OrganizationId.Value == Guid.Empty) Console.WriteLine("OrganizationId missing");
 
             return !string.IsNullOrWhiteSpace(user.FirstName) &&
                    !string.IsNullOrWhiteSpace(user.Email) &&
@@ -146,7 +146,7 @@ namespace Salubrity.Application.Services.Users
                    !string.IsNullOrWhiteSpace(user.NationalId) &&
                    user.DateOfBirth.HasValue &&
                    user.GenderId.HasValue && user.GenderId.Value != Guid.Empty &&
-                   user.OrganizationId.HasValue && user.OrganizationId.Value != Guid.Empty;
+                   //user.OrganizationId.HasValue && user.OrganizationId.Value != Guid.Empty;
         }
 
         private async Task<bool> CheckRoleSpecificCompletionAsync(User user, CancellationToken ct)

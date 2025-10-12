@@ -92,8 +92,6 @@ namespace Salubrity.Application.Services.Users
                    !string.IsNullOrWhiteSpace(user.Phone) &&
                    !string.IsNullOrWhiteSpace(user.NationalId) &&
                    user.DateOfBirth.HasValue &&
-                   !string.IsNullOrWhiteSpace(user.PrimaryLanguage) &&
-                   !string.IsNullOrWhiteSpace(user.ProfileImage) &&
                    user.GenderId.HasValue && user.GenderId.Value != Guid.Empty &&
                    user.OrganizationId.HasValue && user.OrganizationId.Value != Guid.Empty;
         }

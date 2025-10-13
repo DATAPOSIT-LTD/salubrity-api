@@ -29,6 +29,7 @@ namespace Salubrity.Application.Services.Auth
 {
     public class AuthService : IAuthService
     {
+
         private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
         private readonly IPasswordHasher _passwordHasher;

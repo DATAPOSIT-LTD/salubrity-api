@@ -42,9 +42,9 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                     kvp => kvp.Value
                         .SelectMany(assessment => assessment.Sections
                             .SelectMany(section => section.Fields
-                                .Select(field => new { section.SectionName, field })))
+                                .Select(field => new { assessment.FormName, section.SectionName, field })))
                         .ToDictionary(
-                            item => $"health_{kvp.Value.First().FormName}_{item.SectionName}_{item.field.FieldLabel}".Replace(" ", "_"),
+                            item => $"health_{item.FormName}_{item.SectionName}_{item.field.FieldLabel}".Replace(" ", "_"),
                             item => item.field.Value ?? item.field.SelectedOption ?? ""
                         )
                 );
@@ -68,49 +68,43 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             var intakeFormFields = new List<FieldDefinition>();
             var existingFieldIds = new HashSet<string>();
 
-            // Prefer DTO responses for field structure
-            foreach (var dtoResponse in dtoResponses)
+            // Process all DTO responses from all participants
+            foreach (var fieldResponse in dtoResponses.SelectMany(r => r.FieldResponses))
             {
-                foreach (var fieldResponse in dtoResponse.FieldResponses)
+                var fieldId = $"intake_{fieldResponse.FieldId}";
+                if (existingFieldIds.Add(fieldId))
                 {
-                    var fieldId = $"intake_{fieldResponse.FieldId}";
-                    if (existingFieldIds.Add(fieldId))
-                    {
-                        var sectionName = fieldResponse.Field.SectionName ?? "General";
-                        intakeFormFields.Add(new FieldDefinition
-                        (
-                            FieldId: fieldId,
-                            Label: fieldResponse.Field.Label,
-                            SectionName: sectionName,
-                            Order: fieldResponse.Field.Order,
-                            FieldType: fieldResponse.Field.FieldType ?? "text",
-                            DataSource: "IntakeForm",
-                            SectionPriority: GetSectionPriority(sectionName, fieldResponse.Field.Label)
-                        ));
-                    }
+                    var sectionName = fieldResponse.Field.SectionName ?? "General";
+                    intakeFormFields.Add(new FieldDefinition
+                    (
+                        FieldId: fieldId,
+                        Label: fieldResponse.Field.Label,
+                        SectionName: sectionName,
+                        Order: fieldResponse.Field.Order,
+                        FieldType: fieldResponse.Field.FieldType ?? "text",
+                        DataSource: "IntakeForm",
+                        SectionPriority: GetSectionPriority(sectionName, fieldResponse.Field.Label)
+                    ));
                 }
             }
 
-            // Fallback to entity responses if no DTOs and also to capture any missing fields
-            foreach (var entityResponse in entityResponses)
+            // Also process all entity responses to catch any fields not present in DTOs
+            foreach (var fieldResponse in entityResponses.SelectMany(r => r.FieldResponses))
             {
-                foreach (var fieldResponse in entityResponse.FieldResponses)
+                var fieldId = $"intake_{fieldResponse.FieldId}";
+                if (existingFieldIds.Add(fieldId))
                 {
-                    var fieldId = $"intake_{fieldResponse.FieldId}";
-                    if (existingFieldIds.Add(fieldId))
-                    {
-                        var sectionName = fieldResponse.Field.Section?.Name ?? "General";
-                        intakeFormFields.Add(new FieldDefinition
-                        (
-                            FieldId: fieldId,
-                            Label: fieldResponse.Field.Label,
-                            SectionName: sectionName,
-                            Order: fieldResponse.Field.Order,
-                            FieldType: fieldResponse.Field.FieldType ?? "text",
-                            DataSource: "IntakeForm",
-                            SectionPriority: GetSectionPriority(sectionName, fieldResponse.Field.Label)
-                        ));
-                    }
+                    var sectionName = fieldResponse.Field.Section?.Name ?? "General";
+                    intakeFormFields.Add(new FieldDefinition
+                    (
+                        FieldId: fieldId,
+                        Label: fieldResponse.Field.Label,
+                        SectionName: sectionName,
+                        Order: fieldResponse.Field.Order,
+                        FieldType: fieldResponse.Field.FieldType ?? "text",
+                        DataSource: "IntakeForm",
+                        SectionPriority: GetSectionPriority(sectionName, fieldResponse.Field.Label)
+                    ));
                 }
             }
 

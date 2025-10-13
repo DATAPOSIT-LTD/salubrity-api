@@ -46,7 +46,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 worksheet.Cell(currentRow, 7).Value = participant.User.DateOfBirth.HasValue ? CalculateAge(participant.User.DateOfBirth.Value, DateTime.Now).ToString() : "";
 
                 // Get response lookups
-                var intakeFormResponseLookup = GetIntakeFormResponseLookup(data.DtoResponseLookup, participantGroup, participant.Id);
+                var intakeFormResponseLookup = GetIntakeFormResponseLookup(data.DtoResponseLookup, participant.Id);
                 var healthAssessmentResponseLookup = data.HealthAssessmentLookup.TryGetValue(participant.Id, out var healthResponses)
                     ? healthResponses
                     : new Dictionary<string, string>();
@@ -78,7 +78,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             }
         }
 
-        private Dictionary<string, string> GetIntakeFormResponseLookup(Dictionary<Guid, List<IntakeFormResponseDetailDto>> dtoLookup, IGrouping<Guid, IntakeFormResponse> participantGroup, Guid patientId)
+        private Dictionary<string, string> GetIntakeFormResponseLookup(Dictionary<Guid, List<IntakeFormResponseDetailDto>> dtoLookup, Guid patientId)
         {
             if (dtoLookup.TryGetValue(patientId, out var dtoList) && dtoList.Any())
             {
@@ -88,10 +88,9 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                     .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
             }
 
-            return participantGroup
-                .SelectMany(r => r.FieldResponses)
-                .GroupBy(fr => $"intake_{fr.FieldId}")
-                .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
+            // Since we no longer pass the entity group, we return an empty dictionary if no DTO is found.
+            // The data is still processed correctly from the main DTO list.
+            return new Dictionary<string, string>();
         }
 
         private HeaderStructure CreateHeaderStructure(IEnumerable<IGrouping<dynamic, FieldDefinition>> fieldsBySection)
@@ -99,17 +98,17 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             var structure = new HeaderStructure();
 
             // Add fixed participant columns
-            structure.AddSection("Patient Information", new List<HeaderColumn>
-            {
-                new("Name", "Name"),
-                new("Email", "Email"),
-                new("Phone", "Phone"),
-                new("Gender", "Gender"),
-                new("ID Number", "ID"),
-                new("Date of Birth", "DOB"),
-                new("Age", "Age"),
-                new("Lifestyle Risk", "Risk")
-            });
+            structure.AddSection("Participant Information", new List<HeaderColumn>
+        {
+            new("Name", "Name"),
+            new("Email", "Email"),
+            new("Phone", "Phone"),
+            new("Gender", "Gender"),
+            new("ID Number", "ID"),
+            new("Date of Birth", "DOB"),
+            new("Age", "Age"),
+            new("Lifestyle Risk", "Risk")
+        });
 
             // Group fields by main section and subsection
             foreach (var sectionGroup in fieldsBySection)

@@ -69,29 +69,32 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             var existingFieldIds = new HashSet<string>();
 
             // Prefer DTO responses for field structure
-            foreach (var fieldResponse in dtoResponses.SelectMany(r => r.FieldResponses))
+            foreach (var dtoResponse in dtoResponses)
             {
-                var fieldId = $"intake_{fieldResponse.FieldId}";
-                if (existingFieldIds.Add(fieldId))
+                foreach (var fieldResponse in dtoResponse.FieldResponses)
                 {
-                    var sectionName = fieldResponse.Field.SectionName ?? "General";
-                    intakeFormFields.Add(new FieldDefinition
-                    (
-                        FieldId: fieldId,
-                        Label: fieldResponse.Field.Label,
-                        SectionName: sectionName,
-                        Order: fieldResponse.Field.Order,
-                        FieldType: fieldResponse.Field.FieldType ?? "text",
-                        DataSource: "IntakeForm",
-                        SectionPriority: GetSectionPriority(sectionName, fieldResponse.Field.Label)
-                    ));
+                    var fieldId = $"intake_{fieldResponse.FieldId}";
+                    if (existingFieldIds.Add(fieldId))
+                    {
+                        var sectionName = fieldResponse.Field.SectionName ?? "General";
+                        intakeFormFields.Add(new FieldDefinition
+                        (
+                            FieldId: fieldId,
+                            Label: fieldResponse.Field.Label,
+                            SectionName: sectionName,
+                            Order: fieldResponse.Field.Order,
+                            FieldType: fieldResponse.Field.FieldType ?? "text",
+                            DataSource: "IntakeForm",
+                            SectionPriority: GetSectionPriority(sectionName, fieldResponse.Field.Label)
+                        ));
+                    }
                 }
             }
 
-            // Fallback to entity responses if no DTOs
-            if (!intakeFormFields.Any())
+            // Fallback to entity responses if no DTOs and also to capture any missing fields
+            foreach (var entityResponse in entityResponses)
             {
-                foreach (var fieldResponse in entityResponses.SelectMany(r => r.FieldResponses))
+                foreach (var fieldResponse in entityResponse.FieldResponses)
                 {
                     var fieldId = $"intake_{fieldResponse.FieldId}";
                     if (existingFieldIds.Add(fieldId))
@@ -118,11 +121,11 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         {
             var healthAssessmentFields = new List<FieldDefinition>();
             var existingFieldIds = new HashSet<string>();
-            var sampleAssessment = healthAssessmentResponses.Values.FirstOrDefault();
 
-            if (sampleAssessment != null)
+            // Iterate through all patient assessments to build a complete list of fields
+            foreach (var patientAssessments in healthAssessmentResponses.Values)
             {
-                foreach (var assessmentResponse in sampleAssessment)
+                foreach (var assessmentResponse in patientAssessments)
                 {
                     foreach (var section in assessmentResponse.Sections)
                     {

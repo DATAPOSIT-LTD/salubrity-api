@@ -110,8 +110,28 @@ namespace Salubrity.Application.Services.Auth
             if (existingUser is not null)
                 throw new ValidationException(["A user with this email already exists."]);
 
-            var role = await _roleRepository.GetByIdAsync(input.RoleId)
-                ?? throw new NotFoundException("Role", input.RoleId.ToString());
+            // --- Extract roleId and org id from camp token if present ---
+            if (!string.IsNullOrWhiteSpace(input.CampToken))
+            {
+                var principal = _jwtService.ValidateToken(input.CampToken, "camp-signin", "salubrity-api");
+
+                // Extract roleId
+                var roleIdClaim = principal?.Claims.FirstOrDefault(c => c.Type == "roleId")?.Value;
+                if (!Guid.TryParse(roleIdClaim, out var tokenRoleId))
+                    throw new ValidationException(["Invalid or missing roleId in camp token."]);
+                input.RoleId = tokenRoleId;
+
+                // Extract organizationId
+                var orgIdClaim = principal?.Claims.FirstOrDefault(c => c.Type == "organizationId")?.Value;
+                if (!string.IsNullOrWhiteSpace(orgIdClaim) && Guid.TryParse(orgIdClaim, out var tokenOrgId))
+                {
+                    input.OrganizationId = tokenOrgId;
+                }
+            }
+
+            var role = await _roleRepository.GetByIdAsync(
+                input.RoleId ?? throw new ValidationException(["RoleId is required."])
+            ) ?? throw new NotFoundException("Role", input.RoleId?.ToString() ?? "null");
 
             // If OrganizationId is provided, make sure it exists
             if (input.OrganizationId.HasValue)
@@ -135,7 +155,7 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles = [new() { UserId = userId, RoleId = input.RoleId }],
+                UserRoles = [new() { UserId = userId, RoleId = input.RoleId ?? throw new ValidationException(["RoleId is required."]) }],
                 OrganizationId = input.OrganizationId
             };
 

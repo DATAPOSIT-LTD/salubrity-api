@@ -114,15 +114,17 @@ public class IntakeFormResponsesController : BaseController
 
     // Download Findings Implmentation
 
-    [HttpGet("export-camp-data/{campId}")]
+    [HttpGet("camp/{campId}/data/export")]
     //[Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExportCampData(Guid campId, CancellationToken ct)
     {
-        var excelData = await _service.ExportCampDataToExcelAsync(campId, ct);
+        var (excelData, campName, organizationName, exportTimestamp) = await _service.ExportCampDataToExcelAsync(campId, ct);
 
-        var fileName = $"Camp_Data_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
+        var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
+        var fileName = $"{safeOrgName}_Camp_{safeCampName}_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }

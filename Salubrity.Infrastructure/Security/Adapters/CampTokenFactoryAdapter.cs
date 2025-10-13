@@ -30,9 +30,11 @@ public sealed class CampTokenFactoryAdapter : ICampTokenFactory
         => CreateTokenBase(campId, role, jti, expiresUtc,
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
 
-    public string CreatePosterToken(Guid campId, string role, string jti, DateTimeOffset expiresUtc)
+    public string CreatePosterToken(Guid campId, string role, Guid roleId, string jti, DateTimeOffset expiresUtc, Guid? organizationId = null)
         => CreateTokenBase(campId, role, jti, expiresUtc,
-            new Claim("poster", "1"));
+            new Claim("poster", "1"),
+            new Claim("roleId", roleId.ToString()),
+            organizationId.HasValue ? new Claim("organizationId", organizationId.Value.ToString()) : null);
 
     private string CreateTokenBase(Guid campId, string role, string jti, DateTimeOffset exp, params Claim[] extra)
     {

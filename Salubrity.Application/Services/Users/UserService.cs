@@ -12,12 +12,15 @@ public class UserService : IUserService
     private readonly IUserRepository _userRepository;
     private readonly IUserRoleReadRepository _userRoleReadRepository;
     private readonly IMapper _mapper;
+    private readonly IOnboardingService _onboardingService;
 
-    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository)
+
+    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository, IOnboardingService onboardingService)
     {
         _userRepository = userRepository;
         _mapper = mapper;
         _userRoleReadRepository = userRoleRepository;
+        _onboardingService = onboardingService;
     }
 
     public async Task<ApiResponse<UserResponse>> GetByIdAsync(Guid id)
@@ -53,8 +56,20 @@ public class UserService : IUserService
         if (user is null)
             return ApiResponse<string>.CreateFailure("User not found.");
 
+        // Check for duplicate phone number
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            var existingWithPhone = await _userRepository.FindUserByPhoneAsync(request.Phone);
+            if (existingWithPhone != null && existingWithPhone.Id != id)
+            {
+                return ApiResponse<string>.CreateFailure("A user with this phone number already exists.");
+            }
+        }
+
         _mapper.Map(request, user);
         await _userRepository.UpdateUserAsync(user);
+
+        await _onboardingService.CheckAndUpdateOnboardingStatusAsync(user.Id);
 
         return ApiResponse<string>.CreateSuccessMessage("User updated successfully.");
     }

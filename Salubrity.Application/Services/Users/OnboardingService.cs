@@ -25,6 +25,61 @@ namespace Salubrity.Application.Services.Users
             _notificationService = notificationService;
         }
 
+        //public async Task<bool> CheckAndUpdateOnboardingStatusAsync(Guid userId, CancellationToken ct = default)
+        //{
+        //    var user = await _userRepository.FindUserByIdAsync(userId);
+        //    if (user == null) return false;
+
+        //    var onboardingStatus = await _onboardingStatusRepository.GetByUserIdAsync(userId, ct);
+        //    if (onboardingStatus == null)
+        //    {
+        //        onboardingStatus = new OnboardingStatus
+        //        {
+        //            UserId = userId,
+        //            IsProfileComplete = false,
+        //            IsRoleSpecificDataComplete = false,
+        //            IsOnboardingComplete = false
+        //        };
+        //        onboardingStatus = await _onboardingStatusRepository.CreateAsync(onboardingStatus, ct);
+        //    }
+
+        //    // Check profile and role-specific completion
+        //    bool profileComplete = CheckProfileCompletion(user);
+        //    bool roleSpecificComplete = await CheckRoleSpecificCompletionAsync(user, ct);
+        //    bool overallComplete = profileComplete && roleSpecificComplete;
+
+        //    // Update if status has changed
+        //    if (onboardingStatus.IsProfileComplete != profileComplete ||
+        //        onboardingStatus.IsRoleSpecificDataComplete != roleSpecificComplete ||
+        //        onboardingStatus.IsOnboardingComplete != overallComplete)
+        //    {
+        //        onboardingStatus.IsProfileComplete = profileComplete;
+        //        onboardingStatus.IsRoleSpecificDataComplete = roleSpecificComplete;
+        //        onboardingStatus.IsOnboardingComplete = overallComplete;
+
+        //        if (overallComplete && onboardingStatus.CompletedAt == null)
+        //        {
+        //            onboardingStatus.CompletedAt = DateTime.UtcNow;
+        //        }
+
+        //        await _onboardingStatusRepository.UpdateAsync(onboardingStatus, ct);
+
+        //        if (overallComplete)
+        //        {
+        //            await _notificationService.TriggerNotificationAsync(
+        //                title: "Onboarding Complete",
+        //                message: $"User '{user.FullName}' has completed onboarding.",
+        //                type: "Onboarding",
+        //                entityId: user.Id,
+        //                entityType: "User",
+        //                ct: ct
+        //            );
+        //        }
+        //    }
+
+        //    return overallComplete;
+        //}
+
         public async Task<bool> CheckAndUpdateOnboardingStatusAsync(Guid userId, CancellationToken ct = default)
         {
             var user = await _userRepository.FindUserByIdAsync(userId);
@@ -35,46 +90,36 @@ namespace Salubrity.Application.Services.Users
             {
                 onboardingStatus = new OnboardingStatus
                 {
-                    UserId = userId,
-                    IsProfileComplete = false,
-                    IsRoleSpecificDataComplete = false,
-                    IsOnboardingComplete = false
+                    UserId = userId
                 };
                 onboardingStatus = await _onboardingStatusRepository.CreateAsync(onboardingStatus, ct);
             }
 
-            // Check profile and role-specific completion
             bool profileComplete = CheckProfileCompletion(user);
             bool roleSpecificComplete = await CheckRoleSpecificCompletionAsync(user, ct);
             bool overallComplete = profileComplete && roleSpecificComplete;
 
-            // Update if status has changed
-            if (onboardingStatus.IsProfileComplete != profileComplete ||
-                onboardingStatus.IsRoleSpecificDataComplete != roleSpecificComplete ||
-                onboardingStatus.IsOnboardingComplete != overallComplete)
+            onboardingStatus.IsProfileComplete = profileComplete;
+            onboardingStatus.IsRoleSpecificDataComplete = roleSpecificComplete;
+            onboardingStatus.IsOnboardingComplete = overallComplete;
+
+            if (overallComplete && onboardingStatus.CompletedAt == null)
             {
-                onboardingStatus.IsProfileComplete = profileComplete;
-                onboardingStatus.IsRoleSpecificDataComplete = roleSpecificComplete;
-                onboardingStatus.IsOnboardingComplete = overallComplete;
+                onboardingStatus.CompletedAt = DateTime.UtcNow;
+            }
 
-                if (overallComplete && onboardingStatus.CompletedAt == null)
-                {
-                    onboardingStatus.CompletedAt = DateTime.UtcNow;
-                }
+            await _onboardingStatusRepository.UpdateAsync(onboardingStatus, ct);
 
-                await _onboardingStatusRepository.UpdateAsync(onboardingStatus, ct);
-
-                if (overallComplete)
-                {
-                    await _notificationService.TriggerNotificationAsync(
-                        title: "Onboarding Complete",
-                        message: $"User '{user.FullName}' has completed onboarding.",
-                        type: "Onboarding",
-                        entityId: user.Id,
-                        entityType: "User",
-                        ct: ct
-                    );
-                }
+            if (overallComplete)
+            {
+                await _notificationService.TriggerNotificationAsync(
+                    title: "Onboarding Complete",
+                    message: $"User '{user.FullName}' has completed onboarding.",
+                    type: "Onboarding",
+                    entityId: user.Id,
+                    entityType: "User",
+                    ct: ct
+                );
             }
 
             return overallComplete;
@@ -87,16 +132,21 @@ namespace Salubrity.Application.Services.Users
 
         private static bool CheckProfileCompletion(User user)
         {
+            if (string.IsNullOrWhiteSpace(user.FirstName)) Console.WriteLine("FirstName missing");
+            if (string.IsNullOrWhiteSpace(user.Email)) Console.WriteLine("Email missing");
+            if (string.IsNullOrWhiteSpace(user.Phone)) Console.WriteLine("Phone missing");
+            if (string.IsNullOrWhiteSpace(user.NationalId)) Console.WriteLine("NationalId missing");
+            if (!user.DateOfBirth.HasValue) Console.WriteLine("DateOfBirth missing");
+            if (!user.GenderId.HasValue || user.GenderId.Value == Guid.Empty) Console.WriteLine("GenderId missing");
+            if (!user.OrganizationId.HasValue || user.OrganizationId.Value == Guid.Empty) Console.WriteLine("OrganizationId missing");
+
             return !string.IsNullOrWhiteSpace(user.FirstName) &&
-                   //!string.IsNullOrWhiteSpace(user.LastName) && // middle name not required
                    !string.IsNullOrWhiteSpace(user.Email) &&
                    !string.IsNullOrWhiteSpace(user.Phone) &&
                    !string.IsNullOrWhiteSpace(user.NationalId) &&
-                   user.DateOfBirth != default &&
-                   !string.IsNullOrWhiteSpace(user.PrimaryLanguage) &&
-                   !string.IsNullOrWhiteSpace(user.ProfileImage) &&
-                   user.GenderId != Guid.Empty &&
-                   user.OrganizationId != Guid.Empty;
+                   user.DateOfBirth.HasValue &&
+                   user.GenderId.HasValue && user.GenderId.Value != Guid.Empty &&
+                   user.OrganizationId.HasValue && user.OrganizationId.Value != Guid.Empty;
         }
 
         private async Task<bool> CheckRoleSpecificCompletionAsync(User user, CancellationToken ct)

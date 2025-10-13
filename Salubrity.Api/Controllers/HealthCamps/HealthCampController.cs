@@ -256,7 +256,7 @@ public class CampController : BaseController
         return Success(patients);
     }
 
-    [Authorize(Roles = "Subcontractor,Doctor,Admin")]
+    [Authorize(Roles = "Subcontractor,Doctor,Admin,Concierge")]
     [HttpGet("{campId:guid}/patients/{participantId:guid}/detail-with-forms")]
     [ProducesResponseType(typeof(ApiResponse<CampPatientDetailWithFormsDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampPatientDetailWithForms(

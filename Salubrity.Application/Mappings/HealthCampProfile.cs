@@ -1,6 +1,7 @@
 ﻿// File: Salubrity.Application/Mappings/HealthCampProfile.cs
 using AutoMapper;
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
@@ -82,6 +83,14 @@ public class HealthCampProfile : Profile
             .ForMember(dest => dest.ActionCount, opt => opt.Ignore())
             .ForMember(dest => dest.ClaimCount, opt => opt.Ignore())
             .ForMember(dest => dest.ClaimStatus, opt => opt.Ignore());
+
+        // HealthCampPackage mappings
+        CreateMap<HealthCampPackage, HealthCampPackageDto>()
+            .ForMember(dest => dest.ServicePackageName, opt => opt.MapFrom(src => src.ServicePackage.Name))
+            .ForMember(dest => dest.ServiceIds, opt => opt.MapFrom(src => src.Services.Select(s => s.ServiceId).ToList()));
+
+        CreateMap<HealthCampPackageService, Guid>()
+            .ConvertUsing(src => src.ServiceId);
 
     }
 }

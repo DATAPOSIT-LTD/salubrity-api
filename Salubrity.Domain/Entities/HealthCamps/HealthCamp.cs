@@ -17,6 +17,10 @@ public class HealthCamp : BaseAuditableEntity
     public Guid? ServicePackageId { get; set; }
     public virtual ServicePackage? ServicePackage { get; set; }
 
+    // Multiple packages available for this camp
+    public virtual ICollection<HealthCampPackage> HealthCampPackages { get; set; } = [];
+
+
     public string? Description { get; set; }
 
     public string? Location { get; set; }

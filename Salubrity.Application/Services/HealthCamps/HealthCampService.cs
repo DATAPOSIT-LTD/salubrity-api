@@ -86,15 +86,18 @@ public class HealthCampService : IHealthCampService
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
         var ct = CancellationToken.None;
+
         var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
         if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
             throw new InvalidOperationException("Upcoming status not found");
 
+        // ───────────────────────────────────────────────
+        // Initialize base camp entity
+        // ───────────────────────────────────────────────
         var entity = new HealthCamp
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
-            ServicePackageId = dto.ServicePackageId,
             Description = dto.Description,
             Location = dto.Location,
             StartDate = dto.StartDate.Date.AddDays(1).ToUniversalTime(),
@@ -110,41 +113,66 @@ public class HealthCampService : IHealthCampService
             Participants = []
         };
 
-        // Add package items
-        foreach (var item in dto.PackageItems)
+        // ───────────────────────────────────────────────
+        // Loop through packages
+        // ───────────────────────────────────────────────
+        if (dto.Packages != null && dto.Packages.Any())
         {
-            var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
-            entity.PackageItems.Add(new HealthCampPackageItem
+            foreach (var package in dto.Packages)
             {
-                Id = Guid.NewGuid(),
-                HealthCampId = entity.Id,
-                ReferenceId = item.ReferenceId,
-                ReferenceType = referenceType
-            });
+                // Add package linkage
+                entity.HealthCampPackages.Add(new HealthCampPackage
+                {
+                    Id = Guid.NewGuid(),
+                    HealthCampId = entity.Id,
+                    ServicePackageId = package.PackageId,
+                    IsActive = true
+                });
+
+                // Add package items
+                if (package.PackageItems != null)
+                {
+                    foreach (var item in package.PackageItems)
+                    {
+                        var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
+                        entity.PackageItems.Add(new HealthCampPackageItem
+                        {
+                            Id = Guid.NewGuid(),
+                            HealthCampId = entity.Id,
+                            ReferenceId = item.ReferenceId,
+                            ReferenceType = referenceType
+                        });
+                    }
+                }
+
+                // Add service assignments
+                if (package.ServiceAssignments != null)
+                {
+                    foreach (var assignment in package.ServiceAssignments)
+                    {
+                        var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
+
+                        entity.ServiceAssignments.Add(new HealthCampServiceAssignment
+                        {
+                            Id = Guid.NewGuid(),
+                            HealthCampId = entity.Id,
+                            AssignmentId = assignment.ServiceId,
+                            AssignmentType = (PackageItemType)referenceType,
+                            SubcontractorId = assignment.SubcontractorId,
+                            ProfessionId = assignment.ProfessionId
+                        });
+                    }
+                }
+            }
         }
 
-        // Add service assignments (resolve type server-side)
-        foreach (var assignment in dto.ServiceAssignments)
-        {
-            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
-
-            entity.ServiceAssignments.Add(new HealthCampServiceAssignment
-            {
-                Id = Guid.NewGuid(),
-                HealthCampId = entity.Id,
-                AssignmentId = assignment.ServiceId,
-                AssignmentType = (PackageItemType)referenceType,
-                SubcontractorId = assignment.SubcontractorId,
-                ProfessionId = assignment.ProfessionId
-            });
-        }
-
-        // Add participants
+        // ───────────────────────────────────────────────
+        // Add default participants (employees)
+        // ───────────────────────────────────────────────
         var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
         if (employeeUserIds.Count > 0)
         {
-            var uniqueUserIds = new HashSet<Guid>(employeeUserIds);
-            foreach (var userId in uniqueUserIds)
+            foreach (var userId in employeeUserIds.Distinct())
             {
                 entity.Participants.Add(new HealthCampParticipant
                 {
@@ -156,7 +184,9 @@ public class HealthCampService : IHealthCampService
             }
         }
 
-        // Save the HealthCamp before assigning booths
+        // ───────────────────────────────────────────────
+        // Persist camp entity
+        // ───────────────────────────────────────────────
         var created = await _repo.CreateAsync(entity);
 
         await _notificationService.TriggerNotificationAsync(
@@ -168,14 +198,16 @@ public class HealthCampService : IHealthCampService
             ct: ct
         );
 
-        // Create subcontractor booth assignments AFTER saving camp
+        // ───────────────────────────────────────────────
+        // Create subcontractor booth assignments
+        // ───────────────────────────────────────────────
         var assignedStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
         if (assignedStatus == null)
             throw new InvalidOperationException("Assignment status 'Pending' not found");
 
-        foreach (var assignment in dto.ServiceAssignments)
+        // Booths per service assignment
+        foreach (var assignment in entity.ServiceAssignments)
         {
-            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
             var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
 
             var boothAssignment = new SubcontractorHealthCampAssignment
@@ -189,8 +221,8 @@ public class HealthCampService : IHealthCampService
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false,
                 IsPrimaryAssignment = true,
-                AssignmentId = assignment.ServiceId,
-                AssignmentType = (PackageItemType)referenceType
+                AssignmentId = assignment.AssignmentId,
+                AssignmentType = assignment.AssignmentType
             };
 
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018051733_CreateHealthCampPackagesEntity")]
+    partial class CreateHealthCampPackagesEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2052,9 +2055,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid>("HealthCampId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("HealthCampPackageId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid?>("HealthMetricStatusId")
                         .HasColumnType("uuid");
 
@@ -2093,8 +2093,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasIndex("BillingStatusId");
 
                     b.HasIndex("HealthCampId");
-
-                    b.HasIndex("HealthCampPackageId");
 
                     b.HasIndex("HealthMetricStatusId");
 
@@ -4470,10 +4468,6 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.HealthCampPackage", "HealthCampPackage")
-                        .WithMany()
-                        .HasForeignKey("HealthCampPackageId");
-
                     b.HasOne("Salubrity.Domain.Entities.Lookup.HealthMetricStatus", null)
                         .WithMany("HealthCampParticipants")
                         .HasForeignKey("HealthMetricStatusId");
@@ -4491,8 +4485,6 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("BillingStatus");
 
                     b.Navigation("HealthCamp");
-
-                    b.Navigation("HealthCampPackage");
 
                     b.Navigation("Patient");
 

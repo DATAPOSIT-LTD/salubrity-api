@@ -21,7 +21,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             AddSummarySection(worksheet, data, 3 + data.ParticipantResponses.Count + 2);
             AddLegendSection(worksheet, data, 3 + data.ParticipantResponses.Count + 11);
 
-            worksheet.SheetView.Freeze(3, 8);
+            worksheet.SheetView.Freeze(3, 4);
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
@@ -98,17 +98,17 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             var structure = new HeaderStructure();
 
             // Add fixed participant columns
-            structure.AddSection("Participant Information", new List<HeaderColumn>
-        {
-            new("Name", "Name"),
-            new("Email", "Email"),
-            new("Phone", "Phone"),
-            new("Gender", "Gender"),
-            new("ID Number", "ID"),
-            new("Date of Birth", "DOB"),
-            new("Age", "Age"),
-            new("Lifestyle Risk", "Risk")
-        });
+            structure.AddSection("Patient Information", new List<HeaderColumn>
+            {
+                new("Name", "Name"),
+                new("Email", "Email"),
+                new("Phone", "Phone"),
+                new("Gender", "Gender"),
+                new("ID Number", "ID"),
+                new("Date of Birth", "DOB"),
+                new("Age", "Age"),
+                new("Lifestyle Risk", "Risk")
+            });
 
             // Group fields by main section and subsection
             foreach (var sectionGroup in fieldsBySection)
@@ -369,12 +369,12 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             }
 
             var validScores = new List<int>
-        {
-            ConvertRiskToScore(CalculateBMIRisk(allValues)),
-            ConvertRiskToScore(CalculateBloodPressureRisk(allValues)),
-            ConvertRiskToScore(CalculateBloodGlucoseRisk(allValues)),
-            ConvertRiskToScore(CalculateCholesterolRisk(allValues))
-        }
+            {
+                ConvertRiskToScore(CalculateBMIRisk(allValues)),
+                ConvertRiskToScore(CalculateBloodPressureRisk(allValues)),
+                ConvertRiskToScore(CalculateBloodGlucoseRisk(allValues)),
+                ConvertRiskToScore(CalculateCholesterolRisk(allValues))
+            }
             .Where(score => score > 0).ToList();
 
             if (!validScores.Any()) return "No Data";
@@ -472,7 +472,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             foreach (var r in replacements) shortened = shortened.Replace(r.Key, r.Value, StringComparison.OrdinalIgnoreCase);
             return shortened.Replace("  ", " ").Trim();
         }
-        private XLColor GetMainSectionColor(string sectionName) => sectionName.ToLowerInvariant() switch { "participant information" => XLColor.LightGray, "health assessments" => XLColor.LightBlue, "personal information" => XLColor.LightGreen, "medical history" => XLColor.LightCoral, "lifestyle" => XLColor.LightYellow, "emergency contact" => XLColor.LightPink, _ => XLColor.LightCyan };
+        private XLColor GetMainSectionColor(string sectionName) => sectionName.ToLowerInvariant() switch { "patient information" => XLColor.LightGray, "health assessments" => XLColor.LightBlue, "personal information" => XLColor.LightGreen, "medical history" => XLColor.LightCoral, "lifestyle" => XLColor.LightYellow, "emergency contact" => XLColor.LightPink, _ => XLColor.LightCyan };
         private string FormatFieldValue(string value, string fieldType) => fieldType.ToLowerInvariant() switch { "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value, "date" => DateTime.TryParse(value, out var d) ? d.ToString("yyyy-MM-dd") : value, "datetime" => DateTime.TryParse(value, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : value, "number" => decimal.TryParse(value, out var n) ? n.ToString("0.##") : value, _ => value };
         #endregion
 

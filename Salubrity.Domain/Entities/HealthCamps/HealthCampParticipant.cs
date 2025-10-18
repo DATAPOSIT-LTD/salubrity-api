@@ -3,6 +3,7 @@
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Lookup;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -32,4 +33,7 @@ public class HealthCampParticipant : BaseAuditableEntity
     public string? TempPasswordHash { get; set; }
     public DateTimeOffset? TempPasswordExpiresAt { get; set; }
     public ICollection<HealthAssessment> HealthAssessments { get; set; } = [];
+
+    public Guid? HealthCampPackageId { get; set; }
+    public HealthCampPackage? HealthCampPackage { get; set; }
 }

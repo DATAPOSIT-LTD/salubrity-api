@@ -1,9 +1,11 @@
 using System;
+using System.ComponentModel.DataAnnotations.Schema;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.HealthcareServices;
 
 namespace Salubrity.Domain.Entities.HealthCamps
 {
+    [Table("HealthCampPackages")]
     public class HealthCampPackage : BaseAuditableEntity
     {
         public Guid HealthCampId { get; set; }

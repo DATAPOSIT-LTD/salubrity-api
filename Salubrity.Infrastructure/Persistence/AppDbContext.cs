@@ -106,6 +106,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<FormFieldMapping> FormFieldMappings { get; set; }
         public DbSet<PatientNumberSequence> PatientNumberSequences { get; set; }
         public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
+        public DbSet<HealthCampPackage> HealthCampPackages { get; set; }
 
         // ─────────────────────────────────────
         //  Model Configuration
@@ -127,6 +128,13 @@ namespace Salubrity.Infrastructure.Persistence
                 Console.WriteLine("💥 Error applying configurations: " + ex);
                 throw;
             }
+
+            modelBuilder.Entity<HealthCamp>()
+                .HasMany(c => c.HealthCampPackages)
+                .WithOne(p => p.HealthCamp)
+                .HasForeignKey(p => p.HealthCampId)
+                .OnDelete(DeleteBehavior.Cascade);
+
 
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)

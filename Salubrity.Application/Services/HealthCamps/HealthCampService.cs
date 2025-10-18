@@ -92,6 +92,26 @@ public class HealthCampService : IHealthCampService
             throw new InvalidOperationException("Upcoming status not found");
 
         // ───────────────────────────────────────────────
+        // 🔧 Helper for UTC-safe conversion
+        // ───────────────────────────────────────────────
+        static DateTime ToUtc(DateTime value)
+        {
+            // Avoid breaking when already UTC or local
+            if (value.Kind == DateTimeKind.Utc)
+                return value;
+            if (value.Kind == DateTimeKind.Local)
+                return value.ToUniversalTime();
+            // Explicitly mark as UTC if unspecified
+            return DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+
+        static DateTime? ToUtcNullable(DateTime? value)
+        {
+            if (!value.HasValue) return null;
+            return ToUtc(value.Value);
+        }
+
+        // ───────────────────────────────────────────────
         // Initialize base camp entity
         // ───────────────────────────────────────────────
         var entity = new HealthCamp
@@ -100,8 +120,11 @@ public class HealthCampService : IHealthCampService
             Name = dto.Name,
             Description = dto.Description,
             Location = dto.Location,
-            StartDate = dto.StartDate.Date.AddDays(1).ToUniversalTime(),
-            EndDate = dto.EndDate?.Date.AddDays(1).ToUniversalTime(),
+
+            // ✅ Force proper UTC for PostgreSQL
+            StartDate = ToUtc(dto.StartDate.Date.AddDays(1)),
+            EndDate = dto.EndDate.HasValue ? ToUtc(dto.EndDate.Value.Date.AddDays(1)) : null,
+
             StartTime = dto.StartTime,
             OrganizationId = dto.OrganizationId,
             IsActive = true,
@@ -205,7 +228,6 @@ public class HealthCampService : IHealthCampService
         if (assignedStatus == null)
             throw new InvalidOperationException("Assignment status 'Pending' not found");
 
-        // Booths per service assignment
         foreach (var assignment in entity.ServiceAssignments)
         {
             var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
@@ -217,20 +239,23 @@ public class HealthCampService : IHealthCampService
                 SubcontractorId = assignment.SubcontractorId,
                 AssignmentStatusId = assignedStatus.Id,
                 BoothLabel = boothLabel,
-                StartDate = DateTime.SpecifyKind(created.StartDate, DateTimeKind.Utc),
+
+                // ✅ Always store UTC values for PostgreSQL
+                StartDate = ToUtc(created.StartDate),
                 CreatedAt = DateTime.UtcNow,
+
                 IsDeleted = false,
                 IsPrimaryAssignment = true,
                 AssignmentId = assignment.AssignmentId,
                 AssignmentType = assignment.AssignmentType
             };
 
-
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
         }
 
         return _mapper.Map<HealthCampDto>(created);
     }
+
 
 
 

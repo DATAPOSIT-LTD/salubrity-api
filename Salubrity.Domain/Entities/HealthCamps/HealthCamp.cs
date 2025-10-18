@@ -14,15 +14,10 @@ public class HealthCamp : BaseAuditableEntity
 {
     [Required]
     public string Name { get; set; } = default!;
-    public Guid? ServicePackageId { get; set; }
-    public virtual ServicePackage? ServicePackage { get; set; }
 
-    // Multiple packages available for this camp
     public virtual ICollection<HealthCampPackage> HealthCampPackages { get; set; } = [];
 
-
     public string? Description { get; set; }
-
     public string? Location { get; set; }
 
     [Column(TypeName = "date")]
@@ -32,34 +27,29 @@ public class HealthCamp : BaseAuditableEntity
     public DateTime? EndDate { get; set; }
 
     public TimeSpan? StartTime { get; set; }
-
     public bool IsActive { get; set; } = true;
 
-    [ForeignKey("Organization")]
+    [ForeignKey(nameof(Organization))]
     public Guid OrganizationId { get; set; }
     public virtual Organization Organization { get; set; } = default!;
+
     public int? ExpectedParticipants { get; set; }
+    public DateTime? CloseDate { get; set; }
+    public DateTime? LaunchedAt { get; set; }
+    public bool IsLaunched { get; set; }
 
-    public DateTime? CloseDate { get; set; }        // buffer date (reports etc.)
-    public DateTime? LaunchedAt { get; set; }       // when launch occurred
-    public bool IsLaunched { get; set; }            // quick flag
-
-    // This defines the actual camp package dynamically
     public virtual ICollection<HealthCampPackageItem> PackageItems { get; set; } = [];
-
-    // Assignments per subcontractor per service
     public virtual ICollection<HealthCampServiceAssignment> ServiceAssignments { get; set; } = [];
-    public ICollection<HealthCampParticipant> Participants { get; set; } = [];
+    public virtual ICollection<HealthCampParticipant> Participants { get; set; } = [];
 
     public Guid? HealthCampStatusId { get; set; }
-    public HealthCampStatus? HealthCampStatus { get; set; }
+    public virtual HealthCampStatus? HealthCampStatus { get; set; }
 
-    // Poster QR tokens for venue scanning
     public string? ParticipantPosterJti { get; set; }
     public string? SubcontractorPosterJti { get; set; }
     public DateTimeOffset? PosterTokensExpireAt { get; set; }
 
-    public ICollection<HealthCampTempCredential> TempCredentials { get; set; } = [];
-    public ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();
+    public virtual ICollection<HealthCampTempCredential> TempCredentials { get; set; } = new List<HealthCampTempCredential>();
+    public virtual ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();
 }
 

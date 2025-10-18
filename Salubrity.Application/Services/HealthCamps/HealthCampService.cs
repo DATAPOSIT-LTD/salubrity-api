@@ -47,9 +47,10 @@ public class HealthCampService : IHealthCampService
     private readonly INotificationService _notificationService;
     private readonly IHealthCampParticipantRepository _campParticipantRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IHealthCampParticipantPackageRepository _participantPackageRepo;
+    private readonly IHealthCampPackageRepository _campPackageRepository;
 
-
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository)
+    public HealthCampService(IHealthCampPackageRepository campPackageRepository, IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository, IHealthCampParticipantPackageRepository participantPackageRepo)
     {
         _repo = repo;
         _mapper = mapper;
@@ -67,7 +68,8 @@ public class HealthCampService : IHealthCampService
         _campParticipantRepository = campParticipantRepository ?? throw new ArgumentNullException(nameof(campParticipantRepository));
         _jwt = jwt ?? throw new ArgumentNullException(nameof(jwt));
         _roleRepository = roleRepository ?? throw new ArgumentNullException(nameof(roleRepository));
-
+        _participantPackageRepo = participantPackageRepo ?? throw new ArgumentNullException(nameof(participantPackageRepo));
+        _campPackageRepository = campPackageRepository;
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -262,20 +264,53 @@ public class HealthCampService : IHealthCampService
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)
     {
         var ct = CancellationToken.None;
-        var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
+        var camp = await _repo.GetByIdWithPackagesAsync(id)
+            ?? throw new NotFoundException("Camp not found");
 
-        if (dto.Name is not null) camp.Name = dto.Name;
-        if (dto.Description is not null) camp.Description = dto.Description;
-        if (dto.Location is not null) camp.Location = dto.Location;
+        // 🔧 Basic field updates
+        if (!string.IsNullOrWhiteSpace(dto.Name)) camp.Name = dto.Name;
+        if (!string.IsNullOrWhiteSpace(dto.Description)) camp.Description = dto.Description;
+        if (!string.IsNullOrWhiteSpace(dto.Location)) camp.Location = dto.Location;
         if (dto.StartDate.HasValue) camp.StartDate = dto.StartDate.Value;
         if (dto.EndDate.HasValue) camp.EndDate = dto.EndDate.Value;
         if (dto.StartTime.HasValue) camp.StartTime = dto.StartTime.Value;
         if (dto.IsActive.HasValue) camp.IsActive = dto.IsActive.Value;
         if (dto.ExpectedParticipants.HasValue) camp.ExpectedParticipants = dto.ExpectedParticipants.Value;
-        if (dto.ServicePackageId.HasValue) camp.ServicePackageId = dto.ServicePackageId.Value;
         if (dto.OrganizationId.HasValue) camp.OrganizationId = dto.OrganizationId.Value;
 
         camp.UpdatedAt = DateTime.UtcNow;
+
+        // 🧩 Handle updated packages if provided
+        if (dto.Packages is not null && dto.Packages.Any())
+        {
+            // Remove inactive packages
+            foreach (var pkg in camp.HealthCampPackages)
+                pkg.IsActive = false;
+
+            // Add or reactivate provided packages
+            foreach (var dtoPkg in dto.Packages)
+            {
+                var existingPkg = camp.HealthCampPackages
+                    .FirstOrDefault(p => p.ServicePackageId == dtoPkg.PackageId);
+
+                if (existingPkg != null)
+                {
+                    existingPkg.IsActive = true;
+                    existingPkg.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    camp.HealthCampPackages.Add(new HealthCampPackage
+                    {
+                        Id = Guid.NewGuid(),
+                        HealthCampId = camp.Id,
+                        ServicePackageId = dtoPkg.PackageId,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+        }
 
         await _repo.UpdateAsync(camp);
 
@@ -891,6 +926,63 @@ public class HealthCampService : IHealthCampService
         );
 
         await _subcontractorCampAssignmentRepository.SaveChangesAsync(ct);
+    }
+
+
+    public async Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct)
+    {
+        // Verify participant belongs to camp and has billing info
+        var participant = await _campParticipantRepository.GetParticipantWithBillingStatusAsync(dto.HealthCampId, dto.ParticipantId, ct)
+            ?? throw new NotFoundException("Participant not found for this camp.");
+
+        // Prevent assignment if billing not initiated
+        if (participant.BillingStatus?.Name?.Equals("Not Billed", StringComparison.OrdinalIgnoreCase) == true)
+            throw new ValidationException(["Cannot assign package until billing is initiated."]);
+
+        // Get package through repository (no direct DbContext)
+        var package = await _campPackageRepository.GetPackageByCampAsync(dto.HealthCampId, dto.HealthCampPackageId, ct)
+            ?? throw new ValidationException(["The selected package does not belong to this camp."]);
+
+        // Get existing active package
+        var existing = await _participantPackageRepo.GetByParticipantIdAsync(dto.ParticipantId, ct);
+
+        // Idempotency check
+        if (existing != null && existing.HealthCampPackageId == dto.HealthCampPackageId && existing.IsActive)
+            return; // nothing to change
+
+        // Deactivate old package
+        if (existing != null)
+        {
+            existing.IsActive = false;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _participantPackageRepo.UpdateAsync(existing, ct);
+        }
+
+        // Assign new package
+        var newRecord = new HealthCampParticipantPackage
+        {
+            Id = Guid.NewGuid(),
+            ParticipantId = dto.ParticipantId,
+            HealthCampPackageId = dto.HealthCampPackageId,
+            AssignedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        await _participantPackageRepo.AddAsync(newRecord, ct);
+    }
+
+    public async Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct)
+    {
+        var packages = await _campPackageRepository.GetAllPackagesWithServicesByCampAsync(campId, ct);
+
+        // Map manually or via AutoMapper
+        return [.. packages.Select(p => new HealthCampPackageDto
+        {
+            Id = p.Id,
+            HealthCampId = p.HealthCampId,
+            ServicePackageId = p.ServicePackageId,
+            ServicePackageName = p.ServicePackage?.Name,
+        })];
     }
 
 

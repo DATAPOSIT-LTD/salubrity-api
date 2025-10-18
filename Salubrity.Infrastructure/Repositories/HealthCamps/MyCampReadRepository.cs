@@ -29,23 +29,25 @@ public class MyCampReadRepository : IMyCampReadRepository
     }
 
     public async Task<PagedResult<MyCampListItemDto>> GetUpcomingForUserAsync(
-        Guid userId, int page, int pageSize, string? search, CancellationToken ct = default)
+     Guid userId, int page, int pageSize, string? search, CancellationToken ct = default)
     {
         page = page <= 0 ? 1 : page;
         pageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100);
 
         var today = DateTime.UtcNow.Date;
 
+        //  Get base query for user's camps
         var baseQuery = _db.Set<HealthCampParticipant>()
             .AsNoTracking()
             .Where(p => p.UserId == userId)
             .Select(p => p.HealthCamp)
-            .Where(c => c != null && c.IsLaunched)
+            .Where(c => c != null && c.IsLaunched && !c.IsDeleted)
             .Where(c =>
                    c!.StartDate.Date >= today
                 || (c.StartDate.Date <= today && (c.EndDate == null || c.EndDate.Value.Date >= today)))
             .Distinct();
 
+        //  Optional search
         if (!string.IsNullOrWhiteSpace(search))
         {
             var s = $"%{search.Trim()}%";
@@ -57,6 +59,7 @@ public class MyCampReadRepository : IMyCampReadRepository
 
         var total = await baseQuery.CountAsync(ct);
 
+        // Now project efficiently using HealthCampPackages
         var items = await baseQuery
             .OrderBy(c => c!.StartDate)
             .Select(c => new MyCampListItemDto
@@ -64,9 +67,15 @@ public class MyCampReadRepository : IMyCampReadRepository
                 CampId = c!.Id,
                 CampName = c.Name,
                 Organization = c.Organization != null ? c.Organization.BusinessName : null,
-                PackageServices = c.ServicePackage != null ? c.ServicePackage.Name : null,
+
+                // Corrected for new model: pick first active package name
+                PackageServices = c.HealthCampPackages
+                    .Where(p => p.IsActive)
+                    .Select(p => p.ServicePackage.Name)
+                    .FirstOrDefault(),
+
                 NumberOfServices = c.ServiceAssignments != null ? c.ServiceAssignments.Count : 0,
-                Venue = c.Location ?? (c.Location != null ? c.Location : null),
+                Venue = c.Location,
                 StartDate = c.StartDate,
                 EndDate = c.EndDate,
                 Status = c.HealthCampStatus != null && c.HealthCampStatus.Name != null

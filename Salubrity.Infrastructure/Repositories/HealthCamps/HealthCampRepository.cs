@@ -44,9 +44,9 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .Where(c => !c.IsDeleted)
             .Include(c => c.Organization)
-            .Include(c => c.ServicePackage)     //  load chosen package
-            .Include(c => c.ServiceAssignments) // for counts/status
-            .Include(c => c.Organization)
+            .Include(c => c.HealthCampPackages)
+                .ThenInclude(p => p.ServicePackage)
+            .Include(c => c.ServiceAssignments)
             .Include(c => c.HealthCampStatus)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
@@ -55,6 +55,9 @@ public class HealthCampRepository : IHealthCampRepository
 
         foreach (var c in camps)
         {
+            // Choose the *active* package to display in list view
+            var activePackage = c.HealthCampPackages.FirstOrDefault(p => p.IsActive);
+
             list.Add(new HealthCampListDto
             {
                 Id = c.Id,
@@ -64,7 +67,7 @@ public class HealthCampRepository : IHealthCampRepository
                 DateRange = $"{c.StartDate:dd} - {c.EndDate:dd MMM, yyyy}",
                 SubcontractorCount = c.ServiceAssignments?.Count ?? 0,
                 Status = c.HealthCampStatus?.Name ?? "Unknown",
-                PackageName = c.ServicePackage?.Name ?? "N/A"   //  chosen package only
+                PackageName = activePackage?.ServicePackage?.Name ?? "N/A"
             });
         }
 
@@ -79,13 +82,18 @@ public class HealthCampRepository : IHealthCampRepository
             .Include(c => c.Organization)
                 .ThenInclude(o => o.InsuranceProviders)
                     .ThenInclude(ip => ip.InsuranceProvider)
-            .Include(c => c.ServicePackage)   // <-- chosen package
-            .Include(c => c.PackageItems)     // <-- items (services/categories)
+            .Include(c => c.HealthCampPackages)
+                .ThenInclude(p => p.ServicePackage)
+            .Include(c => c.PackageItems)
             .Include(c => c.ServiceAssignments)
             .Include(c => c.HealthCampStatus)
             .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
 
-        if (camp is null) return null;
+        if (camp is null)
+            return null;
+
+        // Pick active package (the “chosen one”)
+        var activePackage = camp.HealthCampPackages.FirstOrDefault(p => p.IsActive);
 
         var dto = new HealthCampDetailDto
         {
@@ -96,15 +104,18 @@ public class HealthCampRepository : IHealthCampRepository
             Venue = camp.Location ?? "N/A",
             ExpectedPatients = camp.ExpectedParticipants ?? 0,
             SubcontractorCount = camp.ServiceAssignments?.Count ?? 0,
-            // chosen package only
-            PackageName = camp.ServicePackage?.Name ?? "N/A",
-            PackageCost = camp.ServicePackage?.Price,
+
+            // Reflect new structure
+            PackageName = activePackage?.ServicePackage?.Name ?? "N/A",
+            PackageCost = activePackage?.ServicePackage?.Price,
             Status = camp.HealthCampStatus?.Name ?? "Unknown",
-            InsurerName = camp.Organization?.InsuranceProviders?.FirstOrDefault()?.InsuranceProvider?.Name ?? string.Empty,
+            InsurerName = camp.Organization?.InsuranceProviders?
+                .FirstOrDefault()?.InsuranceProvider?.Name ?? string.Empty,
+
             ServiceStations = new List<ServiceStationDto>()
         };
 
-        // Resolve station names (services/categories) concurrently
+        // Resolve package item names concurrently
         var itemTasks = camp.PackageItems
             .Where(pi => !pi.IsDeleted)
             .Select(async pi =>
@@ -114,9 +125,9 @@ public class HealthCampRepository : IHealthCampRepository
                 {
                     Id = pi.Id,
                     Name = name,
-                    PatientsServed = 24,     // TODO: replace with real metrics
-                    PendingService = 35,     // TODO: replace with real metrics
-                    AvgTimePerPatient = "3 min",
+                    PatientsServed = 0,     // TODO: replace with live metrics
+                    PendingService = 0,     // TODO: replace with live metrics
+                    AvgTimePerPatient = "0 min",
                     OutlierAlerts = 0
                 };
             });
@@ -325,6 +336,18 @@ public class HealthCampRepository : IHealthCampRepository
     {
         return await BaseParticipants(campId, q, sort).ToListAsync(ct);
     }
+
+    public async Task<HealthCamp?> GetByIdWithPackagesAsync(Guid id, CancellationToken ct = default)
+    {
+        return await _context.HealthCamps
+            .Include(c => c.HealthCampPackages)
+                .ThenInclude(p => p.ServicePackage)
+            .Include(c => c.ServiceAssignments)
+            .Include(c => c.Participants)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted, ct);
+    }
+
 
 
     private static IQueryable<CampParticipantListDto> Project(IQueryable<Domain.Entities.Join.HealthCampParticipant> q)

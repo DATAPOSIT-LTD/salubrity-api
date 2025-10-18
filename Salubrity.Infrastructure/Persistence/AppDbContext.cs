@@ -107,6 +107,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<PatientNumberSequence> PatientNumberSequences { get; set; }
         public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
         public DbSet<HealthCampPackage> HealthCampPackages { get; set; }
+        public DbSet<HealthCampParticipantPackage> HealthCampParticipantPackages { get; set; }
+
 
         // ─────────────────────────────────────
         //  Model Configuration

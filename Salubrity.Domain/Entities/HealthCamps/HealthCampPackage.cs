@@ -8,7 +8,11 @@ namespace Salubrity.Domain.Entities.HealthCamps
     [Table("HealthCampPackages")]
     public class HealthCampPackage : BaseAuditableEntity
     {
+
+        [ForeignKey(nameof(HealthCamp))]
         public Guid HealthCampId { get; set; }
+
+        [ForeignKey(nameof(ServicePackage))]
         public Guid ServicePackageId { get; set; }
 
         public bool IsActive { get; set; } = true;
@@ -18,5 +22,6 @@ namespace Salubrity.Domain.Entities.HealthCamps
         // Navigation
         public HealthCamp HealthCamp { get; set; } = null!;
         public ServicePackage ServicePackage { get; set; } = null!;
+
     }
 }

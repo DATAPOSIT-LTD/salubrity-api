@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018085827_AddHealthCampParticipantPackagesTable")]
+    partial class AddHealthCampParticipantPackagesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -724,6 +727,9 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("PosterTokensExpireAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("ServicePackageId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("date");
 
@@ -744,6 +750,8 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasIndex("HealthCampStatusId");
 
                     b.HasIndex("OrganizationId");
+
+                    b.HasIndex("ServicePackageId");
 
                     b.ToTable("HealthCamps");
                 });
@@ -4109,9 +4117,15 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.ServicePackage", "ServicePackage")
+                        .WithMany()
+                        .HasForeignKey("ServicePackageId");
+
                     b.Navigation("HealthCampStatus");
 
                     b.Navigation("Organization");
+
+                    b.Navigation("ServicePackage");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampPackage", b =>

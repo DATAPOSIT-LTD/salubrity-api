@@ -52,4 +52,8 @@ public interface IHealthCampService
     Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId);
     Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId);
     Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId);
+    Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct);
+    Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct);
+
+
 }

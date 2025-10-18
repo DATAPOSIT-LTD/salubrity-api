@@ -52,6 +52,8 @@ public interface IHealthCampRepository
     Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default);
     Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default);
     Task<List<HealthCampParticipant>> GetParticipantsAsync(Guid campId, string? q, string? sort, CancellationToken ct = default);
+    Task<HealthCamp?> GetByIdWithPackagesAsync(Guid id, CancellationToken ct = default);
+
 }
 
 

@@ -351,4 +351,22 @@ public class CampController : BaseController
     }
 
 
+    [Authorize(Roles = "Admin,Concierge")]
+    [HttpPost("participants/assign-package")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AssignParticipantPackage([FromBody] AssignParticipantPackageDto dto, CancellationToken ct)
+    {
+        await _service.AssignPackageToParticipantAsync(dto, ct);
+        return Success("Package assigned successfully.");
+    }
+    [Authorize(Roles = "Admin,Concierge,Doctor,FrontDesk")]
+    [HttpGet("{campId:guid}/packages")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampPackageDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAllPackagesByCamp(Guid campId, CancellationToken ct)
+    {
+        var result = await _service.GetAllPackagesByCampAsync(campId, ct);
+        return Success(result);
+    }
+
+
 }

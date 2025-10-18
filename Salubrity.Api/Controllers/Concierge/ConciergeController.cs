@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Concierge;
+using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Services.Camps;
 using Salubrity.Application.Interfaces.Services.Concierge;
 using Salubrity.Domain.Entities.HealthcareServices;
@@ -60,5 +61,14 @@ namespace Salubrity.Api.Controllers.Concierge
 
             return Success(result);
         }
+
+        [HttpGet("participants/{participantId:guid}/stations")]
+        [ProducesResponseType(typeof(ApiResponse<List<ParticipantStationStatusDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetParticipantStations(Guid participantId, CancellationToken ct)
+        {
+            var result = await _service.GetParticipantStationsAsync(participantId, ct);
+            return Success(result);
+        }
+
     }
 }

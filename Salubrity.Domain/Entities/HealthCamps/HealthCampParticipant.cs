@@ -12,6 +12,7 @@ namespace Salubrity.Domain.Entities.Join;
 
 public class HealthCampParticipant : BaseAuditableEntity
 {
+    //packageId
     public Guid HealthCampId { get; set; }
     public HealthCamp HealthCamp { get; set; } = null!;
 

@@ -63,7 +63,8 @@ public class CampQueueRepository : ICampQueueRepository
             HealthCampServiceAssignmentId = dto.AssignmentId,
             Status = "Queued",
             Priority = dto.Priority ?? 0,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            StartedAt = DateTimeOffset.UtcNow
         };
 
         _db.Add(checkIn);
@@ -87,32 +88,7 @@ public class CampQueueRepository : ICampQueueRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    // public async Task<CheckInStateDto> GetMyCheckInStateAsync(Guid userId, Guid campId, CancellationToken ct = default)
-    // {
-    //     var participantId = await GetParticipantIdAsync(userId, campId, ct);
 
-    //     var active = await _db.Set<HealthCampStationCheckIn>()
-    //         .Include(x => x.Assignment)
-    //         .Where(x => x.HealthCampId == campId
-    //                  && x.HealthCampParticipantId == participantId
-    //                  && (x.Status == "Queued" || x.Status == "InService"))
-    //         .FirstOrDefaultAsync(ct);
-
-    //     if (active == null)
-    //         return new CheckInStateDto { CampId = campId, Status = "None" };
-
-    //     var stationName = await _referenceResolver.GetNameAsync(
-    //         (PackageItemType)active.Assignment.AssignmentType,
-    //         active.Assignment.AssignmentId);
-
-    //     return new CheckInStateDto
-    //     {
-    //         CampId = campId,
-    //         ActiveAssignmentId = active.HealthCampServiceAssignmentId,
-    //         ActiveStationName = stationName,
-    //         Status = active.Status
-    //     };
-    // }
     public async Task<CheckInStateDto> GetMyCheckInStateAsync(Guid userId, Guid campId, CancellationToken ct = default)
     {
         var participantId = await GetParticipantIdAsync(userId, campId, ct);
@@ -210,52 +186,6 @@ public class CampQueueRepository : ICampQueueRepository
         };
     }
 
-
-
-    // public async Task<QueuePositionDto> GetMyPositionAsync(Guid userId, Guid campId, Guid assignmentId, CancellationToken ct = default)
-    // {
-    //     var participantId = await GetParticipantIdAsync(userId, campId, ct);
-
-    //     var q = _db.Set<HealthCampStationCheckIn>()
-    //         .Where(x => x.HealthCampId == campId
-    //                  && x.HealthCampServiceAssignmentId == assignmentId
-    //                  && x.Status == "Queued");
-
-    //     var queue = await q
-    //         .OrderByDescending(x => x.Priority)
-    //         .ThenBy(x => x.CreatedAt)
-    //         .Select(x => new { x.Id, x.HealthCampParticipantId })
-    //         .ToListAsync(ct);
-
-    //     var yourIndex = queue.FindIndex(x => x.HealthCampParticipantId == participantId);
-
-    //     // 🔁 Fetch assignment and resolve name
-    //     var assignment = await _db.Set<HealthCampServiceAssignment>()
-    //         .Where(a => a.Id == assignmentId)
-    //         .Select(a => new { a.AssignmentId, a.AssignmentType })
-    //         .FirstOrDefaultAsync(ct);
-
-    //     var stationName = assignment != null
-    //         ? await _referenceResolver.GetNameAsync((PackageItemType)assignment.AssignmentType, assignment.AssignmentId)
-    //         : "[Unknown Station]";
-
-    //     var meActive = await _db.Set<HealthCampStationCheckIn>()
-    //         .Where(x => x.HealthCampId == campId
-    //                  && x.HealthCampParticipantId == participantId
-    //                  && x.HealthCampServiceAssignmentId == assignmentId)
-    //         .OrderByDescending(x => x.CreatedAt)
-    //         .Select(x => x.Status)
-    //         .FirstOrDefaultAsync(ct);
-
-    //     return new QueuePositionDto
-    //     {
-    //         AssignmentId = assignmentId,
-    //         StationName = stationName,
-    //         QueueLength = queue.Count,
-    //         YourPosition = yourIndex >= 0 ? yourIndex + 1 : 0,
-    //         Status = meActive ?? "None"
-    //     };
-    // }
 
     public async Task<QueuePositionDto> GetMyPositionAsync(Guid userId, Guid campId, Guid assignmentId, CancellationToken ct = default)
     {

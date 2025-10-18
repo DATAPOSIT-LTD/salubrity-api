@@ -127,6 +127,8 @@ public static class DependencyInjection
         services.AddScoped<IFormFieldMappingRepository, FormFieldMappingRepository>();
         services.AddScoped<IPatientNumberRepository, PatientNumberRepository>();
         services.AddScoped<IDoctorRecommendationRepository, DoctorRecommendationRepository>();
+        services.AddScoped<IHealthCampCheckInRepository, HealthCampCheckInRepository>();
+
 
         // DB Dump Service
         services.Configure<DatabaseDumpOptions>(config.GetSection("DatabaseDump"));

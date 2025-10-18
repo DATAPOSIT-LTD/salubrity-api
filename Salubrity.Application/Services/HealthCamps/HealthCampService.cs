@@ -276,7 +276,7 @@ public class HealthCampService : IHealthCampService
 
         // Assign new JTI and expiry
         camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");
-        camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");   
+        camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");
         camp.PosterTokensExpireAt = closeUtc;
 
         var participantRole = await _roleRepository.FindByNameAsync("participant") ?? await _roleRepository.FindByNameAsync("patient");
@@ -726,5 +726,100 @@ public class HealthCampService : IHealthCampService
             Jti = jti
         };
     }
+
+    public async Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId)
+    {
+        var ct = CancellationToken.None;
+
+        var camp = await _repo.GetByIdAsync(campId);
+        if (camp == null)
+            throw new NotFoundException("Health Camp", campId.ToString());
+
+        // Verify subcontractor exists
+        var subcontractorAssignments = await _subcontractorCampAssignmentRepository
+            .GetByCampAndSubcontractorAsync(campId, dto.SubcontractorId);
+
+        // Ensure the subcontractor is not already assigned for any of the services
+        var duplicateServiceIds = subcontractorAssignments
+            .Where(a => dto.ServiceIds.Contains(a.AssignmentId) && !a.IsDeleted)
+            .Select(a => a.AssignmentId)
+            .ToList();
+
+        if (duplicateServiceIds.Any())
+            throw new ValidationException([$"Subcontractor already assigned to some of these services: {string.Join(", ", duplicateServiceIds)}"]);
+
+        // Ensure services being assigned belong to the camp package
+        var allowedServiceIds = camp.PackageItems.Select(p => p.ReferenceId).ToHashSet();
+        var invalidIds = dto.ServiceIds.Where(id => !allowedServiceIds.Contains(id)).ToList();
+        if (invalidIds.Any())
+            throw new ValidationException([$"Invalid services: {string.Join(", ", invalidIds)} are not part of this camp’s package."]);
+
+        var pendingStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
+        if (pendingStatus == null)
+            throw new InvalidOperationException("Assignment status 'Pending' not found.");
+
+        foreach (var serviceId in dto.ServiceIds)
+        {
+            var referenceType = await _referenceResolver.ResolveTypeAsync(serviceId);
+            var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
+
+            var newAssignment = new SubcontractorHealthCampAssignment
+            {
+                Id = Guid.NewGuid(),
+                HealthCampId = camp.Id,
+                SubcontractorId = dto.SubcontractorId,
+                AssignmentStatusId = pendingStatus.Id,
+                BoothLabel = boothLabel,
+                StartDate = camp.StartDate,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = actingUserId,
+                IsDeleted = false,
+                AssignmentId = serviceId,
+                AssignmentType = (PackageItemType)referenceType
+            };
+
+            await _subcontractorCampAssignmentRepository.AddAsync(newAssignment);
+        }
+
+        await _notificationService.TriggerNotificationAsync(
+            title: "Subcontractor Added to Camp",
+            message: $"A subcontractor has been assigned to '{camp.Name}'.",
+            type: "HealthCamp",
+            entityId: camp.Id,
+            entityType: "Camp",
+            ct: ct
+        );
+    }
+
+
+    public async Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId)
+    {
+        var ct = CancellationToken.None;
+
+        var assignments = await _subcontractorCampAssignmentRepository
+            .GetByCampAndSubcontractorAsync(campId, subcontractorId);
+
+        if (!assignments.Any())
+            throw new NotFoundException("Subcontractor assignment", $"{subcontractorId} in camp {campId}");
+
+        foreach (var a in assignments.Where(a => !a.IsDeleted))
+        {
+            a.IsDeleted = true;
+            a.UpdatedAt = DateTime.UtcNow;
+            a.UpdatedBy = actingUserId;
+        }
+
+        await _notificationService.TriggerNotificationAsync(
+            title: "Subcontractor Removed from Camp",
+            message: $"A subcontractor was removed from camp assignments.",
+            type: "HealthCamp",
+            entityId: campId,
+            entityType: "Camp",
+            ct: ct
+        );
+
+        await _subcontractorCampAssignmentRepository.SaveChangesAsync(ct);
+    }
+
 
 }

@@ -48,4 +48,17 @@ public class SubcontractorCampAssignmentRepository : ISubcontractorCampAssignmen
             .AnyAsync(ct);
     }
 
+    // 🔹 NEW METHODS ─────────────────────────────────────────────
+
+    public async Task<List<SubcontractorHealthCampAssignment>> GetByCampAndSubcontractorAsync(Guid campId, Guid subcontractorId, CancellationToken ct = default)
+    {
+        return await _db.SubcontractorHealthCampAssignments
+            .Where(a => a.HealthCampId == campId && a.SubcontractorId == subcontractorId)
+            .ToListAsync(ct);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken ct = default)
+    {
+        await _db.SaveChangesAsync(ct);
+    }
 }

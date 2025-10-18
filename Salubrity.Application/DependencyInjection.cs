@@ -135,6 +135,8 @@ namespace Salubrity.Application
             services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
             services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();
             services.AddScoped<IDoctorRecommendationService, DoctorRecommendationService>();
+            services.AddScoped<IHealthCampCheckInService, HealthCampCheckInService>();
+
 
             services.AddScoped<IHealthCampPackageService, HealthCampPackageService>();
 

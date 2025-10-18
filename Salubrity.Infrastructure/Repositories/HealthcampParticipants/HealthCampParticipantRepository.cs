@@ -3,8 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Common.Interfaces.Repositories;
-using Salubrity.Infrastructure.Persistence;
 using Salubrity.Domain.Entities.Join;
+using Salubrity.Infrastructure.Persistence;
 
 namespace Salubrity.Infrastructure.Repositories
 {

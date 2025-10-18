@@ -260,7 +260,7 @@ public class CampController : BaseController
         return Success(patients);
     }
 
-    [Authorize(Roles = "Subcontractor,Doctor,Admin")]
+    [Authorize(Roles = "Subcontractor,Doctor,Admin,Concierge")]
     [HttpGet("{campId:guid}/patients/{participantId:guid}/detail-with-forms")]
     [ProducesResponseType(typeof(ApiResponse<CampPatientDetailWithFormsDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampPatientDetailWithForms(
@@ -325,6 +325,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
+
     [HttpPost("{campId:guid}/packages")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampPackageDto>>), StatusCodes.Status201Created)]
     public async Task<IActionResult> CreatePackages(Guid campId, [FromBody] CreateHealthCampPackagesDto dto)
@@ -366,4 +367,34 @@ public class CampController : BaseController
         var result = await _healthCampPackageService.GetAllocatedServicesAsync(campId);
         return Success(result);
     }
+
+    // ───────────────────────────────────────────────
+    // 🧱 Subcontractor Assignment Management
+    // ───────────────────────────────────────────────
+    [Authorize(Roles = "Admin,Concierge")]
+    [HttpPost("{campId:guid}/subcontractors/add")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddSubcontractorToCamp(
+        Guid campId,
+        [FromBody] ModifySubcontractorCampDto dto,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        await _service.AddSubcontractorToCampAsync(campId, dto, userId);
+        return Success("Subcontractor successfully added to camp.");
+    }
+
+    [Authorize(Roles = "Admin,Concierge")]
+    [HttpDelete("{campId:guid}/subcontractors/{subcontractorId:guid}/remove")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveSubcontractorFromCamp(
+        Guid campId,
+        Guid subcontractorId,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        await _service.RemoveSubcontractorFromCampAsync(campId, subcontractorId, userId);
+        return Success("Subcontractor removed from camp successfully.");
+    }
+
 }

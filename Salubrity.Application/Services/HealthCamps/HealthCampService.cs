@@ -121,7 +121,7 @@ public class HealthCampService : IHealthCampService
             Description = dto.Description,
             Location = dto.Location,
 
-            // ✅ Force proper UTC for PostgreSQL
+            // Force proper UTC for PostgreSQL
             StartDate = ToUtc(dto.StartDate.Date.AddDays(1)),
             EndDate = dto.EndDate.HasValue ? ToUtc(dto.EndDate.Value.Date.AddDays(1)) : null,
 
@@ -816,6 +816,16 @@ public class HealthCampService : IHealthCampService
         if (pendingStatus == null)
             throw new InvalidOperationException("Assignment status 'Pending' not found.");
 
+        // 🔧 Helper to enforce UTC (solves PostgreSQL timestamp with time zone error)
+        static DateTime ToUtc(DateTime value)
+        {
+            if (value.Kind == DateTimeKind.Utc)
+                return value;
+            if (value.Kind == DateTimeKind.Local)
+                return value.ToUniversalTime();
+            return DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+
         foreach (var serviceId in dto.ServiceIds)
         {
             var referenceType = await _referenceResolver.ResolveTypeAsync(serviceId);
@@ -828,7 +838,10 @@ public class HealthCampService : IHealthCampService
                 SubcontractorId = dto.SubcontractorId,
                 AssignmentStatusId = pendingStatus.Id,
                 BoothLabel = boothLabel,
-                StartDate = camp.StartDate,
+
+                // FIX: ensure UTC datetime kind before saving
+                StartDate = ToUtc(camp.StartDate),
+
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = actingUserId,
                 IsDeleted = false,
@@ -848,6 +861,7 @@ public class HealthCampService : IHealthCampService
             ct: ct
         );
     }
+
 
 
     public async Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId)

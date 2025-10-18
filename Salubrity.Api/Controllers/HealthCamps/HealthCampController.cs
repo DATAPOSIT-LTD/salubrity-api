@@ -320,4 +320,35 @@ public class CampController : BaseController
         var result = await _service.GetParticipantBillingStatusAsync(campId, participantId, ct);
         return Success(result);
     }
+
+    // ───────────────────────────────────────────────
+    // 🧱 Subcontractor Assignment Management
+    // ───────────────────────────────────────────────
+    [Authorize(Roles = "Admin,Concierge")]
+    [HttpPost("{campId:guid}/subcontractors/add")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> AddSubcontractorToCamp(
+        Guid campId,
+        [FromBody] ModifySubcontractorCampDto dto,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        await _service.AddSubcontractorToCampAsync(campId, dto, userId);
+        return Success("Subcontractor successfully added to camp.");
+    }
+
+    [Authorize(Roles = "Admin,Concierge")]
+    [HttpDelete("{campId:guid}/subcontractors/{subcontractorId:guid}/remove")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveSubcontractorFromCamp(
+        Guid campId,
+        Guid subcontractorId,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+        await _service.RemoveSubcontractorFromCampAsync(campId, subcontractorId, userId);
+        return Success("Subcontractor removed from camp successfully.");
+    }
+
+
 }

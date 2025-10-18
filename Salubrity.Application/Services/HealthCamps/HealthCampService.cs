@@ -217,13 +217,14 @@ public class HealthCampService : IHealthCampService
                 SubcontractorId = assignment.SubcontractorId,
                 AssignmentStatusId = assignedStatus.Id,
                 BoothLabel = boothLabel,
-                StartDate = created.StartDate,
+                StartDate = DateTime.SpecifyKind(created.StartDate, DateTimeKind.Utc),
                 CreatedAt = DateTime.UtcNow,
                 IsDeleted = false,
                 IsPrimaryAssignment = true,
                 AssignmentId = assignment.AssignmentId,
                 AssignmentType = assignment.AssignmentType
             };
+
 
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
         }

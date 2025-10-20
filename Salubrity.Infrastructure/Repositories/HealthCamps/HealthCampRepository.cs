@@ -467,25 +467,40 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .ToListAsync(ct);
     }
-
-
     public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-      Guid campId,
-      Guid? serviceAssignmentId,
-      string? q,
-      string? sort,
-      int page,
-      int pageSize,
-      CancellationToken ct = default)
+        Guid campId,
+        Guid? serviceAssignmentOrServiceId,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
     {
         if (page <= 0) page = 1;
         if (pageSize <= 0) pageSize = 20;
 
-        // Total camp service assignments (for full-camp "served" calculation)
+        // 🧠 Step 1: Resolve correct ServiceAssignmentId if a ServiceId was passed
+        Guid? resolvedAssignmentId = null;
+
+        if (serviceAssignmentOrServiceId.HasValue)
+        {
+            // Try to find a matching assignment for this camp using the passed ID
+            resolvedAssignmentId = await _context.HealthCampServiceAssignments
+                .Where(a => a.HealthCampId == campId &&
+                            (a.Id == serviceAssignmentOrServiceId.Value || a.AssignmentId == serviceAssignmentOrServiceId.Value))
+                .Select(a => a.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (resolvedAssignmentId == Guid.Empty)
+                resolvedAssignmentId = null; // no match found, treat as no filter
+        }
+
+        // 🧮 Step 2: Compute total assignments in this camp (used for "camp-wide served")
         var totalAssignments = await _context.HealthCampServiceAssignments
             .Where(a => a.HealthCampId == campId && !a.IsDeleted)
             .CountAsync(ct);
 
+        // 🧩 Step 3: Build query
         var query =
             from p in _context.HealthCampParticipants
             where p.HealthCampId == campId
@@ -503,6 +518,7 @@ public class HealthCampRepository : IHealthCampRepository
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = p.ParticipatedAt,
 
+                // List of completed services
                 CompletedServices = _context.HealthCampParticipantServiceStatuses
                     .Where(s => s.ParticipantId == p.Id && s.ServedAt != null)
                     .Select(s => new ServiceCompletionDto
@@ -522,19 +538,18 @@ public class HealthCampRepository : IHealthCampRepository
                     })
                     .ToList(),
 
-                Served = serviceAssignmentId.HasValue
-                    // station-based served
+                // ✅ Participant served logic (station or full camp)
+                Served = resolvedAssignmentId.HasValue
                     ? _context.HealthCampParticipantServiceStatuses
                         .Any(s =>
                             s.ParticipantId == p.Id &&
-                            s.ServiceAssignmentId == serviceAssignmentId.Value &&
+                            s.ServiceAssignmentId == resolvedAssignmentId.Value &&
                             s.ServedAt != null)
-                    // camp-wide served
                     : _context.HealthCampParticipantServiceStatuses
                         .Count(s => s.ParticipantId == p.Id && s.ServedAt != null) >= totalAssignments
             };
 
-        // 🔍 Search
+        // 🔍 Step 4: Search
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
@@ -544,7 +559,7 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
         }
 
-        // ↕ Sort
+        // ↕ Step 5: Sorting
         var s = sort?.ToLowerInvariant();
         query = s switch
         {
@@ -555,13 +570,15 @@ public class HealthCampRepository : IHealthCampRepository
                              .ThenByDescending(x => x.ParticipatedAt)
         };
 
-        return await query
+        // 📄 Step 6: Pagination
+        var result = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .AsNoTracking()
             .ToListAsync(ct);
-    }
 
+        return result;
+    }
 
 
 

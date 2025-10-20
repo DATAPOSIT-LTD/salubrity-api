@@ -434,26 +434,26 @@ public class HealthCampRepository : IHealthCampRepository
         var query =
             from p in _context.HealthCampParticipants
             where p.HealthCampId == campId
-            join patient in _context.Patients on p.UserId equals patient.UserId into pj
-            from patient in pj.DefaultIfEmpty()
-                // join with service statuses
-            join status in _context.HealthCampParticipantServiceStatuses
-                on p.Id equals status.ParticipantId into ss
-            from status in ss.DefaultIfEmpty()
             select new CampParticipantListDto
             {
                 Id = p.Id,
                 UserId = p.UserId,
-                PatientId = patient != null ? patient.Id : (Guid?)null,
+                PatientId = _context.Patients
+                    .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
+                    .Select(pa => pa.Id)
+                    .FirstOrDefault(),
                 FullName = p.User.FullName!,
                 Email = p.User.Email,
                 PhoneNumber = p.User.Phone,
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = p.ParticipatedAt,
-                Served = ss.Any(x => x.ServedAt != null) // at least one service completed
+
+                // Proper served check using subquery EF can translate
+                Served = _context.HealthCampParticipantServiceStatuses
+                    .Any(s => s.ParticipantId == p.Id && s.ServedAt != null)
             };
 
-        //  Search
+        // Search
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();

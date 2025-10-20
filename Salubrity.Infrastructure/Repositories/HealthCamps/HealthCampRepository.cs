@@ -350,6 +350,23 @@ public class HealthCampRepository : IHealthCampRepository
 
 
 
+    // private static IQueryable<CampParticipantListDto> Project(IQueryable<Domain.Entities.Join.HealthCampParticipant> q)
+    // {
+    //     return q.Select(p => new CampParticipantListDto
+    //     {
+    //         Id = p.Id,
+    //         UserId = p.UserId,
+    //         PatientId = p.PatientId,
+    //         FullName = p.User.FullName!,
+    //         Email = p.User.Email,
+    //         PhoneNumber = p.User.Phone,
+    //         CompanyName = p.HealthCamp.Organization.BusinessName,
+    //         ParticipatedAt = p.ParticipatedAt,
+    //         Served = p.ParticipatedAt != null || p.HealthAssessments.Any()
+    //     });
+    // }
+
+
     private static IQueryable<CampParticipantListDto> Project(IQueryable<Domain.Entities.Join.HealthCampParticipant> q)
     {
         return q.Select(p => new CampParticipantListDto
@@ -362,9 +379,55 @@ public class HealthCampRepository : IHealthCampRepository
             PhoneNumber = p.User.Phone,
             CompanyName = p.HealthCamp.Organization.BusinessName,
             ParticipatedAt = p.ParticipatedAt,
-            Served = p.ParticipatedAt != null || p.HealthAssessments.Any()
+            // "Served" now depends on whether they have any service statuses (not just form submissions)
+            Served = p.ServiceStatuses.Any(s => s.ServedAt != null)
         });
     }
+
+
+    // public IQueryable<CampParticipantListDto> BaseParticipantsDto(Guid campId, string? q, string? sort)
+    // {
+    //     var query =
+    //         from p in _context.HealthCampParticipants
+    //         where p.HealthCampId == campId
+    //         join patient in _context.Patients on p.UserId equals patient.UserId into pj
+    //         from patient in pj.DefaultIfEmpty()
+    //         select new CampParticipantListDto
+    //         {
+    //             Id = p.Id,
+    //             UserId = p.UserId,
+    //             PatientId = patient != null ? patient.Id : (Guid?)null,
+    //             FullName = p.User.FullName!,
+    //             Email = p.User.Email,
+    //             PhoneNumber = p.User.Phone,
+    //             CompanyName = p.HealthCamp.Organization.BusinessName!,
+    //             Served = p.ParticipatedAt != null || p.HealthAssessments.Any(),
+    //             ParticipatedAt = p.ParticipatedAt
+    //         };
+
+    //     if (!string.IsNullOrWhiteSpace(q))
+    //     {
+    //         var term = q.Trim();
+    //         query = query.Where(x =>
+    //             (x.FullName != null && EF.Functions.ILike(x.FullName, $"%{term}%")) ||
+    //             (x.Email != null && EF.Functions.ILike(x.Email, $"%{term}%")) ||
+    //             (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
+    //     }
+
+    //     // sort: nulls-last without using DateTime.MinValue
+    //     var s = sort?.ToLowerInvariant();
+    //     query = s switch
+    //     {
+    //         "name" => query.OrderBy(x => x.FullName),
+    //         "oldest" => query.OrderBy(x => x.ParticipatedAt == null)
+    //                          .ThenBy(x => x.ParticipatedAt),           // nulls last
+    //         _ => query.OrderByDescending(x => x.ParticipatedAt != null)
+    //                          .ThenByDescending(x => x.ParticipatedAt)  // newest first, nulls last
+    //     };
+
+    //     return query.AsNoTracking();
+    // }
+
 
     public IQueryable<CampParticipantListDto> BaseParticipantsDto(Guid campId, string? q, string? sort)
     {
@@ -373,6 +436,10 @@ public class HealthCampRepository : IHealthCampRepository
             where p.HealthCampId == campId
             join patient in _context.Patients on p.UserId equals patient.UserId into pj
             from patient in pj.DefaultIfEmpty()
+                // join with service statuses
+            join status in _context.HealthCampParticipantServiceStatuses
+                on p.Id equals status.ParticipantId into ss
+            from status in ss.DefaultIfEmpty()
             select new CampParticipantListDto
             {
                 Id = p.Id,
@@ -382,10 +449,11 @@ public class HealthCampRepository : IHealthCampRepository
                 Email = p.User.Email,
                 PhoneNumber = p.User.Phone,
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
-                Served = p.ParticipatedAt != null || p.HealthAssessments.Any(),
-                ParticipatedAt = p.ParticipatedAt
+                ParticipatedAt = p.ParticipatedAt,
+                Served = ss.Any(x => x.ServedAt != null) // at least one service completed
             };
 
+        //  Search
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
@@ -395,20 +463,19 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
         }
 
-        // sort: nulls-last without using DateTime.MinValue
+        // Sort
         var s = sort?.ToLowerInvariant();
         query = s switch
         {
             "name" => query.OrderBy(x => x.FullName),
             "oldest" => query.OrderBy(x => x.ParticipatedAt == null)
-                             .ThenBy(x => x.ParticipatedAt),           // nulls last
+                             .ThenBy(x => x.ParticipatedAt),
             _ => query.OrderByDescending(x => x.ParticipatedAt != null)
-                             .ThenByDescending(x => x.ParticipatedAt)  // newest first, nulls last
+                             .ThenByDescending(x => x.ParticipatedAt)
         };
 
         return query.AsNoTracking();
     }
-
 
 
 
@@ -752,11 +819,168 @@ public class HealthCampRepository : IHealthCampRepository
 
 
 
+    // public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
+    //    Guid campId,
+    //    Guid participantId,
+    //    Guid? subcontractorId,
+    //    CancellationToken ct = default)
+    // {
+    //     // STEP 1: Load participant + camp + org + user
+    //     var p = await _context.HealthCampParticipants
+    //         .Where(x => x.Id == participantId && x.HealthCampId == campId)
+    //         .Select(x => new
+    //         {
+    //             Participant = x,
+    //             Camp = x.HealthCamp,
+    //             OrgName = x.HealthCamp.Organization.BusinessName,
+    //             Venue = x.HealthCamp.Location,
+    //             Status = x.HealthCamp.HealthCampStatus != null ? x.HealthCamp.HealthCampStatus.Name : "Unknown",
+    //             User = x.User
+    //         })
+    //         .AsNoTracking()
+    //         .FirstOrDefaultAsync(ct);
+
+    //     if (p == null)
+    //         return null;
+
+    //     // STEP 2: Lookup patient
+    //     var patient = await _context.Patients
+    //         .AsNoTracking()
+    //         .FirstOrDefaultAsync(pa => pa.UserId == p.User.Id && !pa.IsDeleted, ct);
+
+    //     if (patient == null)
+    //         return null;
+
+    //     // STEP 3: Served check
+    //     var served = p.Participant.ParticipatedAt != null
+    //                  || await _context.HealthAssessments
+    //                         .AnyAsync(a => a.ParticipantId == participantId, ct);
+
+    //     // STEP 4: Load assignments polymorphically
+    //     IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
+    //         .Where(a => a.HealthCampId == campId)
+    //         .Include(a => a.Role);
+
+    //     if (subcontractorId.HasValue)
+    //         assignQ = assignQ.Where(a => a.SubcontractorId == subcontractorId.Value);
+
+    //     var assignments = await assignQ.AsNoTracking().ToListAsync(ct);
+
+    //     // STEP 5: Final response
+    //     var dto = new CampPatientDetailWithFormsDto
+    //     {
+    //         ParticipantId = p.Participant.Id,
+    //         UserId = p.User.Id,
+    //         PatientCode = patient.Id.ToString(),
+    //         FullName = p.User.FullName ?? "Patient",
+    //         Email = p.User.Email,
+    //         Phone = p.User.Phone,
+    //         CampId = p.Camp.Id,
+    //         ClientName = p.OrgName,
+    //         Venue = p.Venue ?? "",
+    //         StartDate = p.Camp.StartDate,
+    //         EndDate = p.Camp.EndDate,
+    //         Status = p.Status,
+    //         Served = served
+    //     };
+
+    //     // STEP 6: Normalize assignments
+    //     // STEP 6: Normalize assignments
+    //     var normalizedAssignments = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
+
+    //     foreach (var a in assignments)
+    //     {
+    //         if (a.AssignmentType == PackageItemType.ServiceSubcategory)
+    //         {
+    //             var parent = await _context.ServiceSubcategories
+    //                 .Where(sc => sc.Id == a.AssignmentId)
+    //                 .Select(sc => sc.ServiceCategory)
+    //                 .FirstOrDefaultAsync(ct);
+
+    //             if (parent != null)
+    //             {
+    //                 // Collapse into parent category
+    //                 normalizedAssignments.Add((parent.Id, PackageItemType.ServiceCategory, a));
+    //                 continue;
+    //             }
+    //         }
+
+    //         normalizedAssignments.Add((a.AssignmentId, a.AssignmentType, a));
+    //     }
+
+    //     // STEP 7: Deduplicate with rules
+    //     var deduped = normalizedAssignments
+    //         .GroupBy(x => new { x.RefId, x.Type })
+    //         .Select(g => g.First()) // keep first per RefId+Type
+    //         .ToList();
+
+    //     // Rule: If a category is present, drop any subcategory-normalized duplicates
+    //     var finalAssignments = deduped
+    //         .GroupBy(x => x.RefId)
+    //         .Select(g =>
+    //             g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory)
+    //             .Equals(default)
+    //                 ? g.First()
+    //                 : g.First(x => x.Type == PackageItemType.ServiceCategory)
+    //         )
+    //         .ToList();
+
+
+    //     // STEP 8: Build DTO list
+    //     var result = new List<AssignedServiceWithFormDto>();
+    //     var referenceResolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
+
+    //     foreach (var item in finalAssignments)
+    //     {
+    //         var any = item.Source;
+    //         IntakeForm? form = null;
+    //         string displayName = await referenceResolver.GetNameAsync(item.Type, item.RefId);
+
+    //         switch (item.Type)
+    //         {
+    //             case PackageItemType.Service:
+    //                 form = await _context.Services
+    //                     .Where(s => s.Id == item.RefId)
+    //                     .Include(s => s.IntakeForm).ThenInclude(f => f.Versions)
+    //                     .Include(s => s.IntakeForm).ThenInclude(f => f.Sections)
+    //                         .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
+    //                     .Select(s => s.IntakeForm)
+    //                     .FirstOrDefaultAsync(ct);
+    //                 break;
+
+    //             case PackageItemType.ServiceCategory:
+    //                 form = await _context.ServiceCategories
+    //                     .Where(c => c.Id == item.RefId)
+    //                     .Include(c => c.IntakeForm).ThenInclude(f => f.Versions)
+    //                     .Include(c => c.IntakeForm).ThenInclude(f => f.Sections)
+    //                         .ThenInclude(sec => sec.Fields).ThenInclude(ff => ff.Options)
+    //                     .Select(c => c.IntakeForm)
+    //                     .FirstOrDefaultAsync(ct);
+    //                 break;
+    //         }
+
+    //         result.Add(new AssignedServiceWithFormDto
+    //         {
+    //             ServiceId = item.RefId,
+    //             ServiceName = displayName,
+    //             ProfessionId = any.ProfessionId,
+    //             AssignedRole = any.Role?.Name,
+    //             Form = MapForm(form)
+    //         });
+    //     }
+
+
+    //     dto.Assignments = [.. result.OrderBy(x => x.ServiceName)];
+
+    //     return dto;
+    // }
+
+
     public async Task<CampPatientDetailWithFormsDto?> GetCampPatientDetailWithFormsAsync(
-       Guid campId,
-       Guid participantId,
-       Guid? subcontractorId,
-       CancellationToken ct = default)
+    Guid campId,
+    Guid participantId,
+    Guid? subcontractorId,
+    CancellationToken ct = default)
     {
         // STEP 1: Load participant + camp + org + user
         var p = await _context.HealthCampParticipants
@@ -784,10 +1008,9 @@ public class HealthCampRepository : IHealthCampRepository
         if (patient == null)
             return null;
 
-        // STEP 3: Served check
-        var served = p.Participant.ParticipatedAt != null
-                     || await _context.HealthAssessments
-                            .AnyAsync(a => a.ParticipantId == participantId, ct);
+        // STEP 3: ✅ Served check (now uses ParticipantServiceStatuses)
+        var served = await _context.HealthCampParticipantServiceStatuses
+            .AnyAsync(s => s.ParticipantId == participantId && s.ServedAt != null, ct);
 
         // STEP 4: Load assignments polymorphically
         IQueryable<HealthCampServiceAssignment> assignQ = _context.HealthCampServiceAssignments
@@ -814,10 +1037,9 @@ public class HealthCampRepository : IHealthCampRepository
             StartDate = p.Camp.StartDate,
             EndDate = p.Camp.EndDate,
             Status = p.Status,
-            Served = served
+            Served = served // ✅ Now reflects actual service completion
         };
 
-        // STEP 6: Normalize assignments
         // STEP 6: Normalize assignments
         var normalizedAssignments = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
 
@@ -832,7 +1054,6 @@ public class HealthCampRepository : IHealthCampRepository
 
                 if (parent != null)
                 {
-                    // Collapse into parent category
                     normalizedAssignments.Add((parent.Id, PackageItemType.ServiceCategory, a));
                     continue;
                 }
@@ -841,23 +1062,20 @@ public class HealthCampRepository : IHealthCampRepository
             normalizedAssignments.Add((a.AssignmentId, a.AssignmentType, a));
         }
 
-        // STEP 7: Deduplicate with rules
+        // STEP 7: Deduplicate
         var deduped = normalizedAssignments
             .GroupBy(x => new { x.RefId, x.Type })
-            .Select(g => g.First()) // keep first per RefId+Type
+            .Select(g => g.First())
             .ToList();
 
-        // Rule: If a category is present, drop any subcategory-normalized duplicates
         var finalAssignments = deduped
             .GroupBy(x => x.RefId)
             .Select(g =>
-                g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory)
-                .Equals(default)
-                    ? g.First()
-                    : g.First(x => x.Type == PackageItemType.ServiceCategory)
-            )
+            {
+                var category = g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory);
+                return category.Source != null ? category : g.First();
+            })
             .ToList();
-
 
         // STEP 8: Build DTO list
         var result = new List<AssignedServiceWithFormDto>();
@@ -902,11 +1120,10 @@ public class HealthCampRepository : IHealthCampRepository
             });
         }
 
-
         dto.Assignments = [.. result.OrderBy(x => x.ServiceName)];
-
         return dto;
     }
+
 
 
     // --- helpers ---

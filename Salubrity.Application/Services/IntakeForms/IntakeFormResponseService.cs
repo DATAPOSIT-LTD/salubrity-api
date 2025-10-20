@@ -247,10 +247,48 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
 
         // --- Mark participant as served for this specific service station ---
+        // if (dto.ServiceId.HasValue)
+        // {
+        //     var participantService = await _participantServiceStatusRepository
+        //         .GetByParticipantAndAssignmentAsync(dto.ParticipantId, dto.ServiceId.Value, ct);
+
+        //     if (participantService == null)
+        //     {
+        //         participantService = new HealthCampParticipantServiceStatus
+        //         {
+        //             Id = Guid.NewGuid(),
+        //             ParticipantId = dto.ParticipantId,
+        //             ServiceAssignmentId = dto.ServiceId.Value,
+        //             SubcontractorId = submittedByUserId,
+        //             ServedAt = DateTime.UtcNow
+        //         };
+
+        //         await _participantServiceStatusRepository.AddAsync(participantService, ct);
+        //         _logger.LogInformation("Marked participant {ParticipantId} as served at service {ServiceAssignmentId}", dto.PatientId, dto.HealthCampServiceAssignmentId);
+        //     }
+        //     else if (participantService.ServedAt == null)
+        //     {
+        //         participantService.ServedAt = DateTime.UtcNow;
+        //         await _participantServiceStatusRepository.UpdateAsync(participantService, ct);
+        //         _logger.LogInformation("Updated service served timestamp for participant {ParticipantId}", dto.PatientId);
+        //     }
+        // }
+
+        // --- Mark participant as served for this specific service station ---
         if (dto.ServiceId.HasValue)
         {
+            // First: resolve the correct assignment PK using the service/category/subcategory ID
+            var assignment = await _assignmentRepository
+                .FirstOrDefaultAsync(a => a.AssignmentId == dto.ServiceId.Value, ct);
+
+            if (assignment == null)
+                throw new ValidationException([$"No HealthCampServiceAssignment found for ServiceId {dto.ServiceId}"]);
+
+            var resolvedAssignmentId = assignment.Id;
+
+            // Now use the resolved PK safely
             var participantService = await _participantServiceStatusRepository
-                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, dto.ServiceId.Value, ct);
+                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, resolvedAssignmentId, ct);
 
             if (participantService == null)
             {
@@ -258,21 +296,26 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     Id = Guid.NewGuid(),
                     ParticipantId = dto.ParticipantId,
-                    ServiceAssignmentId = dto.ServiceId.Value,
+                    ServiceAssignmentId = resolvedAssignmentId, // ✅ correct FK now
                     SubcontractorId = submittedByUserId,
                     ServedAt = DateTime.UtcNow
                 };
 
                 await _participantServiceStatusRepository.AddAsync(participantService, ct);
-                _logger.LogInformation("Marked participant {ParticipantId} as served at service {ServiceAssignmentId}", dto.PatientId, dto.HealthCampServiceAssignmentId);
+                _logger.LogInformation(
+                    "✅ Marked participant {ParticipantId} as served at assignment {AssignmentId} (resolved from ServiceId {ServiceId})",
+                    dto.ParticipantId,
+                    resolvedAssignmentId,
+                    dto.ServiceId);
             }
             else if (participantService.ServedAt == null)
             {
                 participantService.ServedAt = DateTime.UtcNow;
                 await _participantServiceStatusRepository.UpdateAsync(participantService, ct);
-                _logger.LogInformation("Updated service served timestamp for participant {ParticipantId}", dto.PatientId);
+                _logger.LogInformation("🔄 Updated service served timestamp for participant {ParticipantId}", dto.ParticipantId);
             }
         }
+
 
         _logger.LogInformation("Intake form submitted successfully. ResponseId={ResponseId}", responseId);
         return responseId;

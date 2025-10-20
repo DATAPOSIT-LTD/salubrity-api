@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -27,6 +28,15 @@ public class HealthCampServiceAssignmentRepository : IHealthCampServiceAssignmen
             .Include(a => a.HealthCamp)
             .Where(a => a.HealthCampId == campId && !a.IsDeleted)
             .ToListAsync(ct);
+    }
+
+    public async Task<HealthCampServiceAssignment?> FirstOrDefaultAsync(
+           Expression<Func<HealthCampServiceAssignment, bool>> predicate,
+           CancellationToken ct = default)
+    {
+        return await _db.HealthCampServiceAssignments
+            .AsNoTracking()
+            .FirstOrDefaultAsync(predicate, ct);
     }
 
 

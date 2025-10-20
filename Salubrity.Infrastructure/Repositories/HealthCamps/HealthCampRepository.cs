@@ -501,20 +501,97 @@ public class HealthCampRepository : IHealthCampRepository
     //         .ToListAsync(ct);
     // }
 
+    // public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
+    //     Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    // {
+    //     return await Project(
+    //             BaseParticipants(campId, q, sort)
+    //                 .Include(p => p.ServiceStatuses) // include per-station statuses
+    //                 .Where(p =>
+    //                     p.ServiceStatuses.Any(s => s.ServedAt != null) ||
+    //                     p.ParticipatedAt != null ||
+    //                     p.HealthAssessments.Any()))
+    //         .Skip((page - 1) * pageSize)
+    //         .Take(pageSize)
+    //         .ToListAsync(ct);
+    // }
+
+
     public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-        Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
-        return await Project(
-                BaseParticipants(campId, q, sort)
-                    .Include(p => p.ServiceStatuses) // include per-station statuses
-                    .Where(p =>
-                        p.ServiceStatuses.Any(s => s.ServedAt != null) ||
-                        p.ParticipatedAt != null ||
-                        p.HealthAssessments.Any()))
+        var query =
+            from p in _context.HealthCampParticipants
+            where p.HealthCampId == campId
+            select new CampParticipantListDto
+            {
+                Id = p.Id,
+                UserId = p.UserId,
+                PatientId = _context.Patients
+                    .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
+                    .Select(pa => pa.Id)
+                    .FirstOrDefault(),
+                FullName = p.User.FullName!,
+                Email = p.User.Email,
+                PhoneNumber = p.User.Phone,
+                CompanyName = p.HealthCamp.Organization.BusinessName!,
+                ParticipatedAt = p.ParticipatedAt,
+
+                // participant considered served if any service has ServedAt != null
+                Served = _context.HealthCampParticipantServiceStatuses
+                    .Any(s => s.ParticipantId == p.Id && s.ServedAt != null),
+
+                // List all services with served timestamps
+                CompletedServices = _context.HealthCampParticipantServiceStatuses
+                    .Where(s => s.ParticipantId == p.Id && s.ServedAt != null)
+                    .Select(s => new ServiceCompletionDto
+                    {
+                        ServiceAssignmentId = s.ServiceAssignmentId,
+                        ServiceName = s.ServiceAssignment.AssignmentType == PackageItemType.Service
+                            ? _context.Services
+                                .Where(sv => sv.Id == s.ServiceAssignment.AssignmentId)
+                                .Select(sv => sv.Name)
+                                .FirstOrDefault()
+                            : _context.ServiceCategories
+                                .Where(sc => sc.Id == s.ServiceAssignment.AssignmentId)
+                                .Select(sc => sc.Name)
+                                .FirstOrDefault(),
+                        ServedAt = s.ServedAt
+                    })
+                    .ToList()
+            };
+
+        // Optional search
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(x =>
+                (x.FullName != null && EF.Functions.ILike(x.FullName, $"%{term}%")) ||
+                (x.Email != null && EF.Functions.ILike(x.Email, $"%{term}%")) ||
+                (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
+        }
+
+        // Sort by name or participation
+        var s = sort?.ToLowerInvariant();
+        query = s switch
+        {
+            "name" => query.OrderBy(x => x.FullName),
+            "oldest" => query.OrderBy(x => x.ParticipatedAt == null)
+                             .ThenBy(x => x.ParticipatedAt),
+            _ => query.OrderByDescending(x => x.ParticipatedAt != null)
+                             .ThenByDescending(x => x.ParticipatedAt)
+        };
+
+        //  Paginate
+        var result = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .AsNoTracking()
             .ToListAsync(ct);
+
+        return result;
     }
+
 
 
 

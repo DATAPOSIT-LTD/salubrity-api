@@ -517,9 +517,89 @@ public class HealthCampRepository : IHealthCampRepository
     // }
 
 
+    // public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
+    // Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    // {
+    //     var query =
+    //         from p in _context.HealthCampParticipants
+    //         where p.HealthCampId == campId
+    //         select new CampParticipantListDto
+    //         {
+    //             Id = p.Id,
+    //             UserId = p.UserId,
+    //             PatientId = _context.Patients
+    //                 .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
+    //                 .Select(pa => pa.Id)
+    //                 .FirstOrDefault(),
+    //             FullName = p.User.FullName!,
+    //             Email = p.User.Email,
+    //             PhoneNumber = p.User.Phone,
+    //             CompanyName = p.HealthCamp.Organization.BusinessName!,
+    //             ParticipatedAt = p.ParticipatedAt,
+
+    //             // participant considered served if any service has ServedAt != null
+    //             Served = _context.HealthCampParticipantServiceStatuses
+    //                 .Any(s => s.ParticipantId == p.Id && s.ServedAt != null),
+
+    //             // List all services with served timestamps
+    //             CompletedServices = _context.HealthCampParticipantServiceStatuses
+    //                 .Where(s => s.ParticipantId == p.Id && s.ServedAt != null)
+    //                 .Select(s => new ServiceCompletionDto
+    //                 {
+    //                     ServiceAssignmentId = s.ServiceAssignmentId,
+    //                     ServiceName = s.ServiceAssignment.AssignmentType == PackageItemType.Service
+    //                         ? _context.Services
+    //                             .Where(sv => sv.Id == s.ServiceAssignment.AssignmentId)
+    //                             .Select(sv => sv.Name)
+    //                             .FirstOrDefault()
+    //                         : _context.ServiceCategories
+    //                             .Where(sc => sc.Id == s.ServiceAssignment.AssignmentId)
+    //                             .Select(sc => sc.Name)
+    //                             .FirstOrDefault(),
+    //                     ServedAt = s.ServedAt
+    //                 })
+    //                 .ToList()
+    //         };
+
+    //     // Optional search
+    //     if (!string.IsNullOrWhiteSpace(q))
+    //     {
+    //         var term = q.Trim();
+    //         query = query.Where(x =>
+    //             (x.FullName != null && EF.Functions.ILike(x.FullName, $"%{term}%")) ||
+    //             (x.Email != null && EF.Functions.ILike(x.Email, $"%{term}%")) ||
+    //             (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
+    //     }
+
+    //     // Sort by name or participation
+    //     var s = sort?.ToLowerInvariant();
+    //     query = s switch
+    //     {
+    //         "name" => query.OrderBy(x => x.FullName),
+    //         "oldest" => query.OrderBy(x => x.ParticipatedAt == null)
+    //                          .ThenBy(x => x.ParticipatedAt),
+    //         _ => query.OrderByDescending(x => x.ParticipatedAt != null)
+    //                          .ThenByDescending(x => x.ParticipatedAt)
+    //     };
+
+    //     //  Paginate
+    //     var result = await query
+    //         .Skip((page - 1) * pageSize)
+    //         .Take(pageSize)
+    //         .AsNoTracking()
+    //         .ToListAsync(ct);
+
+    //     return result;
+    // }
+
     public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-    Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+        Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
+        // --- Step 1: Get total number of service assignments in the camp ---
+        var totalAssignments = await _context.HealthCampServiceAssignments
+            .Where(a => a.HealthCampId == campId && !a.IsDeleted)
+            .CountAsync(ct);
+
         var query =
             from p in _context.HealthCampParticipants
             where p.HealthCampId == campId
@@ -537,31 +617,32 @@ public class HealthCampRepository : IHealthCampRepository
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = p.ParticipatedAt,
 
-                // participant considered served if any service has ServedAt != null
-                Served = _context.HealthCampParticipantServiceStatuses
-                    .Any(s => s.ParticipantId == p.Id && s.ServedAt != null),
-
-                // List all services with served timestamps
+                // ✅ Count how many services have been completed for this participant
                 CompletedServices = _context.HealthCampParticipantServiceStatuses
                     .Where(s => s.ParticipantId == p.Id && s.ServedAt != null)
                     .Select(s => new ServiceCompletionDto
                     {
                         ServiceAssignmentId = s.ServiceAssignmentId,
-                        ServiceName = s.ServiceAssignment.AssignmentType == PackageItemType.Service
-                            ? _context.Services
-                                .Where(sv => sv.Id == s.ServiceAssignment.AssignmentId)
-                                .Select(sv => sv.Name)
-                                .FirstOrDefault()
-                            : _context.ServiceCategories
-                                .Where(sc => sc.Id == s.ServiceAssignment.AssignmentId)
-                                .Select(sc => sc.Name)
-                                .FirstOrDefault(),
+                        ServiceName =
+                            s.ServiceAssignment.AssignmentType == PackageItemType.Service
+                                ? _context.Services
+                                    .Where(sv => sv.Id == s.ServiceAssignment.AssignmentId)
+                                    .Select(sv => sv.Name)
+                                    .FirstOrDefault()
+                                : _context.ServiceCategories
+                                    .Where(sc => sc.Id == s.ServiceAssignment.AssignmentId)
+                                    .Select(sc => sc.Name)
+                                    .FirstOrDefault(),
                         ServedAt = s.ServedAt
                     })
-                    .ToList()
+                    .ToList(),
+
+                // ✅ Participant fully "served" only if all assigned services are done
+                Served = _context.HealthCampParticipantServiceStatuses
+                            .Count(s => s.ParticipantId == p.Id && s.ServedAt != null) >= totalAssignments
             };
 
-        // Optional search
+        // --- Step 2: Apply search ---
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
@@ -571,7 +652,7 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
         }
 
-        // Sort by name or participation
+        // --- Step 3: Sorting ---
         var s = sort?.ToLowerInvariant();
         query = s switch
         {
@@ -582,7 +663,7 @@ public class HealthCampRepository : IHealthCampRepository
                              .ThenByDescending(x => x.ParticipatedAt)
         };
 
-        //  Paginate
+        // --- Step 4: Pagination ---
         var result = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -591,7 +672,6 @@ public class HealthCampRepository : IHealthCampRepository
 
         return result;
     }
-
 
 
 

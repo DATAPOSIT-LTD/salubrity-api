@@ -247,10 +247,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         }
 
         // --- Mark participant as served for this specific service station ---
-        if (dto.HealthCampServiceAssignmentId.HasValue)
+        if (dto.ServiceId.HasValue)
         {
             var participantService = await _participantServiceStatusRepository
-                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, dto.HealthCampServiceAssignmentId.Value, ct);
+                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, dto.ServiceId.Value, ct);
 
             if (participantService == null)
             {
@@ -258,7 +258,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     Id = Guid.NewGuid(),
                     ParticipantId = dto.ParticipantId,
-                    ServiceAssignmentId = dto.HealthCampServiceAssignmentId.Value,
+                    ServiceAssignmentId = dto.ServiceId.Value,
                     SubcontractorId = submittedByUserId,
                     ServedAt = DateTime.UtcNow
                 };

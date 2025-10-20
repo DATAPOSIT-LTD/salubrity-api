@@ -91,9 +91,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (invalidField is not null)
             throw new ValidationException([$"Field {invalidField.FieldId} does not belong to form version {dto.IntakeFormVersionId}."]);
 
-        var patientId = await _participantRepository.GetPatientIdByParticipantIdAsync(dto.PatientId, ct);
+        var patientId = await _participantRepository.GetPatientIdByParticipantIdAsync(dto.ParticipantId, ct);
         if (patientId is null)
-            throw new NotFoundException($"Patient not found for participant {dto.PatientId}.");
+            throw new NotFoundException($"Patient not found for participant {dto.ParticipantId}.");
 
         Guid submittedServiceId;
         PackageItemType submittedServiceType;

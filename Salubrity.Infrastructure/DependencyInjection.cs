@@ -137,6 +137,7 @@ public static class DependencyInjection
         services.AddScoped<IHealthCampPackageRepository, HealthCampPackageRepository>();
 
 
+        services.AddScoped<IHealthCampParticipantServiceStatusRepository, HealthCampParticipantServiceStatusRepository>();
 
 
         services.AddDbContext<AppDbContext>(options =>

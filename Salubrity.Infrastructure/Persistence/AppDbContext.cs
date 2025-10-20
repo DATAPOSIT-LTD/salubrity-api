@@ -108,6 +108,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
         public DbSet<HealthCampPackage> HealthCampPackages { get; set; }
         public DbSet<HealthCampParticipantPackage> HealthCampParticipantPackages { get; set; }
+        public DbSet<HealthCampParticipantServiceStatus> HealthCampParticipantServiceStatuses { get; set; }
 
 
         // ─────────────────────────────────────
@@ -299,6 +300,18 @@ namespace Salubrity.Infrastructure.Persistence
                 .HasForeignKey(r => r.FormResponseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+
+            modelBuilder.Entity<HealthCampParticipantServiceStatus>(entity =>
+            {
+                entity.HasIndex(x => new { x.ParticipantId, x.ServiceAssignmentId }).IsUnique();
+                entity.HasOne(x => x.Participant)
+                    .WithMany(p => p.ServiceStatuses)
+                    .HasForeignKey(x => x.ParticipantId);
+
+                entity.HasOne(x => x.ServiceAssignment)
+                    .WithMany()
+                    .HasForeignKey(x => x.ServiceAssignmentId);
+            });
 
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);

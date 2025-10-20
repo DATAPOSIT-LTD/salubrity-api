@@ -33,4 +33,6 @@ public class HealthCampParticipant : BaseAuditableEntity
     public string? TempPasswordHash { get; set; }
     public DateTimeOffset? TempPasswordExpiresAt { get; set; }
     public ICollection<HealthAssessment> HealthAssessments { get; set; } = [];
+    public ICollection<HealthCampParticipantServiceStatus> ServiceStatuses { get; set; } = [];
+
 }

@@ -44,6 +44,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly IIntakeFormRepository _intakeFormRepository;
     private readonly IHealthCampRepository _healthCampRepository;
     private readonly IHealthAssessmentFormService _healthAssessmentFormService;
+    private readonly IHealthCampParticipantServiceStatusRepository _participantServiceStatusRepository;
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -57,7 +58,9 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IHealthCampService campService,
         IIntakeFormRepository intakeFormRepository,
         IHealthCampRepository healthCampRepository,
-        IHealthAssessmentFormService healthAssessmentFormService
+        IHealthAssessmentFormService healthAssessmentFormService,
+
+        IHealthCampParticipantServiceStatusRepository participantServiceStatusRepository
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -72,6 +75,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _intakeFormRepository = intakeFormRepository;
         _healthCampRepository = healthCampRepository;
         _healthAssessmentFormService = healthAssessmentFormService;
+        _participantServiceStatusRepository = participantServiceStatusRepository;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -242,7 +246,35 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             await _stationCheckInRepository.UpdateAsync(checkIn, ct);
         }
 
-        _logger.LogInformation("✅ Intake form submitted successfully. ResponseId={ResponseId}", responseId);
+        // --- Mark participant as served for this specific service station ---
+        if (dto.HealthCampServiceAssignmentId.HasValue)
+        {
+            var participantService = await _participantServiceStatusRepository
+                .GetByParticipantAndAssignmentAsync(dto.PatientId, dto.HealthCampServiceAssignmentId.Value, ct);
+
+            if (participantService == null)
+            {
+                participantService = new HealthCampParticipantServiceStatus
+                {
+                    Id = Guid.NewGuid(),
+                    ParticipantId = dto.PatientId,
+                    ServiceAssignmentId = dto.HealthCampServiceAssignmentId.Value,
+                    SubcontractorId = submittedByUserId,
+                    ServedAt = DateTime.UtcNow
+                };
+
+                await _participantServiceStatusRepository.AddAsync(participantService, ct);
+                _logger.LogInformation("Marked participant {ParticipantId} as served at service {ServiceAssignmentId}", dto.PatientId, dto.HealthCampServiceAssignmentId);
+            }
+            else if (participantService.ServedAt == null)
+            {
+                participantService.ServedAt = DateTime.UtcNow;
+                await _participantServiceStatusRepository.UpdateAsync(participantService, ct);
+                _logger.LogInformation("Updated service served timestamp for participant {ParticipantId}", dto.PatientId);
+            }
+        }
+
+        _logger.LogInformation("Intake form submitted successfully. ResponseId={ResponseId}", responseId);
         return responseId;
     }
 

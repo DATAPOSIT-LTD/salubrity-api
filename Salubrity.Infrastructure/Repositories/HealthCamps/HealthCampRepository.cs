@@ -425,23 +425,58 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
 
-    public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    // public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    // {
+    //     return await Project(BaseParticipants(campId, q, sort)
+    //             .Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()))
+    //         .Skip((page - 1) * pageSize)
+    //         .Take(pageSize)
+    //         .ToListAsync(ct);
+    // }
+
+    public async Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
+        Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
-        return await Project(BaseParticipants(campId, q, sort)
-                .Where(p => p.ParticipatedAt != null || p.HealthAssessments.Any()))
+        return await Project(
+                BaseParticipants(campId, q, sort)
+                    .Include(p => p.ServiceStatuses) // include per-station statuses
+                    .Where(p =>
+                        p.ServiceStatuses.Any(s => s.ServedAt != null) ||
+                        p.ParticipatedAt != null ||
+                        p.HealthAssessments.Any()))
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
     }
 
-    public async Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+
+
+
+
+    // public async Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+    // {
+    //     return await Project(BaseParticipants(campId, q, sort)
+    //             .Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()))
+    //         .Skip((page - 1) * pageSize)
+    //         .Take(pageSize)
+    //         .ToListAsync(ct);
+    // }
+
+    public async Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
+    Guid campId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
     {
-        return await Project(BaseParticipants(campId, q, sort)
-                .Where(p => p.ParticipatedAt == null && !p.HealthAssessments.Any()))
+        return await Project(
+                BaseParticipants(campId, q, sort)
+                    .Include(p => p.ServiceStatuses)
+                    .Where(p =>
+                        (p.ServiceStatuses == null || !p.ServiceStatuses.Any(s => s.ServedAt != null)) &&
+                        p.ParticipatedAt == null &&
+                        !p.HealthAssessments.Any()))
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
     }
+
 
 
     public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)

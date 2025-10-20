@@ -250,14 +250,14 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         if (dto.HealthCampServiceAssignmentId.HasValue)
         {
             var participantService = await _participantServiceStatusRepository
-                .GetByParticipantAndAssignmentAsync(dto.PatientId, dto.HealthCampServiceAssignmentId.Value, ct);
+                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, dto.HealthCampServiceAssignmentId.Value, ct);
 
             if (participantService == null)
             {
                 participantService = new HealthCampParticipantServiceStatus
                 {
                     Id = Guid.NewGuid(),
-                    ParticipantId = dto.PatientId,
+                    ParticipantId = dto.ParticipantId,
                     ServiceAssignmentId = dto.HealthCampServiceAssignmentId.Value,
                     SubcontractorId = submittedByUserId,
                     ServedAt = DateTime.UtcNow

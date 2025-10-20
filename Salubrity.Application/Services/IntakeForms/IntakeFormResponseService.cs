@@ -296,14 +296,14 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     Id = Guid.NewGuid(),
                     ParticipantId = dto.ParticipantId,
-                    ServiceAssignmentId = resolvedAssignmentId, // ✅ correct FK now
+                    ServiceAssignmentId = resolvedAssignmentId, // correct FK now
                     SubcontractorId = submittedByUserId,
                     ServedAt = DateTime.UtcNow
                 };
 
                 await _participantServiceStatusRepository.AddAsync(participantService, ct);
                 _logger.LogInformation(
-                    "✅ Marked participant {ParticipantId} as served at assignment {AssignmentId} (resolved from ServiceId {ServiceId})",
+                    "Marked participant {ParticipantId} as served at assignment {AssignmentId} (resolved from ServiceId {ServiceId})",
                     dto.ParticipantId,
                     resolvedAssignmentId,
                     dto.ServiceId);
@@ -312,7 +312,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             {
                 participantService.ServedAt = DateTime.UtcNow;
                 await _participantServiceStatusRepository.UpdateAsync(participantService, ct);
-                _logger.LogInformation("🔄 Updated service served timestamp for participant {ParticipantId}", dto.ParticipantId);
+                _logger.LogInformation("Updated service served timestamp for participant {ParticipantId}", dto.ParticipantId);
             }
         }
 

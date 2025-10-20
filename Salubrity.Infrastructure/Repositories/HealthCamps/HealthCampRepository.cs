@@ -380,7 +380,7 @@ public class HealthCampRepository : IHealthCampRepository
             CompanyName = p.HealthCamp.Organization.BusinessName,
             ParticipatedAt = p.ParticipatedAt,
             // "Served" now depends on whether they have any service statuses (not just form submissions)
-            Served = p.ServiceStatuses.Any(s => s.ServedAt != null)
+            Served = p.ServiceStatuses.All(s => s.ServedAt != null)
         });
     }
 
@@ -613,7 +613,7 @@ public class HealthCampRepository : IHealthCampRepository
                 BaseParticipants(campId, q, sort)
                     .Include(p => p.ServiceStatuses)
                     .Where(p =>
-                        (p.ServiceStatuses == null || !p.ServiceStatuses.Any(s => s.ServedAt != null)) &&
+                        (p.ServiceStatuses == null || !p.ServiceStatuses.All(s => s.ServedAt != null)) &&
                         p.ParticipatedAt == null &&
                         !p.HealthAssessments.Any()))
             .Skip((page - 1) * pageSize)

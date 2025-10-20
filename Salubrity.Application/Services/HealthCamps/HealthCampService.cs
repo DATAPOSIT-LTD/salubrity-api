@@ -589,14 +589,17 @@ public class HealthCampService : IHealthCampService
     }
 
     // These stay the same
-    public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-        => _repo.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+    public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
 
-    public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-        => _repo.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
+     => _repo.GetCampParticipantsAllAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
 
-    public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-        => _repo.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
+    public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+
+     => _repo.GetCampParticipantsServedAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+
+        => _repo.GetCampParticipantsNotSeenAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
 
     // Status-based camps with optional subcontractor
     public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default)
@@ -984,6 +987,8 @@ public class HealthCampService : IHealthCampService
             ServicePackageName = p.ServicePackage?.Name,
         })];
     }
+
+
 
 
 }

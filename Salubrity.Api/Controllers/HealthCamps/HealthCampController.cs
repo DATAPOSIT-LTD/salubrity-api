@@ -151,13 +151,15 @@ public class CampController : BaseController
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampParticipantsAll(
-        Guid campId,
-        [FromQuery] string? q,
-        [FromQuery] string? sort,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+     Guid campId,
+     [FromQuery] Guid? serviceAssignmentId,
+     [FromQuery] string? q,
+     [FromQuery] string? sort,
+     [FromQuery] int page = 1,
+     [FromQuery] int pageSize = 20,
+     CancellationToken ct = default)
     {
-        var result = await _service.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+        var result = await _service.GetCampParticipantsAllAsync(campId, serviceAssignmentId, q, sort, page, pageSize, ct);
         return Success(result);
     }
 
@@ -165,12 +167,14 @@ public class CampController : BaseController
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampParticipantsServed(
         Guid campId,
+        [FromQuery] Guid? serviceAssignmentId,
         [FromQuery] string? q,
         [FromQuery] string? sort,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
     {
-        var result = await _service.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
+        var result = await _service.GetCampParticipantsServedAsync(campId, serviceAssignmentId, q, sort, page, pageSize, ct);
         return Success(result);
     }
 
@@ -178,14 +182,17 @@ public class CampController : BaseController
     [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampParticipantsNotSeen(
         Guid campId,
+        [FromQuery] Guid? serviceAssignmentId,
         [FromQuery] string? q,
         [FromQuery] string? sort,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
     {
-        var result = await _service.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
+        var result = await _service.GetCampParticipantsNotSeenAsync(campId, serviceAssignmentId, q, sort, page, pageSize, ct);
         return Success(result);
     }
+
 
 
     [AllowAnonymous] // or [Authorize(Roles = "Admin")] if restricted

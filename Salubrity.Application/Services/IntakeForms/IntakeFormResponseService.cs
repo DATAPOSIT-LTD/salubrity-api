@@ -242,7 +242,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
             // _
 
-            _logger.LogInformation("✅ Marking station check-in as completed: CheckInId={CheckInId}, FinishedAt={FinishedAt}", checkIn.Id, now);
+            _logger.LogInformation("Marking station check-in as completed: CheckInId={CheckInId}, FinishedAt={FinishedAt}", checkIn.Id, now);
             await _stationCheckInRepository.UpdateAsync(checkIn, ct);
         }
 
@@ -277,16 +277,28 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         // --- Mark participant as served for this specific service station ---
         if (dto.ServiceId.HasValue)
         {
-            // First: resolve the correct assignment PK using the service/category/subcategory ID
-            var assignment = await _assignmentRepository
-                .FirstOrDefaultAsync(a => a.AssignmentId == dto.ServiceId.Value, ct);
+            // Get participant to resolve their camp
+            var participant = await _participantRepository
+                .GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
+
+            if (participant == null)
+                throw new ValidationException([$"Participant {dto.ParticipantId} not found."]);
+
+            var campId = participant.HealthCampId;
+
+            // Get correct camp-specific assignment
+            var assignment = await _assignmentRepository.FirstOrDefaultAsync(
+                a => a.AssignmentId == dto.ServiceId.Value &&
+                     a.HealthCampId == campId &&
+                     !a.IsDeleted,
+                ct);
 
             if (assignment == null)
-                throw new ValidationException([$"No HealthCampServiceAssignment found for ServiceId {dto.ServiceId}"]);
+                throw new ValidationException([$"No HealthCampServiceAssignment found for ServiceId {dto.ServiceId} in camp {campId}"]);
 
             var resolvedAssignmentId = assignment.Id;
 
-            // Now use the resolved PK safely
+            // Continue with normal logic
             var participantService = await _participantServiceStatusRepository
                 .GetByParticipantAndAssignmentAsync(dto.ParticipantId, resolvedAssignmentId, ct);
 
@@ -296,7 +308,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     Id = Guid.NewGuid(),
                     ParticipantId = dto.ParticipantId,
-                    ServiceAssignmentId = resolvedAssignmentId, // correct FK now
+                    ServiceAssignmentId = resolvedAssignmentId,
                     SubcontractorId = submittedByUserId,
                     ServedAt = DateTime.UtcNow
                 };
@@ -312,9 +324,10 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             {
                 participantService.ServedAt = DateTime.UtcNow;
                 await _participantServiceStatusRepository.UpdateAsync(participantService, ct);
-                _logger.LogInformation("Updated service served timestamp for participant {ParticipantId}", dto.ParticipantId);
+                _logger.LogInformation("🔄 Updated service served timestamp for participant {ParticipantId}", dto.ParticipantId);
             }
         }
+
 
 
         _logger.LogInformation("Intake form submitted successfully. ResponseId={ResponseId}", responseId);

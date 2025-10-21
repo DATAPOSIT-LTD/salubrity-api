@@ -165,6 +165,7 @@ public class HealthCampService : IHealthCampService
                             Id = Guid.NewGuid(),
                             HealthCampId = entity.Id,
                             ReferenceId = item.ReferenceId,
+                            ServicePackageId = package.PackageId,
                             ReferenceType = referenceType
                         });
                     }

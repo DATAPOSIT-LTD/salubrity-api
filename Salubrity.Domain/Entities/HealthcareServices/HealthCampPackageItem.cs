@@ -24,7 +24,7 @@ namespace Salubrity.Domain.Entities.HealthcareServices
 
         public PackageItemType ReferenceType { get; set; }
 
-        // 🆕 Added to match DB column and enable package linkage
+        // Added to match DB column and enable package linkage
         [ForeignKey("ServicePackage")]
         public Guid? ServicePackageId { get; set; }
         public virtual ServicePackage? ServicePackage { get; set; }

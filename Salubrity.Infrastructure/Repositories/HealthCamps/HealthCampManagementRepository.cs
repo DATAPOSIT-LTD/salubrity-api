@@ -312,27 +312,24 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 
 	public async Task<List<ServiceStationSummaryDto>> GetServiceStationsAsync(Guid healthCampId, bool group = false)
 	{
-		// 1️⃣ Get all active camp packages
+		// 1️⃣ Get all active camp packages (Silver, Gold, Diamond, etc.)
 		var campPackages = await _context.HealthCampPackages
 			.Include(p => p.ServicePackage)
 			.Where(p => p.HealthCampId == healthCampId && p.IsActive)
 			.ToListAsync();
 
-		if (!campPackages.Any())
-			return [];
-
-		// 2️⃣ Get all package items in this camp
+		// 2️⃣ Get all package items (each item already has ServicePackageId)
 		var campPackageItems = await _context.HealthCampPackageItems
 			.Where(x => x.HealthCampId == healthCampId)
 			.ToListAsync();
 
-		// 3️⃣ Fetch all service assignments
+		// 3️⃣ Get all assignments for this camp
 		var assignments = await _context.HealthCampServiceAssignments
 			.Where(a => a.HealthCampId == healthCampId)
 			.Include(a => a.Subcontractor)
 			.ToListAsync();
 
-		// 4️⃣ Build user dictionary
+		// 4️⃣ Build user dictionary for quick lookup
 		var userIds = assignments
 			.Where(a => a.Subcontractor != null)
 			.Select(a => a.Subcontractor!.UserId)
@@ -349,7 +346,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 				)
 			: new Dictionary<Guid, string>();
 
-		// 5️⃣ Build flat list
+		// 5️⃣ Build flat list for all service stations
 		var flatList = new List<ServiceStationSummaryDto>();
 
 		foreach (var item in campPackageItems)
@@ -357,6 +354,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 			var type = item.ReferenceType;
 			var name = await _referenceResolver.GetNameAsync(type, item.ReferenceId) ?? "Unknown";
 
+			// find assigned staff
 			var staffNames = assignments
 				.Where(a => a.AssignmentId == item.ReferenceId && (PackageItemType)a.AssignmentType == type)
 				.Select(a => a.Subcontractor?.UserId)
@@ -365,7 +363,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 				.Distinct()
 				.ToList();
 
-			// 🔗 Match to its camp package via canonical ServicePackageId
+			// resolve package using ServicePackageId
 			var package = campPackages.FirstOrDefault(p => p.ServicePackageId == item.ServicePackageId);
 
 			flatList.Add(new ServiceStationSummaryDto
@@ -386,10 +384,11 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 			});
 		}
 
+		// 6️⃣ Return directly if grouping not required
 		if (!group)
 			return flatList;
 
-		// 6️⃣ Optional nesting
+		// 7️⃣ Optional hierarchical grouping
 		var lookup = flatList.ToDictionary(x => x.Id, x => x);
 		var groupedList = new List<ServiceStationSummaryDto>();
 
@@ -409,6 +408,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 
 		return groupedList;
 	}
+
 
 
 	public async Task<List<CampPatientSummaryDto>> GetCampPatientsAsync(Guid healthCampId)

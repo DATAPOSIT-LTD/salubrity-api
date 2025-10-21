@@ -10,6 +10,8 @@ public class CampParticipantListDto
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
     public string CompanyName { get; set; } = default!; // camp's Organization
+    public Guid? PackageId { get; set; }
+    public string? PackageName { get; set; }
     public bool Served { get; set; }
     public DateTime? ParticipatedAt { get; set; }
 }

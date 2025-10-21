@@ -225,7 +225,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         else
         {
             checkIn = await _stationCheckInRepository.GetActiveForParticipantAsync(
-                dto.PatientId,
+                dto.ParticipantId,
                 dto.HealthCampServiceAssignmentId,
                 ct);
         }

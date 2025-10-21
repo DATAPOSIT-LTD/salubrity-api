@@ -166,7 +166,7 @@ public class HealthCampService : IHealthCampService
                             HealthCampId = entity.Id,
                             ReferenceId = item.ReferenceId,
                             ServicePackageId = package.PackageId,
-                            ReferenceType = referenceType
+                            ReferenceType = referenceType,
                         });
                     }
                 }

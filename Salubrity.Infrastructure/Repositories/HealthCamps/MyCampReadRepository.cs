@@ -98,21 +98,15 @@ public class MyCampReadRepository : IMyCampReadRepository
     }
 
     public async Task<IReadOnlyList<MyCampServiceDto>> GetServicesForUserCampAsync(
-    Guid userId,
-    Guid campId,
-    bool group = false,
-    CancellationToken ct = default)
+     Guid userId,
+     Guid campId,
+     bool group = false,
+     CancellationToken ct = default)
     {
         // Step 1: Ensure user is a participant
-        var isParticipant = await _db.Set<HealthCampParticipant>()
-            .AsNoTracking()
-            .AnyAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
-
-        if (!isParticipant) return [];
-
         var participant = await _db.HealthCampParticipants
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.UserId == userId, ct);
+            .FirstOrDefaultAsync(p => p.UserId == userId && p.HealthCampId == campId, ct);
 
         if (participant == null)
             return [];
@@ -123,7 +117,16 @@ public class MyCampReadRepository : IMyCampReadRepository
         if (patientId == null)
             return [];
 
-        // Step 2: Load assignments
+        // Step 2: Get participant’s active package assignment
+        var participantPackage = await _db.Set<HealthCampParticipantPackage>()
+            .AsNoTracking()
+            .Include(pp => pp.HealthCampPackage)
+                .ThenInclude(cp => cp.ServicePackage)
+            .FirstOrDefaultAsync(pp =>
+                pp.ParticipantId == participant.Id &&
+                pp.IsActive, ct);
+
+        // Step 3: Load service assignments for this camp
         var assignments = await _db.Set<HealthCampServiceAssignment>()
             .AsNoTracking()
             .Where(a => a.HealthCampId == campId)
@@ -131,9 +134,11 @@ public class MyCampReadRepository : IMyCampReadRepository
             .Include(a => a.Role)
             .ToListAsync(ct);
 
+        // Step 4: Load participant responses (for completion check)
         var responses = await _intakeFormResponsesRepo
             .GetResponsesByPatientAndCampIdAsync(patientId, campId, ct);
 
+        // Step 5: Build list
         var result = new List<MyCampServiceDto>();
 
         foreach (var a in assignments)
@@ -144,6 +149,26 @@ public class MyCampReadRepository : IMyCampReadRepository
 
             var isCompleted = responses.Any(r =>
                 r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted");
+
+            // 🔗 Try to resolve which package this service belongs to (via camp package items)
+            var campItem = await _db.Set<HealthCampPackageItem>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(i =>
+                    i.HealthCampId == campId &&
+                    i.ReferenceId == a.AssignmentId &&
+                    i.ReferenceType == type,
+                    ct);
+
+            // Link to matching camp package
+            HealthCampPackage? resolvedPackage = null;
+            if (campItem != null && campItem.ServicePackageId != null)
+            {
+                resolvedPackage = await _db.Set<HealthCampPackage>()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(p =>
+                        p.HealthCampId == campId &&
+                        p.ServicePackageId == campItem.ServicePackageId, ct);
+            }
 
             result.Add(new MyCampServiceDto
             {
@@ -157,17 +182,24 @@ public class MyCampReadRepository : IMyCampReadRepository
                 ProfessionId = a.ProfessionId,
                 Profession = a.Role?.Name,
                 IsCompleted = isCompleted,
+
+                // 🆕 Package info
+                HealthCampPackageId = resolvedPackage?.Id ?? participantPackage?.HealthCampPackageId,
+                PackageName =
+         resolvedPackage?.ServicePackage.Name ??
+         resolvedPackage?.ServicePackage?.Name ??
+         participantPackage?.HealthCampPackage?.ServicePackage.Name ??
+         participantPackage?.HealthCampPackage?.ServicePackage?.Name ??
+         "Unassigned",
+
                 Children = new List<MyCampServiceDto>()
             });
         }
-
         if (!group)
             return result;
 
-        // Step 3: Safe grouping by ServiceId
+        // Step 6: Safe grouping by ServiceId
         var groupedList = new List<MyCampServiceDto>();
-
-        // Group by ServiceId (handle duplicates)
         var serviceBuckets = result
             .GroupBy(r => r.ServiceId)
             .ToDictionary(g => g.Key, g => g.ToList());
@@ -188,19 +220,18 @@ public class MyCampReadRepository : IMyCampReadRepository
                 }
                 else
                 {
-                    // Parent not present in assignment list → still include as top-level
                     groupedList.Add(primary);
                 }
             }
             else
             {
-                // No parent → root node
                 groupedList.Add(primary);
             }
         }
 
         return groupedList;
     }
+
 
 
 }

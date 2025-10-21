@@ -153,6 +153,7 @@ public class MyCampReadRepository : IMyCampReadRepository
         // but only for services included in the participant's package items
         var serviceIds = campPackageItems.Select(i => i.ReferenceId).ToList();
 
+
         var assignments = await _db.Set<HealthCampServiceAssignment>()
             .AsNoTracking()
             .Where(a =>
@@ -160,7 +161,11 @@ public class MyCampReadRepository : IMyCampReadRepository
                 serviceIds.Contains(a.AssignmentId))
             .Include(a => a.Subcontractor).ThenInclude(s => s.User)
             .Include(a => a.Role)
+            .GroupBy(a => a.AssignmentId)
+            .Select(g => g.First())
             .ToListAsync(ct);
+
+
 
         // Step 5: Load participant responses (for completion check)
         var responses = await _intakeFormResponsesRepo

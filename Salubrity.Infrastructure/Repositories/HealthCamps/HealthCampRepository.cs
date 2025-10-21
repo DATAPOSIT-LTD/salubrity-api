@@ -347,7 +347,6 @@ public class HealthCampRepository : IHealthCampRepository
     {
         var query =
             from p in _context.HealthCampParticipants
-                .Include(x => x.HealthCampPackage) // Ensure package is loaded
             where p.HealthCampId == campId
             join patient in _context.Patients on p.UserId equals patient.UserId into pj
             from patient in pj.DefaultIfEmpty()
@@ -361,9 +360,7 @@ public class HealthCampRepository : IHealthCampRepository
                 PhoneNumber = p.User.Phone,
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
                 Served = p.ParticipatedAt != null || p.HealthAssessments.Any(),
-                ParticipatedAt = p.ParticipatedAt,
-                PackageId = p.HealthCampPackage != null ? p.HealthCampPackage.ServicePackage.Id : (Guid?)null,
-                PackageName = p.HealthCampPackage != null ? p.HealthCampPackage.ServicePackage.Name : null
+                ParticipatedAt = p.ParticipatedAt
             };
 
         if (!string.IsNullOrWhiteSpace(q))
@@ -375,14 +372,15 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
         }
 
+        // sort: nulls-last without using DateTime.MinValue
         var s = sort?.ToLowerInvariant();
         query = s switch
         {
             "name" => query.OrderBy(x => x.FullName),
             "oldest" => query.OrderBy(x => x.ParticipatedAt == null)
-                             .ThenBy(x => x.ParticipatedAt),
+                             .ThenBy(x => x.ParticipatedAt),           // nulls last
             _ => query.OrderByDescending(x => x.ParticipatedAt != null)
-                             .ThenByDescending(x => x.ParticipatedAt)
+                             .ThenByDescending(x => x.ParticipatedAt)  // newest first, nulls last
         };
 
         return query.AsNoTracking();

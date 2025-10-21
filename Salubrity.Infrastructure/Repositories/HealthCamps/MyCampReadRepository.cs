@@ -126,22 +126,38 @@ public class MyCampReadRepository : IMyCampReadRepository
                 pp.ParticipantId == participant.Id &&
                 pp.IsActive, ct);
 
+        // 🧩 if participant has no active package → return empty
+        if (participantPackage?.HealthCampPackageId == null)
+            return [];
+
+        var participantPackageId = participantPackage.HealthCampPackageId;
+        var participantServicePackageId = participantPackage.HealthCampPackage.ServicePackageId;
+
         // Step 3: Prefetch package items and packages to avoid N+1 queries
         var campPackageItems = await _db.Set<HealthCampPackageItem>()
             .AsNoTracking()
-            .Where(i => i.HealthCampId == campId)
+            .Where(i =>
+                i.HealthCampId == campId &&
+                i.ServicePackageId == participantServicePackageId) // only items under participant’s package
             .ToListAsync(ct);
 
         var campPackages = await _db.Set<HealthCampPackage>()
             .AsNoTracking()
             .Include(p => p.ServicePackage)
-            .Where(p => p.HealthCampId == campId)
+            .Where(p =>
+                p.HealthCampId == campId &&
+                p.Id == participantPackageId) // only participant’s package
             .ToListAsync(ct);
 
         // Step 4: Load service assignments for this camp
+        // but only for services included in the participant's package items
+        var serviceIds = campPackageItems.Select(i => i.ReferenceId).ToList();
+
         var assignments = await _db.Set<HealthCampServiceAssignment>()
             .AsNoTracking()
-            .Where(a => a.HealthCampId == campId)
+            .Where(a =>
+                a.HealthCampId == campId &&
+                serviceIds.Contains(a.AssignmentId))
             .Include(a => a.Subcontractor).ThenInclude(s => s.User)
             .Include(a => a.Role)
             .ToListAsync(ct);
@@ -162,17 +178,11 @@ public class MyCampReadRepository : IMyCampReadRepository
             var isCompleted = responses.Any(r =>
                 r.ServiceId == a.AssignmentId && r.Status.Name == "Submitted");
 
-            // 🔗 Find the package item for this service
-            var campItem = campPackageItems
-                .FirstOrDefault(i => i.ReferenceId == a.AssignmentId && i.ReferenceType == type);
+            // Match the package this item belongs to (only one at this point)
+            var campItem = campPackageItems.FirstOrDefault(i =>
+                i.ReferenceId == a.AssignmentId && i.ReferenceType == type);
 
-            // 🔗 Match to the package this item belongs to
-            HealthCampPackage? resolvedPackage = null;
-            if (campItem?.ServicePackageId != null)
-            {
-                resolvedPackage = campPackages
-                    .FirstOrDefault(p => p.ServicePackageId == campItem.ServicePackageId);
-            }
+            var resolvedPackage = campPackages.FirstOrDefault();
 
             // 🧾 Build DTO
             result.Add(new MyCampServiceDto
@@ -188,8 +198,8 @@ public class MyCampReadRepository : IMyCampReadRepository
                 Profession = a.Role?.Name,
                 IsCompleted = isCompleted,
 
-                // ✅ Correct, null-safe package resolution
-                HealthCampPackageId = resolvedPackage?.Id ?? participantPackage?.HealthCampPackageId,
+                // Package info: limited to participant’s assigned package
+                HealthCampPackageId = resolvedPackage?.Id ?? participantPackageId,
                 PackageName =
                     resolvedPackage?.DisplayName ??
                     resolvedPackage?.ServicePackage?.Name ??
@@ -238,6 +248,7 @@ public class MyCampReadRepository : IMyCampReadRepository
 
         return groupedList;
     }
+
 
 
 

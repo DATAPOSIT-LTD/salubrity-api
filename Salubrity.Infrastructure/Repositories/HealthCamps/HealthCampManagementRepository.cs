@@ -107,11 +107,9 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 			.Where(p => p.HealthCampId == healthCampId && p.IsActive)
 			.ToListAsync();
 
-		// 🧩 Fetch package items (services/categories) scoped by active packages
-		var packageIds = campPackages.Select(p => p.ServicePackageId).ToList();
-
+		// 🧩 Fetch package items (services/categories) scoped by camp
 		var packageItems = await _context.HealthCampPackageItems
-			.Where(x => x.HealthCampId == healthCampId && packageIds.Contains(x.ReferenceId))
+			.Where(x => x.HealthCampId == healthCampId)
 			.ToListAsync();
 
 		// 🧩 Fetch service assignments for this camp
@@ -140,7 +138,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 		foreach (var item in packageItems)
 		{
 			var type = item.ReferenceType;
-			var name = await _referenceResolver.GetNameAsync(type, item.ReferenceId);
+			var name = await _referenceResolver.GetNameAsync(type, item.ReferenceId) ?? "Unknown";
 
 			var staffNames = assignments
 				.Where(a => a.AssignmentId == item.ReferenceId &&
@@ -151,8 +149,8 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 				.Distinct()
 				.ToList();
 
-			// 🔗 Find which package this service belongs to
-			var package = campPackages.FirstOrDefault(p => p.ServicePackageId == item.ReferenceId);
+			// 🔗 Correct package mapping (HealthCampPackageId, not ServicePackageId)
+			var package = campPackages.FirstOrDefault(p => p.Id == item.HealthCampId);
 
 			flatList.Add(new ServiceStationSummaryDto
 			{

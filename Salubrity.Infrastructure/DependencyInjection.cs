@@ -136,6 +136,8 @@ public static class DependencyInjection
         services.AddScoped<IHealthCampParticipantPackageRepository, HealthCampParticipantPackageRepository>();
         services.AddScoped<IHealthCampPackageRepository, HealthCampPackageRepository>();
 
+        services.AddScoped<IHealthCampPackageRepository, HealthCampPackageRepository>();
+
 
         services.AddScoped<IHealthCampParticipantServiceStatusRepository, HealthCampParticipantServiceStatusRepository>();
 

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Salubrity.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Salubrity.Infrastructure.Persistence;
 namespace Salubrity.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251018055425_UpdateHCParticipantWithPackageId")]
+    partial class UpdateHCParticipantWithPackageId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -724,6 +727,9 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("PosterTokensExpireAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("ServicePackageId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("date");
 
@@ -745,158 +751,9 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("HealthCamps");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampPackage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("DisplayName")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("HealthCampId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal?>("PriceOverride")
-                        .HasColumnType("numeric");
-
-                    b.Property<Guid>("ServicePackageId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HealthCampId");
-
                     b.HasIndex("ServicePackageId");
 
-                    b.ToTable("HealthCampPackages");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampParticipantPackage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("HealthCampPackageId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ParticipantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HealthCampPackageId");
-
-                    b.HasIndex("ParticipantId");
-
-                    b.ToTable("HealthCampParticipantPackages");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampParticipantServiceStatus", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DeletedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ParticipantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ServedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ServiceAssignmentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("SubcontractorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ServiceAssignmentId");
-
-                    b.HasIndex("ParticipantId", "ServiceAssignmentId")
-                        .IsUnique();
-
-                    b.ToTable("HealthCampParticipantServiceStatuses");
+                    b.ToTable("HealthCamps");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampService", b =>
@@ -4204,66 +4061,15 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.ServicePackage", "ServicePackage")
+                        .WithMany()
+                        .HasForeignKey("ServicePackageId");
+
                     b.Navigation("HealthCampStatus");
 
                     b.Navigation("Organization");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampPackage", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCamp", "HealthCamp")
-                        .WithMany("HealthCampPackages")
-                        .HasForeignKey("HealthCampId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.ServicePackage", "ServicePackage")
-                        .WithMany()
-                        .HasForeignKey("ServicePackageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("HealthCamp");
 
                     b.Navigation("ServicePackage");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampParticipantPackage", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCampPackage", "HealthCampPackage")
-                        .WithMany()
-                        .HasForeignKey("HealthCampPackageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.Join.HealthCampParticipant", "Participant")
-                        .WithMany()
-                        .HasForeignKey("ParticipantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("HealthCampPackage");
-
-                    b.Navigation("Participant");
-                });
-
-            modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampParticipantServiceStatus", b =>
-                {
-                    b.HasOne("Salubrity.Domain.Entities.Join.HealthCampParticipant", "Participant")
-                        .WithMany("ServiceStatuses")
-                        .HasForeignKey("ParticipantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCampServiceAssignment", "ServiceAssignment")
-                        .WithMany()
-                        .HasForeignKey("ServiceAssignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Participant");
-
-                    b.Navigation("ServiceAssignment");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthCamps.HealthCampService", b =>
@@ -4667,7 +4473,7 @@ namespace Salubrity.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCampPackage", "HealthCampPackage")
+                    b.HasOne("Salubrity.Domain.Entities.HealthcareServices.HealthCampPackage", "HealthCampPackage")
                         .WithMany()
                         .HasForeignKey("HealthCampPackageId");
 
@@ -4988,8 +4794,6 @@ namespace Salubrity.Infrastructure.Migrations
                 {
                     b.Navigation("HealthAssessments");
 
-                    b.Navigation("HealthCampPackages");
-
                     b.Navigation("PackageItems");
 
                     b.Navigation("Participants");
@@ -5063,8 +4867,6 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.Join.HealthCampParticipant", b =>
                 {
                     b.Navigation("HealthAssessments");
-
-                    b.Navigation("ServiceStatuses");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.BillingStatus", b =>

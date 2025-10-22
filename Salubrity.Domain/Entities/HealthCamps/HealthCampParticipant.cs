@@ -43,6 +43,7 @@
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.HealthAssesment;
 using Salubrity.Domain.Entities.HealthCamps;
+using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Lookup;
 using System.ComponentModel.DataAnnotations.Schema;

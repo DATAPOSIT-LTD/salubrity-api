@@ -111,6 +111,9 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<HealthCampParticipantServiceStatus> HealthCampParticipantServiceStatuses { get; set; }
 
 
+        public DbSet<HealthCampPackage> HealthCampPackages { get; set; }
+        public DbSet<HealthCampPackageService> HealthCampPackageServices { get; set; }
+
         // ─────────────────────────────────────
         //  Model Configuration
         // ─────────────────────────────────────

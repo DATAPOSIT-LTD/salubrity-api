@@ -139,10 +139,6 @@ namespace Salubrity.Application
             services.AddScoped<IHealthCampParticipantServiceStatusService, HealthCampParticipantServiceStatusService>();
 
 
-            services.AddScoped<IHealthCampPackageService, HealthCampPackageService>();
-
-
-
 
 
             return services;

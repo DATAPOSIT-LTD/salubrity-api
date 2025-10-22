@@ -106,13 +106,11 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<FormFieldMapping> FormFieldMappings { get; set; }
         public DbSet<PatientNumberSequence> PatientNumberSequences { get; set; }
         public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
-        public DbSet<HealthCampPackage> HealthCampPackages { get; set; }
         public DbSet<HealthCampParticipantPackage> HealthCampParticipantPackages { get; set; }
         public DbSet<HealthCampParticipantServiceStatus> HealthCampParticipantServiceStatuses { get; set; }
 
 
         public DbSet<HealthCampPackage> HealthCampPackages { get; set; }
-        public DbSet<HealthCampPackageService> HealthCampPackageServices { get; set; }
 
         // ─────────────────────────────────────
         //  Model Configuration

@@ -2,9 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.HealthCamps;
-using Salubrity.Application.DTOs.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
-using Salubrity.Application.Interfaces.Services.HealthcareServices;
 using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Shared.Responses;
 using System.Security.Claims;
@@ -20,13 +18,11 @@ public class CampController : BaseController
 {
     private readonly IHealthCampService _service;
     private readonly IUserService _userService;
-    private readonly IHealthCampPackageService _healthCampPackageService;
 
-    public CampController(IHealthCampService service, IUserService userService, IHealthCampPackageService healthCampPackageService)
+    public CampController(IHealthCampService service, IUserService userService)
     {
         _service = service;
         _userService = userService;
-        _healthCampPackageService = healthCampPackageService;
     }
 
     [HttpGet]
@@ -332,49 +328,6 @@ public class CampController : BaseController
         return Success(result);
     }
 
-
-    [HttpPost("{campId:guid}/packages")]
-    [ProducesResponseType(typeof(ApiResponse<List<HealthCampPackageDto>>), StatusCodes.Status201Created)]
-    public async Task<IActionResult> CreatePackages(Guid campId, [FromBody] CreateHealthCampPackagesDto dto)
-    {
-        var result = await _healthCampPackageService.CreatePackagesAsync(campId, dto);
-        return Success(result);
-    }
-
-    [HttpGet("{campId:guid}/packages")]
-    [ProducesResponseType(typeof(ApiResponse<List<HealthCampPackageDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetPackages(Guid campId)
-    {
-        var result = await _healthCampPackageService.GetPackagesAsync(campId);
-        return Success(result);
-    }
-
-    [HttpPut("packages/{packageId:guid}")]
-    [ProducesResponseType(typeof(ApiResponse<HealthCampPackageDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> UpdatePackage(Guid packageId, [FromBody] UpdateHealthCampPackageDto dto)
-    {
-        var result = await _healthCampPackageService.UpdatePackageAsync(packageId, dto);
-        return Success(result);
-    }
-
-    [HttpPost("participants/pick-package")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> PickPackage([FromBody] PickPackageDto dto)
-    {
-        await _healthCampPackageService.AssignPackageAsync(dto);
-        return NoContent();
-    }
-
-    
-
-    [HttpGet("{campId:guid}/allocated-services")]
-    [ProducesResponseType(typeof(ApiResponse<List<AllocatedServiceDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAllocatedServices(Guid campId)
-    {
-        var result = await _healthCampPackageService.GetAllocatedServicesAsync(campId);
-        return Success(result);
-    }
-
     // ───────────────────────────────────────────────
     // 🧱 Subcontractor Assignment Management
     // ───────────────────────────────────────────────
@@ -415,7 +368,7 @@ public class CampController : BaseController
     }
     [Authorize(Roles = "Admin,Concierge,Doctor,FrontDesk")]
     [HttpGet("{campId:guid}/packages")]
-    [ProducesResponseType(typeof(ApiResponse<List<HealthCampPackageDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<List<Application.DTOs.HealthCamps.HealthCampPackageDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAllPackagesByCamp(Guid campId, CancellationToken ct)
     {
         var result = await _service.GetAllPackagesByCampAsync(campId, ct);

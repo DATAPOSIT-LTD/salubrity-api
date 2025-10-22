@@ -12,4 +12,14 @@ public class CampParticipantListDto
     public string CompanyName { get; set; } = default!; // camp's Organization
     public bool Served { get; set; }
     public DateTime? ParticipatedAt { get; set; }
+
+    // NEW: list of service names or IDs participant completed
+    public List<ServiceCompletionDto> CompletedServices { get; set; } = new();
+}
+
+public class ServiceCompletionDto
+{
+    public Guid ServiceAssignmentId { get; set; }
+    public string? ServiceName { get; set; }
+    public DateTime? ServedAt { get; set; }
 }

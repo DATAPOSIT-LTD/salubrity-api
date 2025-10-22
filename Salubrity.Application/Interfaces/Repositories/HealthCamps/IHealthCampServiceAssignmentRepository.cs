@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Domain.Entities.HealthCamps;
 
@@ -8,4 +9,7 @@ public interface IHealthCampServiceAssignmentRepository
     Task<HealthCampServiceAssignment?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<HealthCampServiceAssignment>> GetBySubcontractorIdAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCampServiceAssignment>> GetByCampIdAsync(Guid campId, CancellationToken ct = default);
+    Task<HealthCampServiceAssignment?> FirstOrDefaultAsync(
+    Expression<Func<HealthCampServiceAssignment, bool>> predicate,
+    CancellationToken ct = default);
 }

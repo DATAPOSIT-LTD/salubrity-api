@@ -24,4 +24,5 @@ public class ServicePackage : BaseAuditableEntity
     public bool IsActive { get; set; } = true;
 
     public virtual ICollection<HealthCampPackageItem> Items { get; set; } = [];
+
 }

@@ -133,9 +133,13 @@ public static class DependencyInjection
         // DB Dump Service
         services.Configure<DatabaseDumpOptions>(config.GetSection("DatabaseDump"));
         services.AddScoped<IDatabaseDumpRepository, DatabaseDumpRepository>();
+        services.AddScoped<IHealthCampParticipantPackageRepository, HealthCampParticipantPackageRepository>();
+        services.AddScoped<IHealthCampPackageRepository, HealthCampPackageRepository>();
 
         services.AddScoped<IHealthCampPackageRepository, HealthCampPackageRepository>();
 
+
+        services.AddScoped<IHealthCampParticipantServiceStatusRepository, HealthCampParticipantServiceStatusRepository>();
 
 
         services.AddDbContext<AppDbContext>(options =>

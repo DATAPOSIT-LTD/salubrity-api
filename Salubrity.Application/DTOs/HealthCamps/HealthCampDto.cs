@@ -18,7 +18,7 @@ public class HealthCampDto
 
     public Guid? ServicePackageId { get; set; }
     public string? ServicePackageName { get; set; }
-
+    public List<HealthCampPackageDto> Packages { get; set; } = [];
     public List<HealthCampPackageItemDto> PackageItems { get; set; } = [];
     public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = [];
     public List<HealthCampParticipantDto> Participants { get; set; } = [];

@@ -136,6 +136,7 @@ namespace Salubrity.Application
             services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();
             services.AddScoped<IDoctorRecommendationService, DoctorRecommendationService>();
             services.AddScoped<IHealthCampCheckInService, HealthCampCheckInService>();
+            services.AddScoped<IHealthCampParticipantServiceStatusService, HealthCampParticipantServiceStatusService>();
 
 
             services.AddScoped<IHealthCampPackageService, HealthCampPackageService>();

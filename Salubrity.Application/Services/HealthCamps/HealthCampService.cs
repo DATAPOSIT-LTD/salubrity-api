@@ -1,4 +1,5 @@
 using AutoMapper;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Email;
@@ -29,6 +30,8 @@ namespace Salubrity.Application.Services.HealthCamps;
 public class HealthCampService : IHealthCampService
 {
     private readonly IHealthCampRepository _repo;
+    private readonly ILogger<HealthCampService> _logger;
+
     private readonly ILookupRepository<HealthCampStatus> _lookupRepository;
 
     private readonly ILookupRepository<SubcontractorHealthCampAssignmentStatus> _lookupSubcontractorHealthCampAssignmentRepository;
@@ -47,9 +50,10 @@ public class HealthCampService : IHealthCampService
     private readonly INotificationService _notificationService;
     private readonly IHealthCampParticipantRepository _campParticipantRepository;
     private readonly IRoleRepository _roleRepository;
+    private readonly IHealthCampParticipantPackageRepository _participantPackageRepo;
+    private readonly IHealthCampPackageRepository _campPackageRepository;
 
-
-    public HealthCampService(IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository)
+    public HealthCampService(ILogger<HealthCampService> logger, IHealthCampPackageRepository campPackageRepository, IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository, IHealthCampParticipantPackageRepository participantPackageRepo)
     {
         _repo = repo;
         _mapper = mapper;
@@ -67,7 +71,9 @@ public class HealthCampService : IHealthCampService
         _campParticipantRepository = campParticipantRepository ?? throw new ArgumentNullException(nameof(campParticipantRepository));
         _jwt = jwt ?? throw new ArgumentNullException(nameof(jwt));
         _roleRepository = roleRepository ?? throw new ArgumentNullException(nameof(roleRepository));
-
+        _participantPackageRepo = participantPackageRepo ?? throw new ArgumentNullException(nameof(participantPackageRepo));
+        _campPackageRepository = campPackageRepository;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<List<HealthCampListDto>> GetAllAsync()
@@ -86,19 +92,45 @@ public class HealthCampService : IHealthCampService
     public async Task<HealthCampDto> CreateAsync(CreateHealthCampDto dto)
     {
         var ct = CancellationToken.None;
+
         var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming");
         if (upcomingStatus == null || upcomingStatus.Id == Guid.Empty)
             throw new InvalidOperationException("Upcoming status not found");
 
+        // ───────────────────────────────────────────────
+        // 🔧 Helper for UTC-safe conversion
+        // ───────────────────────────────────────────────
+        static DateTime ToUtc(DateTime value)
+        {
+            // Avoid breaking when already UTC or local
+            if (value.Kind == DateTimeKind.Utc)
+                return value;
+            if (value.Kind == DateTimeKind.Local)
+                return value.ToUniversalTime();
+            // Explicitly mark as UTC if unspecified
+            return DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+
+        static DateTime? ToUtcNullable(DateTime? value)
+        {
+            if (!value.HasValue) return null;
+            return ToUtc(value.Value);
+        }
+
+        // ───────────────────────────────────────────────
+        // Initialize base camp entity
+        // ───────────────────────────────────────────────
         var entity = new HealthCamp
         {
             Id = Guid.NewGuid(),
             Name = dto.Name,
-            ServicePackageId = dto.ServicePackageId,
             Description = dto.Description,
             Location = dto.Location,
-            StartDate = dto.StartDate.Date.AddDays(1).ToUniversalTime(),
-            EndDate = dto.EndDate?.Date.AddDays(1).ToUniversalTime(),
+
+            // Force proper UTC for PostgreSQL
+            StartDate = ToUtc(dto.StartDate.Date.AddDays(1)),
+            EndDate = dto.EndDate.HasValue ? ToUtc(dto.EndDate.Value.Date.AddDays(1)) : null,
+
             StartTime = dto.StartTime,
             OrganizationId = dto.OrganizationId,
             IsActive = true,
@@ -110,41 +142,67 @@ public class HealthCampService : IHealthCampService
             Participants = []
         };
 
-        // Add package items
-        foreach (var item in dto.PackageItems)
+        // ───────────────────────────────────────────────
+        // Loop through packages
+        // ───────────────────────────────────────────────
+        if (dto.Packages != null && dto.Packages.Any())
         {
-            var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
-            entity.PackageItems.Add(new HealthCampPackageItem
+            foreach (var package in dto.Packages)
             {
-                Id = Guid.NewGuid(),
-                HealthCampId = entity.Id,
-                ReferenceId = item.ReferenceId,
-                ReferenceType = referenceType
-            });
+                // Add package linkage
+                entity.HealthCampPackages.Add(new HealthCampPackage
+                {
+                    Id = Guid.NewGuid(),
+                    HealthCampId = entity.Id,
+                    ServicePackageId = package.PackageId,
+                    IsActive = true
+                });
+
+                // Add package items
+                if (package.PackageItems != null)
+                {
+                    foreach (var item in package.PackageItems)
+                    {
+                        var referenceType = await _referenceResolver.ResolveTypeAsync(item.ReferenceId);
+                        entity.PackageItems.Add(new HealthCampPackageItem
+                        {
+                            Id = Guid.NewGuid(),
+                            HealthCampId = entity.Id,
+                            ReferenceId = item.ReferenceId,
+                            ServicePackageId = package.PackageId,
+                            ReferenceType = referenceType,
+                        });
+                    }
+                }
+
+                // Add service assignments
+                if (package.ServiceAssignments != null)
+                {
+                    foreach (var assignment in package.ServiceAssignments)
+                    {
+                        var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
+
+                        entity.ServiceAssignments.Add(new HealthCampServiceAssignment
+                        {
+                            Id = Guid.NewGuid(),
+                            HealthCampId = entity.Id,
+                            AssignmentId = assignment.ServiceId,
+                            AssignmentType = (PackageItemType)referenceType,
+                            SubcontractorId = assignment.SubcontractorId,
+                            ProfessionId = assignment.ProfessionId
+                        });
+                    }
+                }
+            }
         }
 
-        // Add service assignments (resolve type server-side)
-        foreach (var assignment in dto.ServiceAssignments)
-        {
-            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
-
-            entity.ServiceAssignments.Add(new HealthCampServiceAssignment
-            {
-                Id = Guid.NewGuid(),
-                HealthCampId = entity.Id,
-                AssignmentId = assignment.ServiceId,
-                AssignmentType = (PackageItemType)referenceType,
-                SubcontractorId = assignment.SubcontractorId,
-                ProfessionId = assignment.ProfessionId
-            });
-        }
-
-        // Add participants
+        // ───────────────────────────────────────────────
+        // Add default participants (employees)
+        // ───────────────────────────────────────────────
         var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
         if (employeeUserIds.Count > 0)
         {
-            var uniqueUserIds = new HashSet<Guid>(employeeUserIds);
-            foreach (var userId in uniqueUserIds)
+            foreach (var userId in employeeUserIds.Distinct())
             {
                 entity.Participants.Add(new HealthCampParticipant
                 {
@@ -156,7 +214,9 @@ public class HealthCampService : IHealthCampService
             }
         }
 
-        // Save the HealthCamp before assigning booths
+        // ───────────────────────────────────────────────
+        // Persist camp entity
+        // ───────────────────────────────────────────────
         var created = await _repo.CreateAsync(entity);
 
         await _notificationService.TriggerNotificationAsync(
@@ -168,14 +228,15 @@ public class HealthCampService : IHealthCampService
             ct: ct
         );
 
-        // Create subcontractor booth assignments AFTER saving camp
+        // ───────────────────────────────────────────────
+        // Create subcontractor booth assignments
+        // ───────────────────────────────────────────────
         var assignedStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
         if (assignedStatus == null)
             throw new InvalidOperationException("Assignment status 'Pending' not found");
 
-        foreach (var assignment in dto.ServiceAssignments)
+        foreach (var assignment in entity.ServiceAssignments)
         {
-            var referenceType = await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
             var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
 
             var boothAssignment = new SubcontractorHealthCampAssignment
@@ -185,12 +246,15 @@ public class HealthCampService : IHealthCampService
                 SubcontractorId = assignment.SubcontractorId,
                 AssignmentStatusId = assignedStatus.Id,
                 BoothLabel = boothLabel,
-                StartDate = created.StartDate,
+
+                // ✅ Always store UTC values for PostgreSQL
+                StartDate = ToUtc(created.StartDate),
                 CreatedAt = DateTime.UtcNow,
+
                 IsDeleted = false,
                 IsPrimaryAssignment = true,
-                AssignmentId = assignment.ServiceId,
-                AssignmentType = (PackageItemType)referenceType
+                AssignmentId = assignment.AssignmentId,
+                AssignmentType = assignment.AssignmentType
             };
 
             await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
@@ -201,23 +265,57 @@ public class HealthCampService : IHealthCampService
 
 
 
+
     public async Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto)
     {
         var ct = CancellationToken.None;
-        var camp = await _repo.GetByIdAsync(id) ?? throw new NotFoundException("Camp not found");
+        var camp = await _repo.GetByIdWithPackagesAsync(id)
+            ?? throw new NotFoundException("Camp not found");
 
-        if (dto.Name is not null) camp.Name = dto.Name;
-        if (dto.Description is not null) camp.Description = dto.Description;
-        if (dto.Location is not null) camp.Location = dto.Location;
+        // 🔧 Basic field updates
+        if (!string.IsNullOrWhiteSpace(dto.Name)) camp.Name = dto.Name;
+        if (!string.IsNullOrWhiteSpace(dto.Description)) camp.Description = dto.Description;
+        if (!string.IsNullOrWhiteSpace(dto.Location)) camp.Location = dto.Location;
         if (dto.StartDate.HasValue) camp.StartDate = dto.StartDate.Value;
         if (dto.EndDate.HasValue) camp.EndDate = dto.EndDate.Value;
         if (dto.StartTime.HasValue) camp.StartTime = dto.StartTime.Value;
         if (dto.IsActive.HasValue) camp.IsActive = dto.IsActive.Value;
         if (dto.ExpectedParticipants.HasValue) camp.ExpectedParticipants = dto.ExpectedParticipants.Value;
-        if (dto.ServicePackageId.HasValue) camp.ServicePackageId = dto.ServicePackageId.Value;
         if (dto.OrganizationId.HasValue) camp.OrganizationId = dto.OrganizationId.Value;
 
         camp.UpdatedAt = DateTime.UtcNow;
+
+        // 🧩 Handle updated packages if provided
+        if (dto.Packages is not null && dto.Packages.Any())
+        {
+            // Remove inactive packages
+            foreach (var pkg in camp.HealthCampPackages)
+                pkg.IsActive = false;
+
+            // Add or reactivate provided packages
+            foreach (var dtoPkg in dto.Packages)
+            {
+                var existingPkg = camp.HealthCampPackages
+                    .FirstOrDefault(p => p.ServicePackageId == dtoPkg.PackageId);
+
+                if (existingPkg != null)
+                {
+                    existingPkg.IsActive = true;
+                    existingPkg.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    camp.HealthCampPackages.Add(new HealthCampPackage
+                    {
+                        Id = Guid.NewGuid(),
+                        HealthCampId = camp.Id,
+                        ServicePackageId = dtoPkg.PackageId,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
+        }
 
         await _repo.UpdateAsync(camp);
 
@@ -234,184 +332,312 @@ public class HealthCampService : IHealthCampService
     }
 
 
+    // public async Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto)
+    // {
+    //     var ct = CancellationToken.None;
+    //     var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
+    //                ?? throw new NotFoundException("Camp not found");
+
+    //     if (camp.HealthCampStatus == null)
+    //         throw new InvalidOperationException("Camp status is missing.");
+
+    //     var upcomingStatus = await _lookupRepository
+    //         .FindByNameAsync(camp.HealthCampStatus.Name)
+    //         ?? throw new InvalidOperationException("'Upcoming' status not found");
+
+    //     if (camp.HealthCampStatusId != upcomingStatus.Id)
+    //         throw new ValidationException(["Only camps in 'Upcoming' status can be launched."]);
+
+    //     var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+    //     var nowUtc = DateTime.UtcNow;
+    //     var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+
+    //     var startDate = camp.StartDate.Date;
+    //     var endDate = (camp.EndDate ?? camp.StartDate).Date;
+
+    //     if (todayLocal < startDate)
+    //         throw new ValidationException([$"You can only launch this camp on or after its start date: {startDate:dd MMM yyyy}."]);
+
+    //     if (todayLocal > endDate)
+    //         throw new ValidationException([$"This camp already ended on {endDate:dd MMM yyyy} and cannot be launched."]);
+
+    //     var closeUtc = dto.CloseDate.ToUniversalTime();
+
+    //     await _notificationService.TriggerNotificationAsync(
+    //         title: "Health Camp Launched",
+    //         message: $"Health camp '{camp.Name}' has been launched.",
+    //         type: "HealthCamp",
+    //         entityId: camp.Id,
+    //         entityType: "Camp",
+    //         ct: ct
+    //     );
+
+    //     // Assign new JTI and expiry
+    //     camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");
+    //     camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");
+    //     camp.PosterTokensExpireAt = closeUtc;
+
+    //     var participantRole = await _roleRepository.FindByNameAsync("participant") ?? await _roleRepository.FindByNameAsync("patient");
+    //     var subcontractorRole = await _roleRepository.FindByNameAsync("subcontractor");
+    //     if (participantRole == null || subcontractorRole == null)
+    //         throw new InvalidOperationException("Role not found.");
+
+    //     // Generate QR codes early
+    //     var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", participantRole.Id, camp.ParticipantPosterJti!, closeUtc, camp.OrganizationId);
+    //     var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", subcontractorRole.Id, camp.SubcontractorPosterJti!, closeUtc);
+
+    //     var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);
+    //     var subcontractorPosterUrl = _tokenFactory.BuildSignInUrl(subcontractorPosterToken);
+
+    //     var patientQrBase64 = _qr.GenerateBase64Png(participantPosterUrl);
+    //     var subcoQrBase64 = _qr.GenerateBase64Png(subcontractorPosterUrl);
+
+    //     // Send participant emails
+    //     foreach (var p in camp.Participants)
+    //     {
+    //         if (p.UserId == Guid.Empty || string.IsNullOrWhiteSpace(p.User.Email)) continue;
+
+    //         var plain = _tempPassword.Generate(12);
+    //         var hash = _tempPassword.Hash(plain);
+    //         var jti = Guid.NewGuid().ToString("N");
+
+    //         await _repo.UpsertTempCredentialAsync(new HealthCampTempCredentialUpsert
+    //         {
+    //             HealthCampId = camp.Id,
+    //             UserId = p.UserId,
+    //             Role = "participant",
+    //             TempPasswordHash = hash,
+    //             TempPasswordExpiresAt = closeUtc,
+    //             SignInJti = jti,
+    //             TokenExpiresAt = closeUtc
+    //         });
+
+    //         var token = _tokenFactory.CreateUserToken(camp.Id, p.UserId, "participant", jti, closeUtc);
+    //         var url = _tokenFactory.BuildSignInUrl(token);
+
+    //         var emailRequestDto = new EmailRequestDto
+    //         {
+    //             ToEmail = p.User.Email,
+    //             Subject = "Health Camp Invitation: " + camp.Name,
+    //             TemplateKey = "HealthCampInvitation",
+    //             Model = new
+    //             {
+    //                 FullName = p.User.FullName ?? "Participant",
+    //                 SignInUrl = url,
+    //                 TempPassword = plain,
+    //                 ExpiryDate = closeUtc,
+    //                 QrCodeBase64 = patientQrBase64
+    //             }
+    //         };
+
+
+
+    //         await _email.SendAsync(emailRequestDto);
+
+
+
+    //     }
+
+    //     // Send subcontractor emails
+    //     foreach (var a in camp.ServiceAssignments)
+    //     {
+    //         if (a.SubcontractorId == Guid.Empty || string.IsNullOrWhiteSpace(a.Subcontractor.User.Email)) continue;
+
+    //         var plain = _tempPassword.Generate(12);
+    //         var hash = _tempPassword.Hash(plain);
+    //         var jti = Guid.NewGuid().ToString("N");
+
+    //         await _repo.UpsertTempCredentialAsync(new HealthCampTempCredentialUpsert
+    //         {
+    //             HealthCampId = camp.Id,
+    //             UserId = a.SubcontractorId,
+    //             Role = "subcontractor",
+    //             TempPasswordHash = hash,
+    //             TempPasswordExpiresAt = closeUtc,
+    //             SignInJti = jti,
+    //             TokenExpiresAt = closeUtc
+    //         });
+
+    //         var token = _tokenFactory.CreateUserToken(camp.Id, a.SubcontractorId, "subcontractor", jti, closeUtc);
+    //         var url = _tokenFactory.BuildSignInUrl(token);
+
+    //         var emailRequestDto = new EmailRequestDto
+    //         {
+    //             ToEmail = a.Subcontractor.User.Email,
+    //             Subject = "Health Camp Invitation: " + camp.Name,
+    //             TemplateKey = "HealthCampInvitation",
+    //             Model = new
+    //             {
+    //                 FullName = a.Subcontractor.User.FullName ?? "Subcontractor",
+    //                 SignInUrl = url,
+    //                 TempPassword = plain,
+    //                 ExpiryDate = closeUtc,
+    //                 QrCodeBase64 = subcoQrBase64
+    //             }
+    //         };
+
+    //         await _email.SendAsync(emailRequestDto);
+    //     }
+
+    //     // Finalize status
+    //     var ongoingStatus = await _lookupRepository.FindByNameAsync("Ongoing")
+    //                          ?? throw new InvalidOperationException("Ongoing status not found");
+
+    //     camp.HealthCampStatusId = ongoingStatus.Id;
+    //     camp.IsLaunched = true;
+    //     camp.CloseDate = closeUtc;
+
+
+    //     await _repo.UpdateAsync(camp);
+
+
+    //     // Save QR PNGs for dashboard posters
+    //     var folder = $"qrcodes/healthcamps/{camp.Id:N}";
+    //     var participantBytes = DecodeBase64Png(patientQrBase64);
+    //     var subcontractorBytes = DecodeBase64Png(subcoQrBase64);
+
+    //     var participantFile = $"participant_{camp.ParticipantPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+    //     var subcontractorFile = $"subcontractor_{camp.SubcontractorPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+
+    //     var participantPngUrl = await _files.SaveAsync(participantBytes, folder, participantFile, "image/png");
+    //     var subcontractorPngUrl = await _files.SaveAsync(subcontractorBytes, folder, subcontractorFile, "image/png");
+
+    //     return new LaunchHealthCampResponseDto
+    //     {
+    //         HealthCampId = camp.Id,
+    //         CloseDate = closeUtc,
+    //         ParticipantPosterQrUrl = participantPngUrl,
+    //         SubcontractorPosterQrUrl = subcontractorPngUrl
+    //     };
+    // }
+
+
     public async Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto)
     {
         var ct = CancellationToken.None;
-        var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
-                   ?? throw new NotFoundException("Camp not found");
+        _logger.LogInformation("🚀 Launching health camp {@Dto}", dto);
 
-        if (camp.HealthCampStatus == null)
-            throw new InvalidOperationException("Camp status is missing.");
-
-        var upcomingStatus = await _lookupRepository
-            .FindByNameAsync(camp.HealthCampStatus.Name)
-            ?? throw new InvalidOperationException("'Upcoming' status not found");
-
-        if (camp.HealthCampStatusId != upcomingStatus.Id)
-            throw new ValidationException(["Only camps in 'Upcoming' status can be launched."]);
-
-        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
-        var nowUtc = DateTime.UtcNow;
-        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
-
-        var startDate = camp.StartDate.Date;
-        var endDate = (camp.EndDate ?? camp.StartDate).Date;
-
-        if (todayLocal < startDate)
-            throw new ValidationException([$"You can only launch this camp on or after its start date: {startDate:dd MMM yyyy}."]);
-
-        if (todayLocal > endDate)
-            throw new ValidationException([$"This camp already ended on {endDate:dd MMM yyyy} and cannot be launched."]);
-
-        var closeUtc = dto.CloseDate.ToUniversalTime();
-
-        await _notificationService.TriggerNotificationAsync(
-            title: "Health Camp Launched",
-            message: $"Health camp '{camp.Name}' has been launched.",
-            type: "HealthCamp",
-            entityId: camp.Id,
-            entityType: "Camp",
-            ct: ct
-        );
-
-        // Assign new JTI and expiry
-        camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");
-        camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");
-        camp.PosterTokensExpireAt = closeUtc;
-
-        var participantRole = await _roleRepository.FindByNameAsync("participant") ?? await _roleRepository.FindByNameAsync("patient");
-        var subcontractorRole = await _roleRepository.FindByNameAsync("subcontractor");
-        if (participantRole == null || subcontractorRole == null)
-            throw new InvalidOperationException("Role not found.");
-
-        // Generate QR codes early
-        var participantPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "participant", participantRole.Id, camp.ParticipantPosterJti!, closeUtc, camp.OrganizationId);
-        var subcontractorPosterToken = _tokenFactory.CreatePosterToken(camp.Id, "subcontractor", subcontractorRole.Id, camp.SubcontractorPosterJti!, closeUtc);
-
-        var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);
-        var subcontractorPosterUrl = _tokenFactory.BuildSignInUrl(subcontractorPosterToken);
-
-        var patientQrBase64 = _qr.GenerateBase64Png(participantPosterUrl);
-        var subcoQrBase64 = _qr.GenerateBase64Png(subcontractorPosterUrl);
-
-        // Send participant emails
-        foreach (var p in camp.Participants)
+        try
         {
-            if (p.UserId == Guid.Empty || string.IsNullOrWhiteSpace(p.User.Email)) continue;
+            var camp = await _repo.GetForLaunchAsync(dto.HealthCampId)
+                       ?? throw new NotFoundException("Camp not found");
+            _logger.LogInformation("✅ Loaded camp {CampId} - {CampName}", camp.Id, camp.Name);
 
-            var plain = _tempPassword.Generate(12);
-            var hash = _tempPassword.Hash(plain);
-            var jti = Guid.NewGuid().ToString("N");
+            if (camp.HealthCampStatus == null)
+                throw new InvalidOperationException("Camp status is missing.");
 
-            await _repo.UpsertTempCredentialAsync(new HealthCampTempCredentialUpsert
+            var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming")
+                ?? throw new InvalidOperationException("'Upcoming' status not found");
+
+            if (camp.HealthCampStatusId != upcomingStatus.Id)
+                throw new ValidationException(["Only camps in 'Upcoming' status can be launched."]);
+
+            // 🕒 Timezone
+            TimeZoneInfo eat;
+            try
+            {
+                eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                eat = TimeZoneInfo.Utc;
+                _logger.LogWarning("⚠️ Timezone 'Africa/Nairobi' not found; using UTC instead");
+            }
+
+            var nowUtc = DateTime.UtcNow;
+            var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+            _logger.LogInformation("🕓 Launching at {LocalTime}", todayLocal);
+
+            var startDate = camp.StartDate.Date;
+            var endDate = (camp.EndDate ?? camp.StartDate).Date;
+
+            if (todayLocal < startDate)
+                throw new ValidationException([$"You can only launch this camp on or after its start date: {startDate:dd MMM yyyy}."]);
+
+            if (todayLocal > endDate)
+                throw new ValidationException([$"This camp already ended on {endDate:dd MMM yyyy} and cannot be launched."]);
+
+            var closeUtc = dto.CloseDate.ToUniversalTime();
+            _logger.LogInformation("⏱ Close date set to {CloseUtc}", closeUtc);
+
+            await _notificationService.TriggerNotificationAsync(
+                title: "Health Camp Launched",
+                message: $"Health camp '{camp.Name}' has been launched.",
+                type: "HealthCamp",
+                entityId: camp.Id,
+                entityType: "Camp",
+                ct: ct
+            );
+
+            // 🎫 Assign new JTI
+            camp.ParticipantPosterJti = Guid.NewGuid().ToString("N");
+            camp.SubcontractorPosterJti = Guid.NewGuid().ToString("N");
+            camp.PosterTokensExpireAt = closeUtc;
+
+            var participantRole = await _roleRepository.FindByNameAsync("participant")
+                ?? await _roleRepository.FindByNameAsync("patient");
+            var subcontractorRole = await _roleRepository.FindByNameAsync("subcontractor");
+
+            if (participantRole == null || subcontractorRole == null)
+                throw new InvalidOperationException("Role not found.");
+
+            // 🧾 Generate QR codes
+            var participantPosterToken = _tokenFactory.CreatePosterToken(
+                camp.Id, "participant", participantRole.Id, camp.ParticipantPosterJti!, closeUtc, camp.OrganizationId);
+
+            var subcontractorPosterToken = _tokenFactory.CreatePosterToken(
+                camp.Id, "subcontractor", subcontractorRole.Id, camp.SubcontractorPosterJti!, closeUtc);
+
+            var participantPosterUrl = _tokenFactory.BuildSignInUrl(participantPosterToken);
+            var subcontractorPosterUrl = _tokenFactory.BuildSignInUrl(subcontractorPosterToken);
+
+            var patientQrBase64 = _qr.GenerateBase64Png(participantPosterUrl);
+            var subcoQrBase64 = _qr.GenerateBase64Png(subcontractorPosterUrl);
+
+            _logger.LogInformation("✅ Generated poster QR codes for participants and subcontractors");
+
+            // 📧 Skip email sending for now
+            _logger.LogInformation("📭 Email service disabled — skipping participant and subcontractor invites");
+
+            // 🧱 Finalize status
+            var ongoingStatus = await _lookupRepository.FindByNameAsync("Ongoing")
+                                 ?? throw new InvalidOperationException("Ongoing status not found");
+
+            camp.HealthCampStatusId = ongoingStatus.Id;
+            camp.IsLaunched = true;
+            camp.CloseDate = closeUtc;
+
+            await _repo.UpdateAsync(camp);
+            _logger.LogInformation("✅ Updated camp status to Ongoing");
+
+            // 🗂 Save QR PNGs for dashboard posters
+            var folder = $"qrcodes/healthcamps/{camp.Id:N}";
+            var participantBytes = DecodeBase64Png(patientQrBase64);
+            var subcontractorBytes = DecodeBase64Png(subcoQrBase64);
+
+            var participantFile = $"participant_{camp.ParticipantPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+            var subcontractorFile = $"subcontractor_{camp.SubcontractorPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
+
+            var participantPngUrl = await _files.SaveAsync(participantBytes, folder, participantFile, "image/png");
+            var subcontractorPngUrl = await _files.SaveAsync(subcontractorBytes, folder, subcontractorFile, "image/png");
+
+            _logger.LogInformation("📂 Saved QR codes to {Folder}", folder);
+
+            return new LaunchHealthCampResponseDto
             {
                 HealthCampId = camp.Id,
-                UserId = p.UserId,
-                Role = "participant",
-                TempPasswordHash = hash,
-                TempPasswordExpiresAt = closeUtc,
-                SignInJti = jti,
-                TokenExpiresAt = closeUtc
-            });
-
-            var token = _tokenFactory.CreateUserToken(camp.Id, p.UserId, "participant", jti, closeUtc);
-            var url = _tokenFactory.BuildSignInUrl(token);
-
-            var emailRequestDto = new EmailRequestDto
-            {
-                ToEmail = p.User.Email,
-                Subject = "Health Camp Invitation: " + camp.Name,
-                TemplateKey = "HealthCampInvitation",
-                Model = new
-                {
-                    FullName = p.User.FullName ?? "Participant",
-                    SignInUrl = url,
-                    TempPassword = plain,
-                    ExpiryDate = closeUtc,
-                    QrCodeBase64 = patientQrBase64
-                }
+                CloseDate = closeUtc,
+                ParticipantPosterQrUrl = participantPngUrl,
+                SubcontractorPosterQrUrl = subcontractorPngUrl
             };
-
-
-
-            await _email.SendAsync(emailRequestDto);
-
-
-
         }
-
-        // Send subcontractor emails
-        foreach (var a in camp.ServiceAssignments)
+        catch (Exception ex)
         {
-            if (a.SubcontractorId == Guid.Empty || string.IsNullOrWhiteSpace(a.Subcontractor.User.Email)) continue;
-
-            var plain = _tempPassword.Generate(12);
-            var hash = _tempPassword.Hash(plain);
-            var jti = Guid.NewGuid().ToString("N");
-
-            await _repo.UpsertTempCredentialAsync(new HealthCampTempCredentialUpsert
-            {
-                HealthCampId = camp.Id,
-                UserId = a.SubcontractorId,
-                Role = "subcontractor",
-                TempPasswordHash = hash,
-                TempPasswordExpiresAt = closeUtc,
-                SignInJti = jti,
-                TokenExpiresAt = closeUtc
-            });
-
-            var token = _tokenFactory.CreateUserToken(camp.Id, a.SubcontractorId, "subcontractor", jti, closeUtc);
-            var url = _tokenFactory.BuildSignInUrl(token);
-
-            var emailRequestDto = new EmailRequestDto
-            {
-                ToEmail = a.Subcontractor.User.Email,
-                Subject = "Health Camp Invitation: " + camp.Name,
-                TemplateKey = "HealthCampInvitation",
-                Model = new
-                {
-                    FullName = a.Subcontractor.User.FullName ?? "Subcontractor",
-                    SignInUrl = url,
-                    TempPassword = plain,
-                    ExpiryDate = closeUtc,
-                    QrCodeBase64 = subcoQrBase64
-                }
-            };
-
-            await _email.SendAsync(emailRequestDto);
+            _logger.LogError(ex, "💥 Error launching camp {CampId}: {Message}", dto.HealthCampId, ex.Message);
+            throw;
         }
-
-        // Finalize status
-        var ongoingStatus = await _lookupRepository.FindByNameAsync("Ongoing")
-                             ?? throw new InvalidOperationException("Ongoing status not found");
-
-        camp.HealthCampStatusId = ongoingStatus.Id;
-        camp.IsLaunched = true;
-        camp.CloseDate = closeUtc;
-
-
-        await _repo.UpdateAsync(camp);
-
-
-        // Save QR PNGs for dashboard posters
-        var folder = $"qrcodes/healthcamps/{camp.Id:N}";
-        var participantBytes = DecodeBase64Png(patientQrBase64);
-        var subcontractorBytes = DecodeBase64Png(subcoQrBase64);
-
-        var participantFile = $"participant_{camp.ParticipantPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
-        var subcontractorFile = $"subcontractor_{camp.SubcontractorPosterJti}_{closeUtc:yyyyMMddHHmmss}.png";
-
-        var participantPngUrl = await _files.SaveAsync(participantBytes, folder, participantFile, "image/png");
-        var subcontractorPngUrl = await _files.SaveAsync(subcontractorBytes, folder, subcontractorFile, "image/png");
-
-        return new LaunchHealthCampResponseDto
-        {
-            HealthCampId = camp.Id,
-            CloseDate = closeUtc,
-            ParticipantPosterQrUrl = participantPngUrl,
-            SubcontractorPosterQrUrl = subcontractorPngUrl
-        };
     }
+
 
     private static byte[] DecodeBase64Png(string base64)
     {
@@ -496,14 +722,17 @@ public class HealthCampService : IHealthCampService
     }
 
     // These stay the same
-    public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-        => _repo.GetCampParticipantsAllAsync(campId, q, sort, page, pageSize);
+    public Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
 
-    public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-        => _repo.GetCampParticipantsServedAsync(campId, q, sort, page, pageSize);
+     => _repo.GetCampParticipantsAllAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
 
-    public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize)
-        => _repo.GetCampParticipantsNotSeenAsync(campId, q, sort, page, pageSize);
+    public Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+
+     => _repo.GetCampParticipantsServedAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
+
+    public Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default)
+
+        => _repo.GetCampParticipantsNotSeenAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
 
     // Status-based camps with optional subcontractor
     public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default)
@@ -758,6 +987,16 @@ public class HealthCampService : IHealthCampService
         if (pendingStatus == null)
             throw new InvalidOperationException("Assignment status 'Pending' not found.");
 
+        // 🔧 Helper to enforce UTC (solves PostgreSQL timestamp with time zone error)
+        static DateTime ToUtc(DateTime value)
+        {
+            if (value.Kind == DateTimeKind.Utc)
+                return value;
+            if (value.Kind == DateTimeKind.Local)
+                return value.ToUniversalTime();
+            return DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
+
         foreach (var serviceId in dto.ServiceIds)
         {
             var referenceType = await _referenceResolver.ResolveTypeAsync(serviceId);
@@ -770,7 +1009,10 @@ public class HealthCampService : IHealthCampService
                 SubcontractorId = dto.SubcontractorId,
                 AssignmentStatusId = pendingStatus.Id,
                 BoothLabel = boothLabel,
-                StartDate = camp.StartDate,
+
+                // FIX: ensure UTC datetime kind before saving
+                StartDate = ToUtc(camp.StartDate),
+
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = actingUserId,
                 IsDeleted = false,
@@ -790,6 +1032,7 @@ public class HealthCampService : IHealthCampService
             ct: ct
         );
     }
+
 
 
     public async Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId)
@@ -820,6 +1063,65 @@ public class HealthCampService : IHealthCampService
 
         await _subcontractorCampAssignmentRepository.SaveChangesAsync(ct);
     }
+
+
+    public async Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct)
+    {
+        // Verify participant belongs to camp and has billing info
+        var participant = await _campParticipantRepository.GetParticipantWithBillingStatusAsync(dto.HealthCampId, dto.ParticipantId, ct)
+            ?? throw new NotFoundException("Participant not found for this camp.");
+
+        // Prevent assignment if billing not initiated
+        if (participant.BillingStatus?.Name?.Equals("Not Billed", StringComparison.OrdinalIgnoreCase) == true)
+            throw new ValidationException(["Cannot assign package until billing is initiated."]);
+
+        // Get package through repository (no direct DbContext)
+        var package = await _campPackageRepository.GetPackageByCampAsync(dto.HealthCampId, dto.HealthCampPackageId, ct)
+            ?? throw new ValidationException(["The selected package does not belong to this camp."]);
+
+        // Get existing active package
+        var existing = await _participantPackageRepo.GetByParticipantIdAsync(dto.ParticipantId, ct);
+
+        // Idempotency check
+        if (existing != null && existing.HealthCampPackageId == dto.HealthCampPackageId && existing.IsActive)
+            return; // nothing to change
+
+        // Deactivate old package
+        if (existing != null)
+        {
+            existing.IsActive = false;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _participantPackageRepo.UpdateAsync(existing, ct);
+        }
+
+        // Assign new package
+        var newRecord = new HealthCampParticipantPackage
+        {
+            Id = Guid.NewGuid(),
+            ParticipantId = dto.ParticipantId,
+            HealthCampPackageId = dto.HealthCampPackageId,
+            AssignedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+        await _participantPackageRepo.AddAsync(newRecord, ct);
+    }
+
+    public async Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct)
+    {
+        var packages = await _campPackageRepository.GetAllPackagesWithServicesByCampAsync(campId, ct);
+
+        // Map manually or via AutoMapper
+        return [.. packages.Select(p => new HealthCampPackageDto
+        {
+            Id = p.Id,
+            HealthCampId = p.HealthCampId,
+            ServicePackageId = p.ServicePackageId,
+            ServicePackageName = p.ServicePackage?.Name,
+        })];
+    }
+
+
 
 
 }

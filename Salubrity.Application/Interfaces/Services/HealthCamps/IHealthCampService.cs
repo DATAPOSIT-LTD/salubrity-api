@@ -17,9 +17,14 @@ public interface IHealthCampService
     Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId);
     Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid? subcontractorId);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(Guid campId, string? q, string? sort, int page, int pageSize);
-    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(Guid campId, string? q, string? sort, int page, int pageSize);
-    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(Guid campId, string? q, string? sort, int page, int pageSize);
+    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(
+        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+
+    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
+        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+
+    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
+        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 
     Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct);
 
@@ -52,4 +57,8 @@ public interface IHealthCampService
     Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId);
     Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId);
     Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId);
+    Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct);
+    Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct);
+
+
 }

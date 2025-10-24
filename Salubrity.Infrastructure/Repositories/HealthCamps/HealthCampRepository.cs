@@ -370,12 +370,11 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public IQueryable<CampParticipantListDto> BaseParticipantsDto(
-     Guid campId,
-     string? q,
-     string? sort,
-     Guid? serviceAssignmentId = null)
+    Guid campId,
+    string? q,
+    string? sort,
+    Guid? serviceAssignmentId = null)
     {
-        // --- Step 1: Compute total assignments only for camp-wide mode
         int totalAssignments = 0;
         if (serviceAssignmentId == null)
         {
@@ -399,20 +398,18 @@ public class HealthCampRepository : IHealthCampRepository
                 PhoneNumber = p.User.Phone,
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = p.ParticipatedAt,
-
-                // ✅ If station-specific: check this serviceAssignmentId only
+                PackageId = p.HealthCampPackage != null ? p.HealthCampPackage.ServicePackage.Id : (Guid?)null,   // <-- Added
+                PackageName = p.HealthCampPackage != null ? p.HealthCampPackage.ServicePackage.Name : null,      // <-- Added
                 Served = serviceAssignmentId != null
                     ? _context.HealthCampParticipantServiceStatuses
                         .Any(s =>
                             s.ParticipantId == p.Id &&
                             s.ServiceAssignmentId == serviceAssignmentId &&
                             s.ServedAt != null)
-                    // ✅ Otherwise, camp-wide: all assigned services must be served
                     : _context.HealthCampParticipantServiceStatuses
                         .Count(s => s.ParticipantId == p.Id && s.ServedAt != null) >= totalAssignments
             };
 
-        // --- Search ---
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
@@ -422,7 +419,6 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.PhoneNumber != null && EF.Functions.ILike(x.PhoneNumber, $"%{term}%")));
         }
 
-        // --- Sort ---
         var s = sort?.ToLowerInvariant();
         query = s switch
         {

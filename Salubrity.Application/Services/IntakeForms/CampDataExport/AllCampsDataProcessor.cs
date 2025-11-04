@@ -1,19 +1,104 @@
 ﻿using Salubrity.Application.DTOs.Clinical;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.HealthAssessments;
+using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.IntakeForms;
 
 namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 {
-    public class CampDataProcessor
+    public class AllCampsDataProcessor
     {
-        public ProcessedCampData Process(CampData data)
+        public ProcessedAllCampsData Process(AllCampsData data)
         {
-            var intakeFormFields = BuildIntakeFormFields(data.DtoResponses, data.EntityResponses);
-            var healthAssessmentFields = BuildHealthAssessmentFields(data.HealthAssessmentResponses);
-            var doctorRecommendationFields = BuildDoctorRecommendationFields();
+            var allIntakeFormFields = new List<FieldDefinition>();
+            var allHealthAssessmentFields = new List<FieldDefinition>();
+            var allDoctorRecommendationFields = BuildDoctorRecommendationFields();
 
-            var allFields = intakeFormFields.Concat(healthAssessmentFields).Concat(doctorRecommendationFields).ToList();
+            var allParticipantResponses = new List<ParticipantResponseWithCampInfo>();
+            var allDtoResponseLookup = new Dictionary<Guid, List<IntakeFormResponseDetailDto>>();
+            var allHealthAssessmentLookup = new Dictionary<Guid, Dictionary<string, string>>();
+            var allDoctorRecommendationLookup = new Dictionary<Guid, DoctorRecommendationResponseDto?>();
+
+            var existingIntakeFieldIds = new HashSet<string>();
+            var existingHealthFieldIds = new HashSet<string>();
+
+            // Process each camp's data
+            foreach (var campData in data.CampDataList)
+            {
+                // Build intake form fields from this camp
+                var campIntakeFormFields = BuildIntakeFormFields(campData.DtoResponses, campData.EntityResponses, existingIntakeFieldIds);
+                allIntakeFormFields.AddRange(campIntakeFormFields);
+
+                // Build health assessment fields from this camp
+                var campHealthAssessmentFields = BuildHealthAssessmentFields(campData.HealthAssessmentResponses, existingHealthFieldIds);
+                allHealthAssessmentFields.AddRange(campHealthAssessmentFields);
+
+                // Process participant responses for this camp
+                var campParticipantResponses = campData.EntityResponses
+                    .GroupBy(r => r.PatientId)
+                    .Where(g => g.First().Patient != null)
+                    .Select(g => new ParticipantResponseWithCampInfo
+                    {
+                        PatientId = g.Key,
+                        Patient = g.First().Patient!,
+                        Responses = g.ToList(),
+                        OrganizationName = campData.OrganizationName,
+                        CampName = campData.Camp.Name,
+                        CampDate = campData.CampDate
+                    })
+                    .ToList();
+
+                allParticipantResponses.AddRange(campParticipantResponses);
+
+                // Merge DTO response lookup
+                var campDtoResponseLookup = campData.DtoResponses
+                    .GroupBy(r => r.PatientId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                foreach (var kvp in campDtoResponseLookup)
+                {
+                    if (allDtoResponseLookup.ContainsKey(kvp.Key))
+                    {
+                        allDtoResponseLookup[kvp.Key].AddRange(kvp.Value);
+                    }
+                    else
+                    {
+                        allDtoResponseLookup[kvp.Key] = kvp.Value;
+                    }
+                }
+
+                // Merge health assessment lookup
+                var campHealthAssessmentLookup = campData.HealthAssessmentResponses
+                    .ToDictionary(
+                        kvp => kvp.Key,
+                        kvp => kvp.Value
+                            .SelectMany(assessment => assessment.Sections
+                                .SelectMany(section => section.Fields
+                                    .Select(field => new { assessment.FormName, section.SectionName, field })))
+                            .ToDictionary(
+                                item => $"health_{item.FormName}_{item.SectionName}_{item.field.FieldLabel}".Replace(" ", "_"),
+                                item => item.field.Value ?? item.field.SelectedOption ?? ""
+                            )
+                    );
+
+                foreach (var kvp in campHealthAssessmentLookup)
+                {
+                    allHealthAssessmentLookup[kvp.Key] = kvp.Value;
+                }
+
+                // Merge doctor recommendation lookup
+                var campDoctorRecommendationLookup = campData.DoctorRecommendations
+                    .GroupBy(r => r.PatientId)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).FirstOrDefault());
+
+                foreach (var kvp in campDoctorRecommendationLookup)
+                {
+                    allDoctorRecommendationLookup[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Combine all fields
+            var allFields = allIntakeFormFields.Concat(allHealthAssessmentFields).Concat(allDoctorRecommendationFields).ToList();
 
             var fieldsBySection = allFields
                 .GroupBy(f => new { f.SectionName, f.SectionPriority })
@@ -28,54 +113,31 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 orderedFields.AddRange(fieldsInSection);
             }
 
-            var participantResponses = data.EntityResponses
-                .GroupBy(r => r.PatientId)
-                .Where(g => g.First().Patient != null)
-                .OrderBy(g => g.First().Patient?.User?.FirstName ?? "")
+            // Sort participants by camp date, then by name
+            var sortedParticipantResponses = allParticipantResponses
+                .OrderBy(p => p.CampDate)
+                .ThenBy(p => p.Patient.User?.FirstName ?? "")
                 .ToList();
 
-            var dtoResponseLookup = data.DtoResponses
-                .GroupBy(r => r.PatientId)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            var healthAssessmentLookup = data.HealthAssessmentResponses
-                .ToDictionary(
-                    kvp => kvp.Key,
-                    kvp => kvp.Value
-                        .SelectMany(assessment => assessment.Sections
-                            .SelectMany(section => section.Fields
-                                .Select(field => new { assessment.FormName, section.SectionName, field })))
-                        .ToDictionary(
-                            item => $"health_{item.FormName}_{item.SectionName}_{item.field.FieldLabel}".Replace(" ", "_"),
-                            item => item.field.Value ?? item.field.SelectedOption ?? ""
-                        )
-                );
-
-            // Create doctor recommendation lookup - take the most recent recommendation per patient
-            var doctorRecommendationLookup = data.DoctorRecommendations
-                .GroupBy(r => r.PatientId)
-                .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).FirstOrDefault());
-
-            return new ProcessedCampData
+            return new ProcessedAllCampsData
             {
-                CampName = data.Camp.Name,
-                OrganizationName = data.OrganizationName,
-                ParticipantResponses = participantResponses,
-                DtoResponseLookup = dtoResponseLookup,
-                HealthAssessmentLookup = healthAssessmentLookup,
-                DoctorRecommendationLookup = doctorRecommendationLookup,
+                ParticipantResponses = sortedParticipantResponses,
+                DtoResponseLookup = allDtoResponseLookup,
+                HealthAssessmentLookup = allHealthAssessmentLookup,
+                DoctorRecommendationLookup = allDoctorRecommendationLookup,
                 OrderedFields = orderedFields,
                 FieldsBySection = fieldsBySection,
-                IntakeFieldCount = intakeFormFields.Count,
-                HealthFieldCount = healthAssessmentFields.Count,
-                DoctorRecommendationFieldCount = doctorRecommendationFields.Count
+                IntakeFieldCount = allIntakeFormFields.Count,
+                HealthFieldCount = allHealthAssessmentFields.Count,
+                DoctorRecommendationFieldCount = allDoctorRecommendationFields.Count,
+                TotalCamps = data.CampDataList.Count,
+                TotalParticipants = sortedParticipantResponses.Count
             };
         }
 
-        private List<FieldDefinition> BuildIntakeFormFields(List<IntakeFormResponseDetailDto> dtoResponses, List<IntakeFormResponse> entityResponses)
+        private List<FieldDefinition> BuildIntakeFormFields(List<IntakeFormResponseDetailDto> dtoResponses, List<IntakeFormResponse> entityResponses, HashSet<string> existingFieldIds)
         {
             var intakeFormFields = new List<FieldDefinition>();
-            var existingFieldIds = new HashSet<string>();
 
             // Process all DTO responses from all participants
             foreach (var fieldResponse in dtoResponses.SelectMany(r => r.FieldResponses))
@@ -120,10 +182,9 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             return intakeFormFields;
         }
 
-        private List<FieldDefinition> BuildHealthAssessmentFields(Dictionary<Guid, List<HealthAssessmentResponseDto>> healthAssessmentResponses)
+        private List<FieldDefinition> BuildHealthAssessmentFields(Dictionary<Guid, List<HealthAssessmentResponseDto>> healthAssessmentResponses, HashSet<string> existingFieldIds)
         {
             var healthAssessmentFields = new List<FieldDefinition>();
-            var existingFieldIds = new HashSet<string>();
 
             // Iterate through all patient assessments to build a complete list of fields
             foreach (var patientAssessments in healthAssessmentResponses.Values)
@@ -172,30 +233,27 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
         private static int GetSectionPriority(string sectionName, string fieldLabel)
         {
-            // Define the structured ordering based on our proposed arrangement
             return sectionName.ToLowerInvariant() switch
             {
-                var s when s.Contains("diagnosis") && s.Contains("examination") => 100, // Physical Measurements & Vital Signs
-                var s when s.Contains("physical examination") => 200, // Physical Examination
-                var s when s.Contains("eye") || s.Contains("vision") => 300, // Eye Examination
-                var s when s.Contains("nutrition") => 400, // Nutrition Assessment
-                var s when s.Contains("mental health") => 500, // Mental Health
-                var s when s.Contains("back") || s.Contains("muscle") || s.Contains("nerve") || s.Contains("bone") => 510, // Back, Muscles, Nerves & Bones
-                var s when s.Contains("well woman") => 520, // Well Woman
-                var s when s.Contains("findings") => 600, // General Findings
-                var s when s.Contains("diagnosis") && !s.Contains("examination") => 610, // General Diagnosis
-                var s when s.Contains("notes") => 700, // Notes
-                var s when s.Contains("recommendations") => 800, // Recommendations
-                _ => 900 // Other/General sections
+                var s when s.Contains("diagnosis") && s.Contains("examination") => 100,
+                var s when s.Contains("physical examination") => 200,
+                var s when s.Contains("eye") || s.Contains("vision") => 300,
+                var s when s.Contains("nutrition") => 400,
+                var s when s.Contains("mental health") => 500,
+                var s when s.Contains("back") || s.Contains("muscle") || s.Contains("nerve") || s.Contains("bone") => 510,
+                var s when s.Contains("well woman") => 520,
+                var s when s.Contains("findings") => 600,
+                var s when s.Contains("diagnosis") && !s.Contains("examination") => 610,
+                var s when s.Contains("notes") => 700,
+                var s when s.Contains("recommendations") => 800,
+                _ => 900
             };
         }
 
         private static int GetFieldPriority(string fieldLabel)
         {
-            // Define field-level priority within sections for better organization
             var label = fieldLabel.ToLowerInvariant();
 
-            // Vital Signs ordering
             if (label.Contains("height")) return 1;
             if (label.Contains("weight")) return 2;
             if (label.Contains("bmi")) return 3;
@@ -209,14 +267,12 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             if (label.Contains("rbs reading 2")) return 11;
             if (label.Contains("rbs reading 3")) return 12;
 
-            // Physical Examination ordering
             if (label.Contains("rs")) return 1;
             if (label.Contains("cvs")) return 2;
             if (label.Contains("abdomen")) return 3;
             if (label.Contains("cns")) return 4;
             if (label.Contains("skin")) return 5;
 
-            // Eye examination ordering (Right eye first, then Left eye)
             if (label.Contains("right eye")) return 1;
             if (label.Contains("left eye")) return 2;
             if (label.Contains("vision")) return 1;
@@ -226,13 +282,11 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             if (label.Contains("va")) return 5;
             if (label.Contains("add")) return 6;
 
-            // Diagnosis sections ordering
             if (label.Contains("findings")) return 1;
             if (label.Contains("conclusion")) return 2;
             if (label.Contains("recommendations")) return 3;
             if (label.Contains("additional notes")) return 4;
 
-            // Nutrition ordering
             if (label.Contains("body mass index")) return 1;
             if (label.Contains("body fat")) return 2;
             if (label.Contains("body water")) return 3;
@@ -244,17 +298,23 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             if (label.Contains("problem")) return 9;
             if (label.Contains("plan")) return 10;
 
-            return 50; // Default priority for other fields
+            return 50;
         }
     }
 
-    public record FieldDefinition(string FieldId, string Label, string SectionName, int Order, string FieldType, string DataSource, int SectionPriority);
-
-    public class ProcessedCampData
+    public class ParticipantResponseWithCampInfo
     {
-        public string CampName { get; set; } = string.Empty;
+        public Guid PatientId { get; set; }
+        public Patient Patient { get; set; } = null!;
+        public List<IntakeFormResponse> Responses { get; set; } = [];
         public string OrganizationName { get; set; } = string.Empty;
-        public List<IGrouping<Guid, IntakeFormResponse>> ParticipantResponses { get; set; } = [];
+        public string CampName { get; set; } = string.Empty;
+        public DateTime CampDate { get; set; }
+    }
+
+    public class ProcessedAllCampsData
+    {
+        public List<ParticipantResponseWithCampInfo> ParticipantResponses { get; set; } = [];
         public Dictionary<Guid, List<IntakeFormResponseDetailDto>> DtoResponseLookup { get; set; } = [];
         public Dictionary<Guid, Dictionary<string, string>> HealthAssessmentLookup { get; set; } = [];
         public Dictionary<Guid, DoctorRecommendationResponseDto?> DoctorRecommendationLookup { get; set; } = [];
@@ -263,5 +323,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         public int IntakeFieldCount { get; set; }
         public int HealthFieldCount { get; set; }
         public int DoctorRecommendationFieldCount { get; set; }
+        public int TotalCamps { get; set; }
+        public int TotalParticipants { get; set; }
     }
 }

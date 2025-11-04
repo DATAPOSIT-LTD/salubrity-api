@@ -10,5 +10,6 @@ namespace Salubrity.Application.Interfaces.Services.Clinical
         Task<Guid> CreateAsync(CreateDoctorRecommendationDto dto, Guid doctorId, CancellationToken ct = default);
         Task UpdateAsync(UpdateDoctorRecommendationDto dto, CancellationToken ct = default);
         Task DeleteAsync(Guid id, CancellationToken ct = default);
+        Task<IReadOnlyList<DoctorRecommendationResponseDto>> GetByHealthCampAsync(Guid healthCampId, CancellationToken ct = default);
     }
 }

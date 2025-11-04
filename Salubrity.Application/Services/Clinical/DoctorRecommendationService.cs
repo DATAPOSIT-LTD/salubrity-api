@@ -107,5 +107,11 @@ namespace Salubrity.Application.Services.Clinical
                 CreatedAt = entity.CreatedAt
             };
         }
+
+        public async Task<IReadOnlyList<DoctorRecommendationResponseDto>> GetByHealthCampAsync(Guid healthCampId, CancellationToken ct = default)
+        {
+            var list = await _repo.GetByHealthCampAsync(healthCampId, ct);
+            return list.Select(MapToDto).ToList();
+        }
     }
 }

@@ -56,5 +56,14 @@ namespace Salubrity.Infrastructure.Repositories.Clinical
                 await _context.SaveChangesAsync(ct);
             }
         }
+
+        public async Task<IReadOnlyList<DoctorRecommendation>> GetByHealthCampAsync(Guid healthCampId, CancellationToken ct = default)
+        {
+            return await _context.DoctorRecommendations
+                .Include(r => r.FollowUpRecommendation)
+                .Include(r => r.RecommendationType)
+                .Where(r => r.HealthCampId == healthCampId && !r.IsDeleted)
+                .ToListAsync(ct);
+        }
     }
 }

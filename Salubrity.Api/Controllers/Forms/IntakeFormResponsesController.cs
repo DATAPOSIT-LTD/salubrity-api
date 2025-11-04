@@ -128,4 +128,19 @@ public class IntakeFormResponsesController : BaseController
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
+
+    [HttpGet("camp/all/data/export")]
+    //[Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportAllCampsData(CancellationToken ct)
+    {
+        var (excelData, totalCamps, totalParticipants, exportTimestamp) = await _service.ExportAllCampsDataToExcelAsync(ct);
+
+        var fileName = $"All_Camps_Data_Export_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
+
+        Response.Headers.Append("X-Export-Summary", $"Camps: {totalCamps}, Participants: {totalParticipants}");
+
+        return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+    }
 }

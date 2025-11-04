@@ -12,4 +12,5 @@ public interface IIntakeFormResponseService
 
     // Download Findings Implementation
     Task<(byte[] ExcelData, string CampName, string OrganizationName, DateTime ExportTimestamp)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default);
+    Task<(byte[] ExcelData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default);
 }

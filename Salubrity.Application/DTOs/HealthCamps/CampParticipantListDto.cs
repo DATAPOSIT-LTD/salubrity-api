@@ -13,6 +13,9 @@ public class CampParticipantListDto
     public bool Served { get; set; }
     public DateTime? ParticipatedAt { get; set; }
 
+    public Guid? PackageId { get; set; }                // Participant Package
+    public string? PackageName { get; set; }
+
     // NEW: list of service names or IDs participant completed
     public List<ServiceCompletionDto> CompletedServices { get; set; } = new();
 }

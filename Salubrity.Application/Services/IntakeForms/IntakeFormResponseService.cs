@@ -13,6 +13,7 @@ using Salubrity.Application.Interfaces.Repositories.Camps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthcareServices;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Services.Clinical;
 using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.IntakeForms;
@@ -45,6 +46,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly IHealthCampRepository _healthCampRepository;
     private readonly IHealthAssessmentFormService _healthAssessmentFormService;
     private readonly IHealthCampParticipantServiceStatusRepository _participantServiceStatusRepository;
+    private readonly IDoctorRecommendationService _doctorRecommendationService;
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -60,7 +62,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IHealthCampRepository healthCampRepository,
         IHealthAssessmentFormService healthAssessmentFormService,
 
-        IHealthCampParticipantServiceStatusRepository participantServiceStatusRepository
+        IHealthCampParticipantServiceStatusRepository participantServiceStatusRepository,
+        IDoctorRecommendationService doctorRecommendationService
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -76,6 +79,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _healthCampRepository = healthCampRepository;
         _healthAssessmentFormService = healthAssessmentFormService;
         _participantServiceStatusRepository = participantServiceStatusRepository;
+        _doctorRecommendationService = doctorRecommendationService;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -379,7 +383,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         var exportTimestamp = DateTime.Now.AddHours(3);
 
         // 1. Fetch Data
-        var dataFetcher = new CampDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService);
+        var dataFetcher = new CampDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService, _doctorRecommendationService);
         var campData = await dataFetcher.FetchDataAsync(campId, ct);
 
         // 2. Process Data
@@ -391,5 +395,24 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         var excelData = exporter.Export(processedData);
 
         return (excelData, processedData.CampName, processedData.OrganizationName, exportTimestamp);
+    }
+
+    public async Task<(byte[] ExcelData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default)
+    {
+        var exportTimestamp = DateTime.Now.AddHours(3);
+
+        // 1. Fetch Data from All Camps
+        var allCampsDataFetcher = new AllCampsDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService, _doctorRecommendationService);
+        var allCampsData = await allCampsDataFetcher.FetchDataAsync(ct);
+
+        // 2. Process Data
+        var allCampsDataProcessor = new AllCampsDataProcessor();
+        var processedData = allCampsDataProcessor.Process(allCampsData);
+
+        // 3. Export Data
+        var allCampsExporter = new AllCampsDataExcelExporter();
+        var excelData = allCampsExporter.Export(processedData);
+
+        return (excelData, processedData.TotalCamps, processedData.TotalParticipants, exportTimestamp);
     }
 }

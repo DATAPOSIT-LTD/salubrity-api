@@ -1,7 +1,9 @@
 ﻿using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.HealthAssessments;
+using Salubrity.Application.DTOs.Clinical;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
+using Salubrity.Application.Interfaces.Services.Clinical;
 using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.IntakeForms;
@@ -14,15 +16,19 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         private readonly IHealthCampRepository _healthCampRepository;
         private readonly IIntakeFormResponseRepository _intakeFormResponseRepository;
         private readonly IHealthAssessmentFormService _healthAssessmentFormService;
+        private readonly IDoctorRecommendationService _doctorRecommendationService;
+
 
         public CampDataFetcher(
             IHealthCampRepository healthCampRepository,
             IIntakeFormResponseRepository intakeFormResponseRepository,
-            IHealthAssessmentFormService healthAssessmentFormService)
+            IHealthAssessmentFormService healthAssessmentFormService,
+            IDoctorRecommendationService doctorRecommendationService)
         {
             _healthCampRepository = healthCampRepository;
             _intakeFormResponseRepository = intakeFormResponseRepository;
             _healthAssessmentFormService = healthAssessmentFormService;
+            _doctorRecommendationService = doctorRecommendationService;
         }
 
         public async Task<CampData> FetchDataAsync(Guid campId, CancellationToken ct)
@@ -66,13 +72,17 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 healthAssessmentLookup[patientId] = patientHealthResponses;
             }
 
+            // Fetch doctor recommendations by health camp
+            var doctorRecommendations = await _doctorRecommendationService.GetByHealthCampAsync(campId, ct);
+
             return new CampData
             {
                 Camp = camp,
                 OrganizationName = organizationName,
                 EntityResponses = filteredEntityResponses,
                 DtoResponses = allDtoResponses,
-                HealthAssessmentResponses = healthAssessmentLookup
+                HealthAssessmentResponses = healthAssessmentLookup,
+                DoctorRecommendations = doctorRecommendations
             };
         }
 
@@ -108,5 +118,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         public List<IntakeFormResponse> EntityResponses { get; set; } = [];
         public List<IntakeFormResponseDetailDto> DtoResponses { get; set; } = [];
         public Dictionary<Guid, List<HealthAssessmentResponseDto>> HealthAssessmentResponses { get; set; } = [];
+        public IReadOnlyList<DoctorRecommendationResponseDto> DoctorRecommendations { get; set; } = [];
     }
 }

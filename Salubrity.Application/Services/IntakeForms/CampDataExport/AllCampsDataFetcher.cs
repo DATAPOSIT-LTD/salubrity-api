@@ -40,67 +40,84 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
             var campDataList = new List<CampDataWithInfo>();
 
-            foreach (var campSummary in allCamps.OrderBy(c => c.StartDate))
+            // Process camps in smaller batches to avoid memory issues
+            const int batchSize = 10; // Process 10 camps at a time
+            var campBatches = allCamps.OrderBy(c => c.StartDate)
+                .Select((camp, index) => new { camp, index })
+                .GroupBy(x => x.index / batchSize)
+                .Select(g => g.Select(x => x.camp).ToList())
+                .ToList();
+
+            foreach (var batch in campBatches)
             {
-                try
+                foreach (var campSummary in batch)
                 {
-                    // Get detailed camp information
-                    var camp = await _healthCampRepository.GetByIdAsync(campSummary.Id);
-                    if (camp == null) continue;
-
-                    var organizationName = await GetOrganizationNameAsync(camp, ct);
-
-                    // Get responses for this camp
-                    var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(camp.Id, ct);
-                    if (!entityResponses.Any()) continue;
-
-                    // Get camp participants to filter responses
-                    var campParticipants = await _healthCampRepository.GetParticipantsAsync(camp.Id, null, null, ct);
-                    var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
-
-                    var filteredEntityResponses = entityResponses
-                        .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
-                        .ToList();
-
-                    if (!filteredEntityResponses.Any()) continue;
-
-                    var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
-
-                    // Get DTO responses for patients in this camp
-                    var allDtoResponses = new List<IntakeFormResponseDetailDto>();
-                    foreach (var patientId in patientIds)
+                    try
                     {
-                        var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, camp.Id, ct);
-                        allDtoResponses.AddRange(patientDtoResponses);
+                        // Get detailed camp information
+                        var camp = await _healthCampRepository.GetByIdAsync(campSummary.Id);
+                        if (camp == null) continue;
+
+                        var organizationName = await GetOrganizationNameAsync(camp, ct);
+
+                        // Get responses for this camp
+                        var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(camp.Id, ct);
+                        if (!entityResponses.Any()) continue;
+
+                        // Get camp participants to filter responses
+                        var campParticipants = await _healthCampRepository.GetParticipantsAsync(camp.Id, null, null, ct);
+                        var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
+
+                        var filteredEntityResponses = entityResponses
+                            .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
+                            .ToList();
+
+                        if (!filteredEntityResponses.Any()) continue;
+
+                        var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
+
+                        // Get DTO responses for patients in this camp (sequential processing)
+                        var allDtoResponses = new List<IntakeFormResponseDetailDto>();
+                        foreach (var patientId in patientIds)
+                        {
+                            var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, camp.Id, ct);
+                            allDtoResponses.AddRange(patientDtoResponses);
+                        }
+
+                        // Get health assessment responses (sequential processing)
+                        var healthAssessmentLookup = new Dictionary<Guid, List<HealthAssessmentResponseDto>>();
+                        foreach (var patientId in patientIds)
+                        {
+                            var patientHealthResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, camp.Id, ct);
+                            healthAssessmentLookup[patientId] = patientHealthResponses;
+                        }
+
+                        // Get doctor recommendations
+                        var doctorRecommendations = await _doctorRecommendationService.GetByHealthCampAsync(camp.Id, ct);
+
+                        campDataList.Add(new CampDataWithInfo
+                        {
+                            Camp = camp,
+                            OrganizationName = organizationName,
+                            CampDate = camp.StartDate,
+                            EntityResponses = filteredEntityResponses,
+                            DtoResponses = allDtoResponses,
+                            HealthAssessmentResponses = healthAssessmentLookup,
+                            DoctorRecommendations = doctorRecommendations
+                        });
+
+                        // Add a small delay to prevent overwhelming the database
+                        await Task.Delay(10, ct);
                     }
-
-                    // Get health assessment responses
-                    var healthAssessmentLookup = new Dictionary<Guid, List<HealthAssessmentResponseDto>>();
-                    foreach (var patientId in patientIds)
+                    catch (Exception)
                     {
-                        var patientHealthResponses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, camp.Id, ct);
-                        healthAssessmentLookup[patientId] = patientHealthResponses;
+                        // Log error and continue with next camp
+                        continue;
                     }
-
-                    // Get doctor recommendations
-                    var doctorRecommendations = await _doctorRecommendationService.GetByHealthCampAsync(camp.Id, ct);
-
-                    campDataList.Add(new CampDataWithInfo
-                    {
-                        Camp = camp,
-                        OrganizationName = organizationName,
-                        CampDate = camp.StartDate,
-                        EntityResponses = filteredEntityResponses,
-                        DtoResponses = allDtoResponses,
-                        HealthAssessmentResponses = healthAssessmentLookup,
-                        DoctorRecommendations = doctorRecommendations
-                    });
                 }
-                catch (Exception)
-                {
-                    // Log error and continue with next camp
-                    continue;
-                }
+
+                // Short pause between batches to allow other operations
+                await Task.Delay(50, ct);
             }
 
             return new AllCampsData

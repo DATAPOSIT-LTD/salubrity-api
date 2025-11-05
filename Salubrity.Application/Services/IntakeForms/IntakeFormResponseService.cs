@@ -434,4 +434,18 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         return (csvData, processedData.TotalCamps, processedData.TotalParticipants, exportTimestamp);
     }
+
+    public async IAsyncEnumerable<string> ExportAllCampsDataStreamingCsvAsync(CancellationToken ct = default)
+    {
+        var streamingExporter = new StreamingCsvExporter(
+            _healthCampRepository,
+            _intakeFormResponseRepository,
+            _healthAssessmentFormService,
+            _doctorRecommendationService);
+
+        await foreach (var line in streamingExporter.ExportAsync(ct))
+        {
+            yield return line;
+        }
+    }
 }

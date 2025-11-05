@@ -44,9 +44,10 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             var totalParticipants = 0;
 
             var allCamps = await _healthCampRepository.GetAllAsync();
-            var limitedCamps = allCamps.OrderBy(c => c.StartDate).Take(20).ToList(); // Limit for performance
+            // FIXED: Sort from newest to oldest (descending order) and process ALL camps
+            var sortedCamps = allCamps.OrderByDescending(c => c.StartDate).ToList(); // Process ALL camps
 
-            foreach (var campListDto in limitedCamps)
+            foreach (var campListDto in sortedCamps)
             {
                 var rowsProcessed = 0;
                 await foreach (var row in ProcessCampDataAsync(campListDto, headerData.OrderedFields, ct))
@@ -65,7 +66,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 }
 
                 // Small delay to prevent overwhelming
-                await Task.Delay(10, ct);
+                await Task.Delay(5, ct); // Reduced delay
             }
 
             // Yield summary as comment at the end
@@ -74,9 +75,9 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
         private async Task<(List<FieldDefinition> OrderedFields, Dictionary<string, string> FieldLookup)> GetHeaderDataAsync(CancellationToken ct)
         {
-            // Get a small sample of data to build field definitions
+            // FIXED: Get a better sample of data to build field definitions - analyze more camps and participants
             var allCamps = await _healthCampRepository.GetAllAsync();
-            var sampleCamps = allCamps.Take(3).ToList(); // Take only 3 camps for header analysis
+            var sampleCamps = allCamps.Take(10).ToList(); // Increased from 3 to 10 camps for better header analysis
 
             var sampleData = new AllCampsData { CampDataList = [] };
 
@@ -84,6 +85,8 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             {
                 var campDetails = await _healthCampRepository.GetByIdAsync(campListDto.Id);
                 if (campDetails == null) continue;
+
+                var organizationName = await GetOrganizationNameAsync(campDetails, ct);
 
                 var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campListDto.Id, ct);
                 if (!entityResponses.Any()) continue;
@@ -93,12 +96,12 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
                 var filteredResponses = entityResponses
                     .Where(r => r.Patient?.User != null && participantUserIds.Contains(r.Patient.UserId))
-                    .Take(5) // Take only 5 participants per camp for header analysis
+                    .Take(20) // Increased from 5 to 20 participants for better header analysis
                     .ToList();
 
                 if (!filteredResponses.Any()) continue;
 
-                var patientIds = filteredResponses.Select(r => r.PatientId).Take(3).ToList(); // Limit patients for header
+                var patientIds = filteredResponses.Select(r => r.PatientId).Take(10).ToList(); // Increased from 3 to 10
 
                 var dtoResponses = new List<IntakeFormResponseDetailDto>();
                 foreach (var patientId in patientIds)
@@ -108,7 +111,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 }
 
                 var healthAssessments = new Dictionary<Guid, List<HealthAssessmentResponseDto>>();
-                foreach (var patientId in patientIds.Take(2)) // Even more limited for health assessments
+                foreach (var patientId in patientIds.Take(5)) // Increased from 2 to 5
                 {
                     var assessments = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, campListDto.Id, ct);
                     healthAssessments[patientId] = assessments;
@@ -119,7 +122,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 sampleData.CampDataList.Add(new CampDataWithInfo
                 {
                     Camp = campDetails,
-                    OrganizationName = campDetails.Organization?.BusinessName ?? "Unknown",
+                    OrganizationName = organizationName,
                     CampDate = campDetails.StartDate,
                     EntityResponses = filteredResponses,
                     DtoResponses = dtoResponses,
@@ -181,7 +184,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 var camp = await _healthCampRepository.GetByIdAsync(campListDto.Id);
                 if (camp == null) return results;
 
-                var organizationName = camp.Organization?.BusinessName ?? "Unknown";
+                var organizationName = await GetOrganizationNameAsync(camp, ct);
 
                 // Get responses for this camp
                 var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(camp.Id, ct);
@@ -194,8 +197,8 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 var filteredResponses = entityResponses
                     .Where(r => r.Patient?.User != null && participantUserIds.Contains(r.Patient.UserId))
                     .GroupBy(r => r.PatientId)
-                    .Take(100) // Limit participants per camp to avoid timeouts
-                    .ToList();
+                    // FIXED: Remove participant limit to get ALL participants
+                    .ToList(); // No more .Take(100) limit
 
                 foreach (var participantGroup in filteredResponses)
                 {
@@ -253,8 +256,8 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
                     results.Add(string.Join(",", row) + "\n");
 
-                    // Small delay between participants
-                    await Task.Delay(2, ct);
+                    // FIXED: Remove or reduce delays to improve performance
+                    // await Task.Delay(2, ct); // Removed delay between participants
                 }
             }
             catch (Exception)
@@ -264,6 +267,46 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             }
 
             return results;
+        }
+
+        private async Task<string> GetOrganizationNameAsync(HealthCamp camp, CancellationToken ct)
+        {
+            // First try: Direct organization relationship
+            if (camp.Organization?.BusinessName != null)
+            {
+                return camp.Organization.BusinessName;
+            }
+
+            // Second try: Get camp details which might have ClientName
+            try
+            {
+                var campDetails = await _healthCampRepository.GetCampDetailsByIdAsync(camp.Id);
+                if (campDetails?.ClientName != null)
+                {
+                    return campDetails.ClientName;
+                }
+            }
+            catch
+            {
+                // Fallback if details fail
+            }
+
+            // Third try: Get organization from participants
+            try
+            {
+                var participants = await _healthCampRepository.GetParticipantsAsync(camp.Id, null, null, ct);
+                var orgNameFromParticipants = participants.FirstOrDefault()?.HealthCamp?.Organization?.BusinessName;
+                if (!string.IsNullOrEmpty(orgNameFromParticipants))
+                {
+                    return orgNameFromParticipants;
+                }
+            }
+            catch
+            {
+                // Fallback if participants fail
+            }
+
+            return "Unknown_Organization";
         }
 
         private Dictionary<string, string> GetIntakeFormResponseLookup(List<IntakeFormResponseDetailDto> dtoResponses)
@@ -319,9 +362,95 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 if (field != null) allValues[field.Label] = kvp.Value;
             }
 
-            // Simplified risk calculation for performance
-            return "Medium"; // You can implement full risk calculation later
+            // Use the same risk calculation as the Excel exporter
+            var validScores = new List<int>
+            {
+                ConvertRiskToScore(CalculateBMIRisk(allValues)),
+                ConvertRiskToScore(CalculateBloodPressureRisk(allValues)),
+                ConvertRiskToScore(CalculateBloodGlucoseRisk(allValues)),
+                ConvertRiskToScore(CalculateCholesterolRisk(allValues))
+            }
+            .Where(score => score > 0).ToList();
+
+            if (!validScores.Any()) return "No Data";
+            return ConvertScoreToRisk(validScores.Average());
         }
+
+        #region Risk Calculation Methods (copied from Excel exporter)
+        private static string CalculateBMIRisk(Dictionary<string, string> values)
+        {
+            if (decimal.TryParse(FindValueByKeywords(values, ["bmi", "body mass index"]), out var bmi))
+            {
+                return GetBMIRiskCategory(bmi);
+            }
+            if (decimal.TryParse(FindValueByKeywords(values, ["height"]), out var height) && decimal.TryParse(FindValueByKeywords(values, ["weight"]), out var weight) && height > 0)
+            {
+                var heightInMeters = height > 10 ? height / 100 : height;
+                return GetBMIRiskCategory(weight / (heightInMeters * heightInMeters));
+            }
+            return "No Data";
+        }
+
+        private static string CalculateBloodPressureRisk(Dictionary<string, string> values)
+        {
+            var bpValue = FindValueByKeywords(values, ["blood pressure", "bp reading", "systolic", "diastolic"]);
+            if (string.IsNullOrEmpty(bpValue)) return "No Data";
+
+            if (bpValue.Contains('/'))
+            {
+                var parts = bpValue.Split('/');
+                if (parts.Length == 2 && decimal.TryParse(parts[0].Trim(), out var s) && decimal.TryParse(parts[1].Trim(), out var d))
+                {
+                    return GetBloodPressureRiskCategory(s, d);
+                }
+            }
+            else if (decimal.TryParse(bpValue, out var s))
+            {
+                return GetBloodPressureRiskCategory(s, 0);
+            }
+            return "No Data";
+        }
+
+        private static string CalculateBloodGlucoseRisk(Dictionary<string, string> values)
+        {
+            if (decimal.TryParse(FindValueByKeywords(values, ["blood sugar", "glucose", "rbs"]), out var glucose))
+            {
+                return GetBloodGlucoseRiskCategory(glucose);
+            }
+            return "No Data";
+        }
+
+        private static string CalculateCholesterolRisk(Dictionary<string, string> values)
+        {
+            if (decimal.TryParse(FindValueByKeywords(values, ["cholesterol", "total cholesterol"]), out var chol))
+            {
+                return GetCholesterolRiskCategory(chol);
+            }
+            return "No Data";
+        }
+
+        private static string FindValueByKeywords(Dictionary<string, string> values, string[] keywords)
+        {
+            foreach (var keyword in keywords)
+            {
+                var key = values.Keys.FirstOrDefault(k => k.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+                if (key != null && !string.IsNullOrEmpty(values[key])) return values[key];
+            }
+            return "";
+        }
+
+        private static string GetBMIRiskCategory(decimal bmi) => bmi switch { >= 18 and <= 22.9m => "Very Low", >= 23 and <= 24.9m => "Low", >= 25 and <= 27.9m => "Medium", >= 28 and <= 30m => "High", > 30 => "Very High", _ => "No Data" };
+        private static string GetBloodPressureRiskCategory(decimal s, decimal d)
+        {
+            if (d == 0) return s switch { < 120 => "Very Low", >= 120 and <= 139 => "Low", >= 140 and <= 150 => "Medium", >= 151 and <= 159 => "High", >= 160 => "Very High", _ => "No Data" };
+            if (s < 120 && d < 80) return "Very Low"; if (s <= 139 && d <= 89) return "Low"; if (s <= 150 && d <= 95) return "Medium"; if (s <= 159 && d <= 99) return "High"; if (s >= 160 || d >= 100) return "Very High";
+            return "No Data";
+        }
+        private static string GetBloodGlucoseRiskCategory(decimal g) => g switch { < 7 => "Very Low", >= 7 and <= 10 => "Medium", >= 10 and <= 10.9m => "High", > 11 => "Very High", _ => "No Data" };
+        private static string GetCholesterolRiskCategory(decimal c) => c switch { >= 2.3m and <= 4.9m => "Very Low", >= 5 and <= 5.17m => "Low", >= 5.18m and <= 6.19m => "Medium", > 6.2m and <= 7m => "High", > 7 => "Very High", _ => "No Data" };
+        private static int ConvertRiskToScore(string risk) => risk switch { "Very Low" => 1, "Low" => 2, "Medium" => 3, "High" => 4, "Very High" => 5, _ => 0 };
+        private static string ConvertScoreToRisk(double score) => score switch { <= 1.5 => "Very Low", <= 2.5 => "Low", <= 3.5 => "Medium", <= 4.5 => "High", _ => "Very High" };
+        #endregion
 
         private static string EscapeCsvField(string field)
         {

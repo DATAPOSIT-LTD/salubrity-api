@@ -143,4 +143,19 @@ public class IntakeFormResponsesController : BaseController
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
+
+    [HttpGet("camp/all/data/export/csv")]
+    //[Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ExportAllCampsDataToCsv(CancellationToken ct)
+    {
+        var (csvData, totalCamps, totalParticipants, exportTimestamp) = await _service.ExportAllCampsDataToCsvAsync(ct);
+
+        var fileName = $"All_Camps_Data_Export_{exportTimestamp:yyyyMMdd_HHmmss}.csv";
+
+        Response.Headers.Append("X-Export-Summary", $"Camps: {totalCamps}, Participants: {totalParticipants}");
+
+        return File(csvData, "text/csv", fileName);
+    }
 }

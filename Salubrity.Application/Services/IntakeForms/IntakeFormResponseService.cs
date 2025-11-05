@@ -415,4 +415,23 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         return (excelData, processedData.TotalCamps, processedData.TotalParticipants, exportTimestamp);
     }
+
+    public async Task<(byte[] CsvData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToCsvAsync(CancellationToken ct = default)
+    {
+        var exportTimestamp = DateTime.Now.AddHours(3);
+
+        // 1. Fetch Data from All Camps
+        var allCampsDataFetcher = new AllCampsDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService, _doctorRecommendationService);
+        var allCampsData = await allCampsDataFetcher.FetchDataAsync(ct);
+
+        // 2. Process Data
+        var allCampsDataProcessor = new AllCampsDataProcessor();
+        var processedData = allCampsDataProcessor.Process(allCampsData);
+
+        // 3. Export Data to CSV
+        var allCampsCsvExporter = new AllCampsDataCsvExporter();
+        var csvData = allCampsCsvExporter.Export(processedData);
+
+        return (csvData, processedData.TotalCamps, processedData.TotalParticipants, exportTimestamp);
+    }
 }

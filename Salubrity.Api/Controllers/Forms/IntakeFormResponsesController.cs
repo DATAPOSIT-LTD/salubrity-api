@@ -158,4 +158,24 @@ public class IntakeFormResponsesController : BaseController
 
         return File(csvData, "text/csv", fileName);
     }
+
+    [HttpGet("camp/all/data/export/csv/stream")]
+    //[Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportAllCampsDataStreamingCsv(CancellationToken ct)
+    {
+        var timestamp = DateTime.Now.AddHours(3);
+        var fileName = $"All_Camps_Data_Stream_{timestamp:yyyyMMdd_HHmmss}.csv";
+
+        Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{fileName}\"");
+        Response.ContentType = "text/csv";
+
+        await foreach (var line in _service.ExportAllCampsDataStreamingCsvAsync(ct))
+        {
+            await Response.WriteAsync(line, ct);
+            await Response.Body.FlushAsync(ct);
+        }
+
+        return new EmptyResult();
+    }
 }

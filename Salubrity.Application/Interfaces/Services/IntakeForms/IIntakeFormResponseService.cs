@@ -14,4 +14,5 @@ public interface IIntakeFormResponseService
     Task<(byte[] ExcelData, string CampName, string OrganizationName, DateTime ExportTimestamp)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default);
     Task<(byte[] ExcelData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default);
     Task<(byte[] CsvData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToCsvAsync(CancellationToken ct = default);
+    IAsyncEnumerable<string> ExportAllCampsDataStreamingCsvAsync(CancellationToken ct = default);
 }

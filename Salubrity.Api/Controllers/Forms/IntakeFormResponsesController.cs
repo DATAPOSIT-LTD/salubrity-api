@@ -129,53 +129,16 @@ public class IntakeFormResponsesController : BaseController
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
-    [HttpGet("camp/all/data/export")]
-    //[Authorize(Roles = "Admin")]
+    [HttpGet("all-camps/data/export")]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ExportAllCampsData(CancellationToken ct)
     {
-        var (excelData, totalCamps, totalParticipants, exportTimestamp) = await _service.ExportAllCampsDataToExcelAsync(ct);
+        var (excelData, exportTimestamp) = await _service.ExportAllCampsDataToExcelAsync(ct);
 
-        var fileName = $"All_Camps_Data_Export_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
-
-        Response.Headers.Append("X-Export-Summary", $"Camps: {totalCamps}, Participants: {totalParticipants}");
+        var fileName = $"All_Camps_Export_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
-    }
-
-    [HttpGet("camp/all/data/export/csv")]
-    //[Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ExportAllCampsDataToCsv(CancellationToken ct)
-    {
-        var (csvData, totalCamps, totalParticipants, exportTimestamp) = await _service.ExportAllCampsDataToCsvAsync(ct);
-
-        var fileName = $"All_Camps_Data_Export_{exportTimestamp:yyyyMMdd_HHmmss}.csv";
-
-        Response.Headers.Append("X-Export-Summary", $"Camps: {totalCamps}, Participants: {totalParticipants}");
-
-        return File(csvData, "text/csv", fileName);
-    }
-
-    [HttpGet("camp/all/data/export/csv/stream")]
-    //[Authorize(Roles = "Admin")]
-    [ProducesResponseType(typeof(FileStreamResult), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ExportAllCampsDataStreamingCsv(CancellationToken ct)
-    {
-        var timestamp = DateTime.Now.AddHours(3);
-        var fileName = $"All_Camps_Data_Stream_{timestamp:yyyyMMdd_HHmmss}.csv";
-
-        Response.Headers.Append("Content-Disposition", $"attachment; filename=\"{fileName}\"");
-        Response.ContentType = "text/csv";
-
-        await foreach (var line in _service.ExportAllCampsDataStreamingCsvAsync(ct))
-        {
-            await Response.WriteAsync(line, ct);
-            await Response.Body.FlushAsync(ct);
-        }
-
-        return new EmptyResult();
     }
 }

@@ -1,12 +1,12 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using Salubrity.Application.DTOs.Clinical;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 
 namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 {
-    public class AllCampsDataExcelExporter
+    public class MultiCampDataExcelExporter
     {
-        public byte[] Export(ProcessedAllCampsData data)
+        public byte[] Export(ProcessedMultiCampData data)
         {
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("All Camps Data Export");
@@ -16,58 +16,53 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
             PopulateDataRows(worksheet, data);
 
-            ApplyWorksheetStyling(worksheet, totalColumns, 3 + data.ParticipantResponses.Count);
+            ApplyWorksheetStyling(worksheet, totalColumns, 3 + data.ParticipantRows.Count);
 
-            AddSummarySection(worksheet, data, 3 + data.ParticipantResponses.Count + 2);
-            AddLegendSection(worksheet, data, 3 + data.ParticipantResponses.Count + 11);
+            AddSummarySection(worksheet, data, 3 + data.ParticipantRows.Count + 2);
 
-            worksheet.SheetView.Freeze(3, 4); // Freeze up to lifestyle risk column (adjusted for new structure)
+            worksheet.SheetView.Freeze(3, 7); // Freeze first 7 columns (includes camp info)
 
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
             return stream.ToArray();
         }
 
-        private void PopulateDataRows(IXLWorksheet worksheet, ProcessedAllCampsData data)
+        private void PopulateDataRows(IXLWorksheet worksheet, ProcessedMultiCampData data)
         {
             int currentRow = 4;
-            foreach (var participantData in data.ParticipantResponses)
+            foreach (var participantRow in data.ParticipantRows)
             {
-                var participant = participantData.Patient;
+                var participant = participantRow.ParticipantGroup.First().Patient;
                 if (participant?.User == null) continue;
 
-                // Fill Camp Information section (columns 1-3)
-                worksheet.Cell(currentRow, 1).Value = participantData.OrganizationName;
-                worksheet.Cell(currentRow, 2).Value = participantData.CampName;
-                worksheet.Cell(currentRow, 3).Value = participantData.CampDate.ToString("yyyy-MM-dd");
+                // Camp Information (first 3 columns)
+                worksheet.Cell(currentRow, 1).Value = participantRow.OrganizationName;
+                worksheet.Cell(currentRow, 2).Value = participantRow.CampName;
+                worksheet.Cell(currentRow, 3).Value = participantRow.CampDate.ToString("yyyy-MM-dd");
 
-                // Fill Patient Information section (columns 4-10)
+                // Patient Information
                 worksheet.Cell(currentRow, 4).Value = participant.User.FullName ?? "";
                 worksheet.Cell(currentRow, 5).Value = participant.User.Email ?? "";
                 worksheet.Cell(currentRow, 6).Value = participant.User.Phone ?? "";
                 worksheet.Cell(currentRow, 7).Value = participant.User.Gender?.Name ?? "";
                 worksheet.Cell(currentRow, 8).Value = participant.User.NationalId ?? "";
                 worksheet.Cell(currentRow, 9).Value = participant.User.DateOfBirth?.ToString("yyyy-MM-dd") ?? "";
-                worksheet.Cell(currentRow, 10).Value = participant.User.DateOfBirth.HasValue ? CalculateAge(participant.User.DateOfBirth.Value, DateTime.Now).ToString() : "";
+                worksheet.Cell(currentRow, 10).Value = participant.User.DateOfBirth.HasValue
+                    ? CalculateAge(participant.User.DateOfBirth.Value, DateTime.Now).ToString()
+                    : "";
 
                 // Get response lookups
-                var intakeFormResponseLookup = GetIntakeFormResponseLookup(data.DtoResponseLookup, participant.Id);
-                var healthAssessmentResponseLookup = data.HealthAssessmentLookup.TryGetValue(participant.Id, out var healthResponses)
-                    ? healthResponses
-                    : new Dictionary<string, string>();
+                var intakeFormResponseLookup = GetIntakeFormResponseLookup(participantRow.DtoResponses);
+                var healthAssessmentResponseLookup = participantRow.HealthAssessmentResponses;
+                var doctorRecommendation = participantRow.DoctorRecommendation;
 
-                // Get doctor recommendation for this patient
-                var doctorRecommendation = data.DoctorRecommendationLookup.TryGetValue(participant.Id, out var recommendation)
-                    ? recommendation
-                    : null;
-
-                // Calculate and set lifestyle risk (column 11)
+                // Calculate and set lifestyle risk
                 var lifestyleRisk = CalculateLifestyleRisk(intakeFormResponseLookup, healthAssessmentResponseLookup, data.OrderedFields);
                 worksheet.Cell(currentRow, 11).Value = lifestyleRisk;
                 worksheet.Cell(currentRow, 11).Style.Fill.BackgroundColor = GetLifestyleRiskColor(lifestyleRisk);
                 worksheet.Cell(currentRow, 11).Style.Font.Bold = true;
 
-                // Fill dynamic field data (starting from column 12)
+                // Fill dynamic field data
                 int columnIndex = 12;
                 foreach (var field in data.OrderedFields)
                 {
@@ -92,49 +87,20 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             }
         }
 
-        private string GetDoctorRecommendationFieldValue(string fieldId, DoctorRecommendationResponseDto recommendation)
+        private CampDataExcelExporter.HeaderStructure CreateHeaderStructure(IEnumerable<IGrouping<dynamic, FieldDefinition>> fieldsBySection)
         {
-            return fieldId switch
+            var structure = new CampDataExcelExporter.HeaderStructure();
+
+            // Add Camp Information section
+            structure.AddSection("Camp Information", new List<CampDataExcelExporter.HeaderColumn>
             {
-                "doctor_pertinent_history" => recommendation.PertinentHistoryFindings ?? "",
-                "doctor_pertinent_clinical" => recommendation.PertinentClinicalFindings ?? "",
-                "doctor_diagnostic_impression" => recommendation.DiagnosticImpression ?? "",
-                "doctor_conclusion" => recommendation.Conclusion ?? "",
-                "doctor_followup_recommendation" => recommendation.FollowUpRecommendation?.Name ?? "",
-                "doctor_recommendation_type" => recommendation.RecommendationType?.Name ?? "",
-                "doctor_instructions" => recommendation.Instructions ?? "",
-                "doctor_created_date" => recommendation.CreatedAt.ToString("yyyy-MM-dd"),
-                _ => ""
-            };
-        }
-
-        private Dictionary<string, string> GetIntakeFormResponseLookup(Dictionary<Guid, List<IntakeFormResponseDetailDto>> dtoLookup, Guid patientId)
-        {
-            if (dtoLookup.TryGetValue(patientId, out var dtoList) && dtoList.Any())
-            {
-                return dtoList
-                    .SelectMany(r => r.FieldResponses)
-                    .GroupBy(fr => $"intake_{fr.FieldId}")
-                    .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
-            }
-
-            return new Dictionary<string, string>();
-        }
-
-        private HeaderStructure CreateHeaderStructure(IEnumerable<IGrouping<dynamic, FieldDefinition>> fieldsBySection)
-        {
-            var structure = new HeaderStructure();
-
-            // Add Camp Information section FIRST
-            structure.AddSection("Camp Information", new List<HeaderColumn>
-            {
-                new("Organization Name", "Organization"),
+                new("Organization Name", "Org"),
                 new("Camp Name", "Camp"),
                 new("Camp Date", "Date")
             });
 
-            // Add Patient Information section SECOND (without the camp-related fields)
-            structure.AddSection("Patient Information", new List<HeaderColumn>
+            // Add fixed participant columns
+            structure.AddSection("Patient Information", new List<CampDataExcelExporter.HeaderColumn>
             {
                 new("Name", "Name"),
                 new("Email", "Email"),
@@ -146,7 +112,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 new("Lifestyle Risk", "Risk")
             });
 
-            // Group fields by main section and subsection
+            // Add dynamic fields (same as single camp export)
             foreach (var sectionGroup in fieldsBySection)
             {
                 var fieldsInSection = sectionGroup.OrderBy(f => GetFieldPriority(f.Label)).ThenBy(f => f.Order).ToList();
@@ -154,9 +120,9 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 var mainSectionName = GetMainSectionName(sectionGroup.Key.SectionName);
                 var subSectionName = GetSubSectionName(sectionGroup.Key.SectionName);
 
-                var columns = fieldsInSection.Select(field => new HeaderColumn(
+                var columns = fieldsInSection.Select(field => new CampDataExcelExporter.HeaderColumn(
                     field.Label,
-                    TruncateFieldName(field.Label), // Shortened version for display
+                    TruncateFieldName(field.Label),
                     subSectionName
                 )).ToList();
 
@@ -166,7 +132,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             return structure;
         }
 
-        private int SetupStructuredHeaders(IXLWorksheet worksheet, HeaderStructure headerStructure)
+        private int SetupStructuredHeaders(IXLWorksheet worksheet, CampDataExcelExporter.HeaderStructure headerStructure)
         {
             int currentCol = 1;
 
@@ -180,7 +146,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
                     foreach (var column in subSection.Columns)
                     {
-                        // Row 3: Field names (shortened)
                         worksheet.Cell(3, currentCol).Value = column.ShortName;
                         worksheet.Cell(3, currentCol).Style.Font.Bold = true;
                         worksheet.Cell(3, currentCol).Style.Alignment.WrapText = true;
@@ -189,7 +154,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                         currentCol++;
                     }
 
-                    // Row 2: Sub-section headers (if applicable)
                     if (subSection.Columns.Count > 1 && !string.IsNullOrEmpty(subSection.Name))
                     {
                         worksheet.Range(2, subSectionStartCol, 2, currentCol - 1).Merge();
@@ -207,7 +171,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                     }
                 }
 
-                // Row 1: Main section headers
                 if (currentCol - sectionStartCol > 1)
                 {
                     worksheet.Range(1, sectionStartCol, 1, currentCol - 1).Merge();
@@ -232,20 +195,17 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
         private void ApplyWorksheetStyling(IXLWorksheet worksheet, int totalColumns, int totalRows)
         {
-            // Style header rows
             var headerRange = worksheet.Range(1, 1, 3, totalColumns);
             headerRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thick;
             headerRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
             headerRange.Style.Font.Bold = true;
 
-            // Style data rows
             if (totalRows > 3)
             {
                 var dataRange = worksheet.Range(4, 1, totalRows, totalColumns);
                 dataRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 dataRange.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
 
-                // Alternate row colors
                 for (int row = 4; row <= totalRows; row++)
                 {
                     if ((row - 4) % 2 == 0)
@@ -255,7 +215,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 }
             }
 
-            // Auto-fit columns with limits
             worksheet.Columns().AdjustToContents();
             foreach (var column in worksheet.Columns(1, totalColumns))
             {
@@ -263,13 +222,12 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 if (column.Width < 12) column.Width = 12;
             }
 
-            // Set header row heights
             worksheet.Row(1).Height = 25;
             worksheet.Row(2).Height = 20;
             worksheet.Row(3).Height = 30;
         }
 
-        private void AddSummarySection(IXLWorksheet worksheet, ProcessedAllCampsData data, int startRow)
+        private void AddSummarySection(IXLWorksheet worksheet, ProcessedMultiCampData data, int startRow)
         {
             worksheet.Cell(startRow, 1).Value = "Export Summary:";
             worksheet.Cell(startRow, 1).Style.Font.Bold = true;
@@ -288,91 +246,32 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             summaryRange.Style.Fill.BackgroundColor = XLColor.LightYellow;
         }
 
-        private void AddLegendSection(IXLWorksheet worksheet, ProcessedAllCampsData data, int startRow)
+        #region Helper Methods
+        private Dictionary<string, string> GetIntakeFormResponseLookup(List<IntakeFormResponseDetailDto> dtoList)
         {
-            worksheet.Cell(startRow, 1).Value = "Section Color Legend:";
-            worksheet.Cell(startRow, 1).Style.Font.Bold = true;
-
-            int legendRow = startRow + 1;
-            var uniqueSections = data.FieldsBySection.Select(g => (string)g.Key.SectionName).Distinct().ToList();
-            foreach (var sectionName in uniqueSections)
+            if (dtoList.Any())
             {
-                worksheet.Cell(legendRow, 1).Value = sectionName;
-                worksheet.Cell(legendRow, 1).Style.Fill.BackgroundColor = GetSectionColor(sectionName);
-                worksheet.Cell(legendRow, 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                legendRow++;
+                return dtoList
+                    .SelectMany(r => r.FieldResponses)
+                    .GroupBy(fr => $"intake_{fr.FieldId}")
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(fr => fr.Id).First().Value ?? "");
             }
+            return new Dictionary<string, string>();
         }
 
-        #region Helper Methods - Reusing existing methods from CampDataExcelExporter
-        private static int GetFieldPriority(string fieldLabel)
+        private string GetDoctorRecommendationFieldValue(string fieldId, DoctorRecommendationResponseDto recommendation)
         {
-            var label = fieldLabel.ToLowerInvariant();
-
-            if (label.Contains("height")) return 1;
-            if (label.Contains("weight")) return 2;
-            if (label.Contains("bmi")) return 3;
-            if (label.Contains("temperature")) return 4;
-            if (label.Contains("heart rate")) return 5;
-            if (label.Contains("blood pressure") && !label.Contains("reading")) return 6;
-            if (label.Contains("bp reading 2")) return 7;
-            if (label.Contains("bp reading 3")) return 8;
-            if (label.Contains("oxygen")) return 9;
-            if (label.Contains("blood sugar") && !label.Contains("reading")) return 10;
-            if (label.Contains("rbs reading 2")) return 11;
-            if (label.Contains("rbs reading 3")) return 12;
-
-            if (label.Contains("rs")) return 1;
-            if (label.Contains("cvs")) return 2;
-            if (label.Contains("abdomen")) return 3;
-            if (label.Contains("cns")) return 4;
-            if (label.Contains("skin")) return 5;
-
-            if (label.Contains("right eye")) return 1;
-            if (label.Contains("left eye")) return 2;
-            if (label.Contains("vision")) return 1;
-            if (label.Contains("sphere")) return 2;
-            if (label.Contains("cylinder")) return 3;
-            if (label.Contains("axis")) return 4;
-            if (label.Contains("va")) return 5;
-            if (label.Contains("add")) return 6;
-
-            if (label.Contains("findings")) return 1;
-            if (label.Contains("conclusion")) return 2;
-            if (label.Contains("recommendations")) return 3;
-            if (label.Contains("additional notes")) return 4;
-
-            if (label.Contains("body mass index")) return 1;
-            if (label.Contains("body fat")) return 2;
-            if (label.Contains("body water")) return 3;
-            if (label.Contains("muscle mass")) return 4;
-            if (label.Contains("basal metabolic")) return 5;
-            if (label.Contains("bone density")) return 6;
-            if (label.Contains("visceral fat")) return 7;
-            if (label.Contains("metabolic age")) return 8;
-            if (label.Contains("problem")) return 9;
-            if (label.Contains("plan")) return 10;
-
-            return 50;
-        }
-
-        private static XLColor GetSectionColor(string sectionName)
-        {
-            return sectionName.ToLowerInvariant() switch
+            return fieldId switch
             {
-                var s when s.Contains("personal") || s.Contains("demographic") => XLColor.LightBlue,
-                var s when s.Contains("medical") || s.Contains("health") => XLColor.LightGreen,
-                var s when s.Contains("assessment") || s.Contains("evaluation") => XLColor.LightYellow,
-                var s when s.Contains("vitals") || s.Contains("vital") => XLColor.LightPink,
-                var s when s.Contains("lab") || s.Contains("laboratory") => XLColor.LightCyan,
-                var s when s.Contains("history") || s.Contains("background") => XLColor.Lavender,
-                var s when s.Contains("physical") || s.Contains("examination") => XLColor.LightSalmon,
-                var s when s.Contains("mental") || s.Contains("psychological") => XLColor.LightSteelBlue,
-                var s when s.Contains("nutrition") || s.Contains("dietary") => XLColor.LightGoldenrodYellow,
-                var s when s.Contains("recommendation") || s.Contains("advice") || s.Contains("doctor") => XLColor.LightSeaGreen,
-                var s when s.Contains("camp") => XLColor.LightCoral, // New color for camp information
-                "general" => XLColor.WhiteSmoke,
-                _ => XLColor.LightGray
+                "doctor_pertinent_history" => recommendation.PertinentHistoryFindings ?? "",
+                "doctor_pertinent_clinical" => recommendation.PertinentClinicalFindings ?? "",
+                "doctor_diagnostic_impression" => recommendation.DiagnosticImpression ?? "",
+                "doctor_conclusion" => recommendation.Conclusion ?? "",
+                "doctor_followup_recommendation" => recommendation.FollowUpRecommendation?.Name ?? "",
+                "doctor_recommendation_type" => recommendation.RecommendationType?.Name ?? "",
+                "doctor_instructions" => recommendation.Instructions ?? "",
+                "doctor_created_date" => recommendation.CreatedAt.ToString("yyyy-MM-dd"),
+                _ => ""
             };
         }
 
@@ -475,82 +374,64 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             return "";
         }
 
-        private static string GetBMIRiskCategory(decimal bmi) => bmi switch { >= 18 and <= 22.9m => "Very Low", >= 23 and <= 24.9m => "Low", >= 25 and <= 27.9m => "Medium", >= 28 and <= 30m => "High", > 30 => "Very High", _ => "No Data" };
-        private static string GetBloodPressureRiskCategory(decimal s, decimal d)
+        private static int GetFieldPriority(string fieldLabel)
         {
-            if (d == 0) return s switch { < 120 => "Very Low", >= 120 and <= 139 => "Low", >= 140 and <= 150 => "Medium", >= 151 and <= 159 => "High", >= 160 => "Very High", _ => "No Data" };
-            if (s < 120 && d < 80) return "Very Low"; if (s <= 139 && d <= 89) return "Low"; if (s <= 150 && d <= 95) return "Medium"; if (s <= 159 && d <= 99) return "High"; if (s >= 160 || d >= 100) return "Very High";
-            return "No Data";
+            var label = fieldLabel.ToLowerInvariant();
+            if (label.Contains("height")) return 1;
+            if (label.Contains("weight")) return 2;
+            if (label.Contains("bmi")) return 3;
+            if (label.Contains("temperature")) return 4;
+            if (label.Contains("heart rate")) return 5;
+            if (label.Contains("blood pressure") && !label.Contains("reading")) return 6;
+            if (label.Contains("bp reading 2")) return 7;
+            if (label.Contains("bp reading 3")) return 8;
+            if (label.Contains("oxygen")) return 9;
+            if (label.Contains("blood sugar") && !label.Contains("reading")) return 10;
+            if (label.Contains("rbs reading 2")) return 11;
+            if (label.Contains("rbs reading 3")) return 12;
+            if (label.Contains("rs")) return 1;
+            if (label.Contains("cvs")) return 2;
+            if (label.Contains("abdomen")) return 3;
+            if (label.Contains("cns")) return 4;
+            if (label.Contains("skin")) return 5;
+            if (label.Contains("right eye")) return 1;
+            if (label.Contains("left eye")) return 2;
+            if (label.Contains("vision")) return 1;
+            if (label.Contains("sphere")) return 2;
+            if (label.Contains("cylinder")) return 3;
+            if (label.Contains("axis")) return 4;
+            if (label.Contains("va")) return 5;
+            if (label.Contains("add")) return 6;
+            if (label.Contains("findings")) return 1;
+            if (label.Contains("conclusion")) return 2;
+            if (label.Contains("recommendations")) return 3;
+            if (label.Contains("additional notes")) return 4;
+            if (label.Contains("body mass index")) return 1;
+            if (label.Contains("body fat")) return 2;
+            if (label.Contains("body water")) return 3;
+            if (label.Contains("muscle mass")) return 4;
+            if (label.Contains("basal metabolic")) return 5;
+            if (label.Contains("bone density")) return 6;
+            if (label.Contains("visceral fat")) return 7;
+            if (label.Contains("metabolic age")) return 8;
+            if (label.Contains("problem")) return 9;
+            if (label.Contains("plan")) return 10;
+            return 50;
         }
+
+        private static string GetBMIRiskCategory(decimal bmi) => bmi switch { >= 18 and <= 22.9m => "Very Low", >= 23 and <= 24.9m => "Low", >= 25 and <= 27.9m => "Medium", >= 28 and <= 30m => "High", > 30 => "Very High", _ => "No Data" };
+        private static string GetBloodPressureRiskCategory(decimal s, decimal d) { if (d == 0) return s switch { < 120 => "Very Low", >= 120 and <= 139 => "Low", >= 140 and <= 150 => "Medium", >= 151 and <= 159 => "High", >= 160 => "Very High", _ => "No Data" }; if (s < 120 && d < 80) return "Very Low"; if (s <= 139 && d <= 89) return "Low"; if (s <= 150 && d <= 95) return "Medium"; if (s <= 159 && d <= 99) return "High"; if (s >= 160 || d >= 100) return "Very High"; return "No Data"; }
         private static string GetBloodGlucoseRiskCategory(decimal g) => g switch { < 7 => "Very Low", >= 7 and <= 10 => "Medium", >= 10 and <= 10.9m => "High", > 11 => "Very High", _ => "No Data" };
         private static string GetCholesterolRiskCategory(decimal c) => c switch { >= 2.3m and <= 4.9m => "Very Low", >= 5 and <= 5.17m => "Low", >= 5.18m and <= 6.19m => "Medium", > 6.2m and <= 7m => "High", > 7 => "Very High", _ => "No Data" };
         private static int ConvertRiskToScore(string risk) => risk switch { "Very Low" => 1, "Low" => 2, "Medium" => 3, "High" => 4, "Very High" => 5, _ => 0 };
         private static string ConvertScoreToRisk(double score) => score switch { <= 1.5 => "Very Low", <= 2.5 => "Low", <= 3.5 => "Medium", <= 4.5 => "High", _ => "Very High" };
         private static XLColor GetLifestyleRiskColor(string risk) => risk switch { "Very Low" => XLColor.LightGreen, "Low" => XLColor.LightYellow, "Medium" => XLColor.Orange, "High" => XLColor.LightCoral, "Very High" => XLColor.Red, _ => XLColor.LightGray };
+        private static XLColor GetSectionColor(string sectionName) => sectionName.ToLowerInvariant() switch { var s when s.Contains("personal") || s.Contains("demographic") => XLColor.LightBlue, var s when s.Contains("medical") || s.Contains("health") => XLColor.LightGreen, var s when s.Contains("assessment") || s.Contains("evaluation") => XLColor.LightYellow, var s when s.Contains("vitals") || s.Contains("vital") => XLColor.LightPink, var s when s.Contains("lab") || s.Contains("laboratory") => XLColor.LightCyan, var s when s.Contains("history") || s.Contains("background") => XLColor.Lavender, var s when s.Contains("physical") || s.Contains("examination") => XLColor.LightSalmon, var s when s.Contains("mental") || s.Contains("psychological") => XLColor.LightSteelBlue, var s when s.Contains("nutrition") || s.Contains("dietary") => XLColor.LightGoldenrodYellow, var s when s.Contains("recommendation") || s.Contains("advice") || s.Contains("doctor") => XLColor.LightSeaGreen, "general" => XLColor.WhiteSmoke, _ => XLColor.LightGray };
         private string GetMainSectionName(string fullSectionName) => fullSectionName.Contains("Health Assessment") ? "Health Assessments" : fullSectionName.Contains("Doctor Recommendations") ? "Doctor Recommendations" : fullSectionName.Split('-')[0].Trim();
-        private string GetSubSectionName(string fullSectionName)
-        {
-            if (fullSectionName.Contains("Health Assessment"))
-            {
-                var parts = fullSectionName.Split(" - ");
-                return parts.Length >= 3 ? $"{parts[1]} - {parts[2]}" : parts.Length > 1 ? parts[1] : fullSectionName;
-            }
-            return fullSectionName;
-        }
-        private string TruncateFieldName(string fieldName)
-        {
-            var replacements = new Dictionary<string, string> {
-                { "Do you have", "Have" }, { "Have you ever", "Ever" }, { "Are you currently", "Currently" },
-                { "Please specify", "Specify" }, { "How many", "Count" }, { "What is your", "Your" },
-                { "Date of Birth", "DOB" }, { "Blood Pressure", "BP" }, { "Heart Rate", "HR" },
-                { "Body Mass Index", "BMI" }, { "Temperature", "Temp" }, { "medication", "meds" },
-                { "family history", "family hist" }, { "medical history", "med hist" },
-                { "Pertinent History Findings", "History" }, { "Pertinent Clinical Findings", "Clinical" },
-                { "Diagnostic Impression", "Diagnosis" }, { "Follow-up Recommendation", "Follow-up" },
-                { "Recommendation Type", "Type" }
-            };
-            string shortened = fieldName;
-            foreach (var r in replacements) shortened = shortened.Replace(r.Key, r.Value, StringComparison.OrdinalIgnoreCase);
-            return shortened.Replace("  ", " ").Trim();
-        }
-        private XLColor GetMainSectionColor(string sectionName) => sectionName.ToLowerInvariant() switch
-        {
-            "camp information" => XLColor.LightCoral, // New color for camp information section
-            "patient information" => XLColor.LightGray,
-            "health assessments" => XLColor.LightBlue,
-            "doctor recommendations" => XLColor.LightSeaGreen,
-            "personal information" => XLColor.LightGreen,
-            "medical history" => XLColor.LightCoral,
-            "lifestyle" => XLColor.LightYellow,
-            "emergency contact" => XLColor.LightPink,
-            _ => XLColor.LightCyan
-        };
+        private string GetSubSectionName(string fullSectionName) { if (fullSectionName.Contains("Health Assessment")) { var parts = fullSectionName.Split(" - "); return parts.Length >= 3 ? $"{parts[1]} - {parts[2]}" : parts.Length > 1 ? parts[1] : fullSectionName; } return fullSectionName; }
+        private string TruncateFieldName(string fieldName) { var replacements = new Dictionary<string, string> { { "Do you have", "Have" }, { "Have you ever", "Ever" }, { "Are you currently", "Currently" }, { "Please specify", "Specify" }, { "How many", "Count" }, { "What is your", "Your" }, { "Date of Birth", "DOB" }, { "Blood Pressure", "BP" }, { "Heart Rate", "HR" }, { "Body Mass Index", "BMI" }, { "Temperature", "Temp" }, { "medication", "meds" }, { "family history", "family hist" }, { "medical history", "med hist" }, { "Pertinent History Findings", "History" }, { "Pertinent Clinical Findings", "Clinical" }, { "Diagnostic Impression", "Diagnosis" }, { "Follow-up Recommendation", "Follow-up" }, { "Recommendation Type", "Type" } }; string shortened = fieldName; foreach (var r in replacements) shortened = shortened.Replace(r.Key, r.Value, StringComparison.OrdinalIgnoreCase); return shortened.Replace("  ", " ").Trim(); }
+        private XLColor GetMainSectionColor(string sectionName) => sectionName.ToLowerInvariant() switch { "camp information" => XLColor.LightCyan, "patient information" => XLColor.LightGray, "health assessments" => XLColor.LightBlue, "doctor recommendations" => XLColor.LightSeaGreen, "personal information" => XLColor.LightGreen, "medical history" => XLColor.LightCoral, "lifestyle" => XLColor.LightYellow, "emergency contact" => XLColor.LightPink, _ => XLColor.LightCyan };
         private string FormatFieldValue(string value, string fieldType) => fieldType.ToLowerInvariant() switch { "checkbox" => value == "true" ? "Yes" : value == "false" ? "No" : value, "date" => DateTime.TryParse(value, out var d) ? d.ToString("yyyy-MM-dd") : value, "datetime" => DateTime.TryParse(value, out var dt) ? dt.ToString("yyyy-MM-dd HH:mm") : value, "number" => decimal.TryParse(value, out var n) ? n.ToString("0.##") : value, _ => value };
-        #endregion
-
-        #region Header Classes - Reusing from CampDataExcelExporter
-        public class HeaderStructure
-        {
-            public List<HeaderSection> Sections { get; set; } = new();
-            public void AddSection(string name, List<HeaderColumn> columns)
-            {
-                var section = Sections.FirstOrDefault(s => s.Name == name);
-                if (section == null) { section = new HeaderSection { Name = name }; Sections.Add(section); }
-                foreach (var group in columns.GroupBy(c => c.SubSection ?? "General"))
-                {
-                    section.SubSections.Add(new HeaderSubSection { Name = group.Key == "General" ? "" : group.Key, Columns = group.ToList() });
-                }
-            }
-        }
-        public class HeaderSection { public string Name { get; set; } = ""; public List<HeaderSubSection> SubSections { get; set; } = new(); }
-        public class HeaderSubSection { public string Name { get; set; } = ""; public List<HeaderColumn> Columns { get; set; } = new(); }
-        public class HeaderColumn
-        {
-            public string FullName { get; set; }
-            public string ShortName { get; set; }
-            public string? SubSection { get; set; }
-            public HeaderColumn(string fullName, string shortName, string? subSection = null) { FullName = fullName; ShortName = shortName; SubSection = subSection; }
-        }
         #endregion
     }
 }

@@ -1,12 +1,9 @@
 #nullable enable
 
-using ClosedXML.Excel;
-using ClosedXML.Excel;
 using Microsoft.Extensions.Logging;
-using OfficeOpenXml;
+using OfficeOpenXml.FormulaParsing.Logging;
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
-using Salubrity.Application.DTOs.HealthAssessments;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.DTOs.IntakeForms;
 using Salubrity.Application.Interfaces.Repositories.Camps;
@@ -22,12 +19,6 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Salubrity.Application.Services.Forms;
 
@@ -47,6 +38,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
     private readonly IHealthAssessmentFormService _healthAssessmentFormService;
     private readonly IHealthCampParticipantServiceStatusRepository _participantServiceStatusRepository;
     private readonly IDoctorRecommendationService _doctorRecommendationService;
+    private readonly ILoggerFactory _loggerFactory;
+
 
     public IntakeFormResponseService(
         IIntakeFormResponseRepository intakeFormResponseRepository,
@@ -63,7 +56,8 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IHealthAssessmentFormService healthAssessmentFormService,
 
         IHealthCampParticipantServiceStatusRepository participantServiceStatusRepository,
-        IDoctorRecommendationService doctorRecommendationService
+        IDoctorRecommendationService doctorRecommendationService,
+        ILoggerFactory loggerFactory
     )
     {
         _intakeFormResponseRepository = intakeFormResponseRepository;
@@ -80,6 +74,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _healthAssessmentFormService = healthAssessmentFormService;
         _participantServiceStatusRepository = participantServiceStatusRepository;
         _doctorRecommendationService = doctorRecommendationService;
+        _loggerFactory = loggerFactory;
     }
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
@@ -397,55 +392,43 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return (excelData, processedData.CampName, processedData.OrganizationName, exportTimestamp);
     }
 
-    public async Task<(byte[] ExcelData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default)
+    public async Task<(byte[] ExcelData, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default)
     {
         var exportTimestamp = DateTime.Now.AddHours(3);
 
-        // 1. Fetch Data from All Camps
-        var allCampsDataFetcher = new AllCampsDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService, _doctorRecommendationService);
-        var allCampsData = await allCampsDataFetcher.FetchDataAsync(ct);
+        _logger.LogInformation("Starting export of all camps data at {Timestamp}", exportTimestamp);
 
-        // 2. Process Data
-        var allCampsDataProcessor = new AllCampsDataProcessor();
-        var processedData = allCampsDataProcessor.Process(allCampsData);
+        // Create a logger for MultiCampDataFetcher using the injected ILoggerFactory
+        var multiCampLogger = _loggerFactory.CreateLogger<MultiCampDataFetcher>();
 
-        // 3. Export Data
-        var allCampsExporter = new AllCampsDataExcelExporter();
-        var excelData = allCampsExporter.Export(processedData);
-
-        return (excelData, processedData.TotalCamps, processedData.TotalParticipants, exportTimestamp);
-    }
-
-    public async Task<(byte[] CsvData, int TotalCamps, int TotalParticipants, DateTime ExportTimestamp)> ExportAllCampsDataToCsvAsync(CancellationToken ct = default)
-    {
-        var exportTimestamp = DateTime.Now.AddHours(3);
-
-        // 1. Fetch Data from All Camps
-        var allCampsDataFetcher = new AllCampsDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService, _doctorRecommendationService);
-        var allCampsData = await allCampsDataFetcher.FetchDataAsync(ct);
-
-        // 2. Process Data
-        var allCampsDataProcessor = new AllCampsDataProcessor();
-        var processedData = allCampsDataProcessor.Process(allCampsData);
-
-        // 3. Export Data to CSV
-        var allCampsCsvExporter = new AllCampsDataCsvExporter();
-        var csvData = allCampsCsvExporter.Export(processedData);
-
-        return (csvData, processedData.TotalCamps, processedData.TotalParticipants, exportTimestamp);
-    }
-
-    public async IAsyncEnumerable<string> ExportAllCampsDataStreamingCsvAsync(CancellationToken ct = default)
-    {
-        var streamingExporter = new StreamingCsvExporter(
+        // 1. Fetch Data from all camps
+        var dataFetcher = new MultiCampDataFetcher(
             _healthCampRepository,
             _intakeFormResponseRepository,
             _healthAssessmentFormService,
-            _doctorRecommendationService);
+            _doctorRecommendationService,
+            multiCampLogger);
 
-        await foreach (var line in streamingExporter.ExportAsync(ct))
-        {
-            yield return line;
-        }
+        var multiCampData = await dataFetcher.FetchAllCampsDataAsync(ct);
+
+        _logger.LogInformation("Fetched data for {CampCount} camps with {ParticipantCount} total participants",
+            multiCampData.CampDataList.Count,
+            multiCampData.CampDataList.Sum(c => c.EntityResponses.Count));
+
+        // 2. Process Data
+        var dataProcessor = new MultiCampDataProcessor();
+        var processedData = dataProcessor.Process(multiCampData);
+
+        _logger.LogInformation("Processed data: {IntakeFields} intake fields, {HealthFields} health fields",
+            processedData.IntakeFieldCount,
+            processedData.HealthFieldCount);
+
+        // 3. Export Data
+        var exporter = new MultiCampDataExcelExporter();
+        var excelData = exporter.Export(processedData);
+
+        _logger.LogInformation("Successfully exported all camps data. File size: {FileSize} bytes", excelData.Length);
+
+        return (excelData, exportTimestamp);
     }
 }

@@ -63,8 +63,18 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 worksheet.Cell(currentRow, 8).Style.Fill.BackgroundColor = GetLifestyleRiskColor(lifestyleRisk);
                 worksheet.Cell(currentRow, 8).Style.Font.Bold = true;
 
+                // Add intake form timestamp
+                if (data.IntakeFormTimestampLookup.TryGetValue(participant.Id, out var intakeTimestamp))
+                {
+                    worksheet.Cell(currentRow, 9).Value = intakeTimestamp.ToString("yyyy-MM-dd");
+                }
+                else
+                {
+                    worksheet.Cell(currentRow, 9).Value = "";
+                }
+
                 // Fill dynamic field data
-                int columnIndex = 9;
+                int columnIndex = 10;
                 foreach (var field in data.OrderedFields)
                 {
                     string value = "";
@@ -133,7 +143,8 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 new("ID Number", "ID"),
                 new("Date of Birth", "DOB"),
                 new("Age", "Age"),
-                new("Lifestyle Risk", "Risk")
+                new("Lifestyle Risk", "Risk"),
+                new("Intake Form Submitted", "Date Attended")
             });
 
             // Group fields by main section and subsection

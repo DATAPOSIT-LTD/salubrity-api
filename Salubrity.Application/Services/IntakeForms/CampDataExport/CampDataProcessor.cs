@@ -56,6 +56,14 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 .GroupBy(r => r.PatientId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).FirstOrDefault());
 
+            // Create intake form response timestamp lookup
+            var intakeFormTimestampLookup = data.EntityResponses
+                .GroupBy(r => r.PatientId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(r => r.CreatedAt).First().CreatedAt
+                );
+
             return new ProcessedCampData
             {
                 CampName = data.Camp.Name,
@@ -64,6 +72,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 DtoResponseLookup = dtoResponseLookup,
                 HealthAssessmentLookup = healthAssessmentLookup,
                 DoctorRecommendationLookup = doctorRecommendationLookup,
+                IntakeFormTimestampLookup = intakeFormTimestampLookup,
                 OrderedFields = orderedFields,
                 FieldsBySection = fieldsBySection,
                 IntakeFieldCount = intakeFormFields.Count,
@@ -258,6 +267,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         public Dictionary<Guid, List<IntakeFormResponseDetailDto>> DtoResponseLookup { get; set; } = [];
         public Dictionary<Guid, Dictionary<string, string>> HealthAssessmentLookup { get; set; } = [];
         public Dictionary<Guid, DoctorRecommendationResponseDto?> DoctorRecommendationLookup { get; set; } = [];
+        public Dictionary<Guid, DateTime> IntakeFormTimestampLookup { get; set; } = [];
         public List<FieldDefinition> OrderedFields { get; set; } = [];
         public List<IGrouping<dynamic, FieldDefinition>> FieldsBySection { get; set; } = [];
         public int IntakeFieldCount { get; set; }

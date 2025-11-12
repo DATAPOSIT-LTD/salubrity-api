@@ -75,6 +75,16 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             // Fetch doctor recommendations by health camp
             var doctorRecommendations = await _doctorRecommendationService.GetByHealthCampAsync(campId, ct);
 
+            // Extract triage-specific timestamps
+            var triageServiceId = Guid.Parse("e5b52d69-1597-4e0f-850a-9ff062bea856");
+            var triageTimestamps = filteredEntityResponses
+                .Where(r => r.ResolvedServiceId == triageServiceId)
+                .GroupBy(r => r.PatientId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(r => r.CreatedAt).First().CreatedAt
+                );
+
             return new CampData
             {
                 Camp = camp,
@@ -82,7 +92,8 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 EntityResponses = filteredEntityResponses,
                 DtoResponses = allDtoResponses,
                 HealthAssessmentResponses = healthAssessmentLookup,
-                DoctorRecommendations = doctorRecommendations
+                DoctorRecommendations = doctorRecommendations,
+                TriageTimestamps = triageTimestamps
             };
         }
 
@@ -119,5 +130,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         public List<IntakeFormResponseDetailDto> DtoResponses { get; set; } = [];
         public Dictionary<Guid, List<HealthAssessmentResponseDto>> HealthAssessmentResponses { get; set; } = [];
         public IReadOnlyList<DoctorRecommendationResponseDto> DoctorRecommendations { get; set; } = [];
+        public Dictionary<Guid, DateTime> TriageTimestamps { get; set; } = [];
     }
 }

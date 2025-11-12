@@ -211,15 +211,14 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     List<Guid> campIds,
     CancellationToken ct = default)
     {
-        // Use AsSplitQuery to avoid cartesian explosion
         var allResponses = await (from r in _db.IntakeFormResponses
                               .Include(r => r.Patient)
                                   .ThenInclude(p => p.User)
                                       .ThenInclude(u => u.Gender)
                               .Include(r => r.FieldResponses)
                                   .ThenInclude(fr => fr.Field)
-                              .AsSplitQuery() // Add this line
-                              .AsNoTracking() // Add this line for better performance
+                              .AsSplitQuery() // CRITICAL: Add this
+                              .AsNoTracking() // CRITICAL: Add this
                                   join a in _db.HealthCampServiceAssignments
                                       on r.SubmittedServiceId equals a.AssignmentId
                                   where r.PatientId != null

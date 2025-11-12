@@ -37,4 +37,14 @@ public interface IIntakeFormResponseRepository
 
     // Download Findings Implementation
     Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default);
+
+    // Batch Processing Implementation
+    Task<Dictionary<Guid, List<IntakeFormResponse>>> GetResponsesForMultipleCampsAsync(
+        List<Guid> campIds,
+        CancellationToken ct = default);
+
+    Task<Dictionary<Guid, List<IntakeFormResponseDetailDto>>> GetDtoResponsesForMultipleCampsAsync(
+        List<Guid> campIds,
+        List<Guid> patientIds,
+        CancellationToken ct = default);
 }

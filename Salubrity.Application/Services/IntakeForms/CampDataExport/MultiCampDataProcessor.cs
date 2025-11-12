@@ -1,15 +1,28 @@
-using Salubrity.Application.DTOs.Clinical;
+﻿using Salubrity.Application.DTOs.Clinical;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.HealthAssessments;
 using Salubrity.Domain.Entities.IntakeForms;
+using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 {
     public class MultiCampDataProcessor
     {
+        private readonly ILogger<MultiCampDataProcessor>? _logger;
+
+        public MultiCampDataProcessor(ILogger<MultiCampDataProcessor>? logger = null)
+        {
+            _logger = logger;
+        }
+
         public ProcessedMultiCampData Process(MultiCampData data)
         {
+            var overallStopwatch = Stopwatch.StartNew();
+            _logger?.LogInformation("====== STARTING DATA PROCESSING ======");
+
             // Collect all unique fields across all camps
+            var sw = Stopwatch.StartNew();
             var allIntakeFormFields = new List<FieldDefinition>();
             var allHealthAssessmentFields = new List<FieldDefinition>();
             var existingIntakeFieldIds = new HashSet<string>();
@@ -82,9 +95,16 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                     }
                 }
             }
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Field collection: {ElapsedMs}ms ({IntakeFields} intake, {HealthFields} health)",
+                sw.ElapsedMilliseconds, allIntakeFormFields.Count, allHealthAssessmentFields.Count);
 
+            sw = Stopwatch.StartNew();
             var doctorRecommendationFields = BuildDoctorRecommendationFields();
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Build doctor recommendation fields: {ElapsedMs}ms", sw.ElapsedMilliseconds);
 
+            sw = Stopwatch.StartNew();
             var allFields = allIntakeFormFields
                 .Concat(allHealthAssessmentFields)
                 .Concat(doctorRecommendationFields)
@@ -102,8 +122,12 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 var fieldsInSection = sectionGroup.OrderBy(f => GetFieldPriority(f.Label)).ThenBy(f => f.Order);
                 orderedFields.AddRange(fieldsInSection);
             }
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Field ordering and grouping: {ElapsedMs}ms ({TotalFields} total fields, {Sections} sections)",
+                sw.ElapsedMilliseconds, orderedFields.Count, fieldsBySection.Count);
 
             // Build participant rows sorted by camp date
+            sw = Stopwatch.StartNew();
             var allParticipantRows = new List<MultiCampParticipantRow>();
 
             foreach (var campData in data.CampDataList.OrderBy(c => c.CampDate))
@@ -124,10 +148,15 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                         kvp => kvp.Value
                             .SelectMany(assessment => assessment.Sections
                                 .SelectMany(section => section.Fields
-                                    .Select(field => new { assessment.FormName, section.SectionName, field })))
+                                    .Select(field => new {
+                                        FormName = assessment.FormName,
+                                        SectionName = section.SectionName,
+                                        Field = field
+                                    })))
+                            .GroupBy(item => $"health_{item.FormName}_{item.SectionName}_{item.Field.FieldLabel}".Replace(" ", "_"))
                             .ToDictionary(
-                                item => $"health_{item.FormName}_{item.SectionName}_{item.field.FieldLabel}".Replace(" ", "_"),
-                                item => item.field.Value ?? item.field.SelectedOption ?? ""
+                                g => g.Key,
+                                g => g.First().Field.Value ?? g.First().Field.SelectedOption ?? ""
                             )
                     );
 
@@ -149,6 +178,14 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                     });
                 }
             }
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Build participant rows: {ElapsedMs}ms ({RowCount} rows)",
+                sw.ElapsedMilliseconds, allParticipantRows.Count);
+
+            overallStopwatch.Stop();
+            _logger?.LogInformation("====== PROCESSING SUMMARY ======");
+            _logger?.LogInformation("⏱️ Total processing time: {TotalSeconds:F2}s ({TotalMs}ms)",
+                overallStopwatch.Elapsed.TotalSeconds, overallStopwatch.ElapsedMilliseconds);
 
             return new ProcessedMultiCampData
             {

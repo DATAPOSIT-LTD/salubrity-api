@@ -1,4 +1,4 @@
-using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
+﻿using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
 using Salubrity.Application.DTOs.HealthAssessments;
 using Salubrity.Application.DTOs.Clinical;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
@@ -8,6 +8,7 @@ using Salubrity.Application.Interfaces.Services.HealthAssessments;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.IntakeForms;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 {
@@ -35,115 +36,100 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 
         public async Task<MultiCampData> FetchAllCampsDataAsync(CancellationToken ct)
         {
-            _logger.LogInformation("Starting to fetch data for all camps");
+            var overallStopwatch = Stopwatch.StartNew();
+            _logger.LogInformation("====== STARTING OPTIMIZED BATCH DATA FETCH ======");
 
-            // Fetch all camps as DTOs
-            var allCampsDto = await _healthCampRepository.GetAllAsync();
-            if (!allCampsDto.Any())
+            // Step 1: Fetch all camps WITH full entity details in ONE query
+            var sw = Stopwatch.StartNew();
+            var allCamps = await _healthCampRepository.GetAllWithDetailsAsync(ct); // New method needed
+            sw.Stop();
+            _logger.LogInformation("⏱️ Fetched all camps with details: {ElapsedMs}ms ({CampCount} camps)",
+                sw.ElapsedMilliseconds, allCamps.Count);
+
+            if (!allCamps.Any())
             {
-                _logger.LogWarning("No health camps found in the system");
+                _logger.LogWarning("No health camps found");
                 return new MultiCampData { CampDataList = new List<CampDataWithInfo>() };
             }
 
-            _logger.LogInformation("Found {CampCount} camps to process", allCampsDto.Count);
+            var campIds = allCamps.Select(c => c.Id).ToList();
+            var campById = allCamps.ToDictionary(c => c.Id);
 
-            var campDataList = new List<CampDataWithInfo>();
+            // Step 2: BATCH fetch ALL participants for ALL camps in ONE query
+            sw = Stopwatch.StartNew();
+            var participantsByCampId = await _healthCampRepository.GetParticipantsForMultipleCampsAsync(campIds, ct);
+            sw.Stop();
+            _logger.LogInformation("⏱️ Batch fetched participants: {ElapsedMs}ms ({Count} participants across {CampCount} camps)",
+                sw.ElapsedMilliseconds, participantsByCampId.Values.Sum(p => p.Count), participantsByCampId.Count);
 
-            // Process camps SEQUENTIALLY to avoid DbContext concurrency issues
-            var processedCount = 0;
-            foreach (var campDto in allCampsDto)
-            {
-                try
-                {
-                    processedCount++;
-                    _logger.LogInformation("Processing camp {Current}/{Total}: {CampName} ({CampId})",
-                        processedCount, allCampsDto.Count, campDto.ClientName, campDto.Id);
+            // Step 3: BATCH fetch ALL intake responses for ALL camps in ONE query
+            sw = Stopwatch.StartNew();
+            var responseByCampId = await _intakeFormResponseRepository.GetResponsesForMultipleCampsAsync(campIds, ct);
+            sw.Stop();
+            _logger.LogInformation("⏱️ Batch fetched intake responses: {ElapsedMs}ms ({Count} responses)",
+                sw.ElapsedMilliseconds, responseByCampId.Values.Sum(list => list.Count));
 
-                    // Fetch the full HealthCamp entity for this camp
-                    var camp = await _healthCampRepository.GetByIdAsync(campDto.Id);
-                    if (camp == null)
-                    {
-                        _logger.LogWarning("Camp {CampId} not found when fetching full entity", campDto.Id);
-                        continue;
-                    }
-
-                    var campData = await FetchSingleCampDataAsync(camp, campDto.ClientName, ct);
-                    if (campData != null)
-                    {
-                        campDataList.Add(campData);
-                        _logger.LogInformation("Successfully fetched data for camp: {CampName} with {ParticipantCount} participants",
-                            campData.CampName, campData.EntityResponses.Count);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to fetch data for camp {CampId} ({CampName}). Skipping.",
-                        campDto.Id, campDto.ClientName);
-                }
-            }
-
-            _logger.LogInformation("Successfully fetched data for {SuccessCount} out of {TotalCount} camps",
-                campDataList.Count, allCampsDto.Count);
-
-            return new MultiCampData { CampDataList = campDataList };
-        }
-
-        private async Task<CampDataWithInfo?> FetchSingleCampDataAsync(HealthCamp camp, string organizationName, CancellationToken ct)
-        {
-            // Fetch all responses for this camp
-            var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(camp.Id, ct);
-
-            if (!entityResponses.Any())
-            {
-                _logger.LogDebug("No intake form responses found for camp {CampId}", camp.Id);
-                return null;
-            }
-
-            // Get camp participants to filter responses
-            var campParticipants = await _healthCampRepository.GetParticipantsAsync(camp.Id, null, null, ct);
-            var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
-
-            var filteredEntityResponses = entityResponses
-                .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
+            // Step 4: Get all unique patient IDs
+            var allPatientIds = responseByCampId.Values
+                .SelectMany(responses => responses.Select(r => r.PatientId))
+                .Distinct()
                 .ToList();
 
-            if (!filteredEntityResponses.Any())
+            // Step 5: BATCH fetch DTO responses
+            sw = Stopwatch.StartNew();
+            var dtoResponsesByPatient = await _intakeFormResponseRepository.GetDtoResponsesForMultipleCampsAsync(campIds, allPatientIds, ct);
+            sw.Stop();
+            _logger.LogInformation("⏱️ Batch fetched DTO responses: {ElapsedMs}ms ({Count} responses)",
+                sw.ElapsedMilliseconds, dtoResponsesByPatient.Values.Sum(list => list.Count));
+
+            // Step 6: Build camp data (now WITHOUT per-camp queries)
+            sw = Stopwatch.StartNew();
+            var campDataList = new List<CampDataWithInfo>();
+
+            foreach (var campId in campIds)
             {
-                _logger.LogDebug("No valid participant responses found for camp {CampId}", camp.Id);
-                return null;
+                if (!campById.TryGetValue(campId, out var camp)) continue;
+                if (!responseByCampId.TryGetValue(campId, out var entityResponses) || !entityResponses.Any()) continue;
+                if (!participantsByCampId.TryGetValue(campId, out var campParticipants)) continue;
+
+                var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
+
+                var filteredEntityResponses = entityResponses
+                    .Where(r => r.Patient?.User != null && campParticipantUserIds.Contains(r.Patient.UserId))
+                    .ToList();
+
+                if (!filteredEntityResponses.Any()) continue;
+
+                var campPatientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
+
+                var campDtoResponses = campPatientIds
+                    .Where(pid => dtoResponsesByPatient.ContainsKey(pid))
+                    .SelectMany(pid => dtoResponsesByPatient[pid])
+                    .ToList();
+
+                var orgName = allCamps.FirstOrDefault(c => c.Id == campId)?.Organization?.BusinessName ?? "";
+
+                campDataList.Add(new CampDataWithInfo
+                {
+                    Camp = camp,
+                    CampDate = camp.StartDate,
+                    OrganizationName = orgName,
+                    EntityResponses = filteredEntityResponses,
+                    DtoResponses = campDtoResponses,
+                    HealthAssessmentResponses = new Dictionary<Guid, List<HealthAssessmentResponseDto>>(),
+                    DoctorRecommendations = new List<DoctorRecommendationResponseDto>()
+                });
             }
 
-            var patientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
+            sw.Stop();
+            _logger.LogInformation("⏱️ Built camp data: {ElapsedMs}ms ({CampCount} camps)",
+                sw.ElapsedMilliseconds, campDataList.Count);
 
-            // Fetch DTO responses for all patients
-            var allDtoResponses = new List<IntakeFormResponseDetailDto>();
-            foreach (var patientId in patientIds)
-            {
-                var patientDtoResponses = await _intakeFormResponseRepository.GetResponsesByPatientAndCampIdAsync(patientId, camp.Id, ct);
-                allDtoResponses.AddRange(patientDtoResponses);
-            }
+            overallStopwatch.Stop();
+            _logger.LogInformation("====== DATA FETCH COMPLETED ======");
+            _logger.LogInformation("⏱️ Total time: {TotalSeconds:F2}s", overallStopwatch.Elapsed.TotalSeconds);
 
-            // Fetch health assessments
-            var healthAssessmentLookup = new Dictionary<Guid, List<HealthAssessmentResponseDto>>();
-            foreach (var patientId in patientIds)
-            {
-                var responses = await _healthAssessmentFormService.GetPatientAssessmentResponsesAsync(patientId, camp.Id, ct);
-                healthAssessmentLookup[patientId] = responses;
-            }
-
-            // Fetch doctor recommendations for this camp
-            var doctorRecommendations = await _doctorRecommendationService.GetByHealthCampAsync(camp.Id, ct);
-
-            return new CampDataWithInfo
-            {
-                Camp = camp,
-                CampDate = camp.StartDate,
-                OrganizationName = organizationName,
-                EntityResponses = filteredEntityResponses,
-                DtoResponses = allDtoResponses,
-                HealthAssessmentResponses = healthAssessmentLookup,
-                DoctorRecommendations = doctorRecommendations
-            };
+            return new MultiCampData { CampDataList = campDataList };
         }
     }
 

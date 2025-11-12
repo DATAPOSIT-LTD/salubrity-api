@@ -204,4 +204,115 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                       select r)
             .ToListAsync(ct);
     }
+
+    // Batch Fetching Implementation
+
+    public async Task<Dictionary<Guid, List<IntakeFormResponse>>> GetResponsesForMultipleCampsAsync(
+        List<Guid> campIds,
+        CancellationToken ct = default)
+    {
+        // Single database query to fetch all camps at once
+        var allResponses = await (from r in _db.IntakeFormResponses
+                              .Include(r => r.Patient)
+                                  .ThenInclude(p => p.User)
+                                      .ThenInclude(u => u.Gender)
+                              .Include(r => r.FieldResponses)
+                                  .ThenInclude(fr => fr.Field)
+                                  join a in _db.HealthCampServiceAssignments
+                                      on r.SubmittedServiceId equals a.AssignmentId
+                                  where r.PatientId != null
+                                        && campIds.Contains(a.HealthCampId)
+                                        && !r.IsDeleted
+                                  orderby r.Patient.User.FirstName, r.Patient.User.LastName
+                                  select new
+                                  {
+                                      CampId = a.HealthCampId,
+                                      Response = r
+                                  })
+                .ToListAsync(ct);
+
+        // Group by camp ID
+        return allResponses
+            .GroupBy(x => x.CampId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Response).ToList());
+    }
+
+    public async Task<Dictionary<Guid, List<IntakeFormResponseDetailDto>>> GetDtoResponsesForMultipleCampsAsync(
+    List<Guid> campIds,
+    List<Guid> patientIds,
+    CancellationToken ct = default)
+    {
+        var query =
+            from r in _db.IntakeFormResponses
+                .Include(r => r.FieldResponses)
+                    .ThenInclude(fr => fr.Field)
+                        .ThenInclude(f => f.Section)
+                .Include(r => r.Status)
+                .Include(r => r.Version)
+                    .ThenInclude(v => v.IntakeForm)
+                .Include(r => r.ResolvedService)
+            join a in _db.HealthCampServiceAssignments
+                on r.SubmittedServiceId equals a.AssignmentId
+            where r.PatientId != null
+                  && patientIds.Contains(r.PatientId)
+                  && campIds.Contains(a.HealthCampId)
+            orderby r.CreatedAt descending
+            select new IntakeFormResponseDetailDto
+            {
+                Id = r.Id,
+                IntakeFormVersionId = r.IntakeFormVersionId,
+                SubmittedByUserId = r.SubmittedByUserId,
+                PatientId = r.PatientId,
+                ServiceId = r.ResolvedServiceId,
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt,
+                Status = new ResponseStatusDto
+                {
+                    Id = r.ResponseStatusId,
+                    Name = r.Status.Name
+                },
+                Version = new MiniIntakeFormVersionDto
+                {
+                    Id = r.Version.Id,
+                    IntakeFormId = r.Version.IntakeFormId,
+                    VersionNumber = r.Version.VersionNumber,
+                    IntakeFormName = r.Version.IntakeForm.Name,
+                    IntakeFormDescription = r.Version.IntakeForm.Description
+                },
+                Service = r.ResolvedService == null ? null : new MiniServiceDto
+                {
+                    Id = r.ResolvedService.Id,
+                    Name = r.ResolvedService.Name,
+                    Description = r.ResolvedService.Description,
+                    ImageUrl = r.ResolvedService.ImageUrl
+                },
+                FieldResponses = r.FieldResponses
+                    .OrderBy(fr => fr.Field.Order)
+                    .Select(fr => new IntakeFormFieldResponseDetailDto
+                    {
+                        Id = fr.Id,
+                        FieldId = fr.FieldId,
+                        Value = fr.Value,
+                        Field = new FieldMetaDto
+                        {
+                            FieldId = fr.Field.Id,
+                            Label = fr.Field.Label,
+                            FieldType = fr.Field.FieldType,
+                            SectionId = fr.Field.SectionId,
+                            SectionName = fr.Field.Section != null ? fr.Field.Section.Name : null,
+                            Order = fr.Field.Order
+                        }
+                    }).ToList()
+            };
+
+        var results = await query.ToListAsync(ct);
+
+        // Group by PatientId and merge all responses for that patient across all camps
+        return results
+            .GroupBy(dto => dto.PatientId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToList()
+            );
+    }
 }

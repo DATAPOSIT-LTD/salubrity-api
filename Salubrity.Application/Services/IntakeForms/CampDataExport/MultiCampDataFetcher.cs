@@ -37,59 +37,96 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
         public async Task<MultiCampData> FetchAllCampsDataAsync(CancellationToken ct)
         {
             var overallStopwatch = Stopwatch.StartNew();
-            _logger.LogInformation("====== STARTING OPTIMIZED BATCH DATA FETCH ======");
+            _logger.LogInformation("====== STARTING BATCHED DATA FETCH ======");
 
-            // Step 1: Fetch all camps WITH full entity details in ONE query
             var sw = Stopwatch.StartNew();
-            var allCamps = await _healthCampRepository.GetAllWithDetailsAsync(ct); // New method needed
+            var allCamps = await _healthCampRepository.GetAllWithDetailsAsync(ct);
             sw.Stop();
-            _logger.LogInformation("⏱️ Fetched all camps with details: {ElapsedMs}ms ({CampCount} camps)",
+            _logger.LogInformation("⏱️ Fetched camps: {ElapsedMs}ms ({Count} camps)",
                 sw.ElapsedMilliseconds, allCamps.Count);
 
             if (!allCamps.Any())
             {
-                _logger.LogWarning("No health camps found");
                 return new MultiCampData { CampDataList = new List<CampDataWithInfo>() };
             }
 
             var campIds = allCamps.Select(c => c.Id).ToList();
             var campById = allCamps.ToDictionary(c => c.Id);
 
-            // Step 2: BATCH fetch ALL participants for ALL camps in ONE query
+            // Fetch participants
             sw = Stopwatch.StartNew();
             var participantsByCampId = await _healthCampRepository.GetParticipantsForMultipleCampsAsync(campIds, ct);
             sw.Stop();
-            _logger.LogInformation("⏱️ Batch fetched participants: {ElapsedMs}ms ({Count} participants across {CampCount} camps)",
-                sw.ElapsedMilliseconds, participantsByCampId.Values.Sum(p => p.Count), participantsByCampId.Count);
+            _logger.LogInformation("⏱️ Fetched participants: {ElapsedMs}ms ({Count} total)",
+                sw.ElapsedMilliseconds, participantsByCampId.Values.Sum(p => p.Count));
 
-            // Step 3: BATCH fetch ALL intake responses for ALL camps in ONE query
-            sw = Stopwatch.StartNew();
-            var responseByCampId = await _intakeFormResponseRepository.GetResponsesForMultipleCampsAsync(campIds, ct);
-            sw.Stop();
-            _logger.LogInformation("⏱️ Batch fetched intake responses: {ElapsedMs}ms ({Count} responses)",
-                sw.ElapsedMilliseconds, responseByCampId.Values.Sum(list => list.Count));
+            // Process in batches of 15 camps to avoid timeout
+            const int batchSize = 15;
+            var campBatches = campIds.Chunk(batchSize).ToList();
+            var allResponsesByCamp = new Dictionary<Guid, List<IntakeFormResponse>>();
+            var allDtoResponsesByPatient = new Dictionary<Guid, List<IntakeFormResponseDetailDto>>();
 
-            // Step 4: Get all unique patient IDs
-            var allPatientIds = responseByCampId.Values
-                .SelectMany(responses => responses.Select(r => r.PatientId))
-                .Distinct()
-                .ToList();
+            _logger.LogInformation("📦 Processing {BatchCount} batches of max {BatchSize} camps",
+                campBatches.Count, batchSize);
 
-            // Step 5: BATCH fetch DTO responses
-            sw = Stopwatch.StartNew();
-            var dtoResponsesByPatient = await _intakeFormResponseRepository.GetDtoResponsesForMultipleCampsAsync(campIds, allPatientIds, ct);
-            sw.Stop();
-            _logger.LogInformation("⏱️ Batch fetched DTO responses: {ElapsedMs}ms ({Count} responses)",
-                sw.ElapsedMilliseconds, dtoResponsesByPatient.Values.Sum(list => list.Count));
+            for (int i = 0; i < campBatches.Count; i++)
+            {
+                var batchCampIds = campBatches[i].ToList();
 
-            // Step 6: Build camp data (now WITHOUT per-camp queries)
+                sw = Stopwatch.StartNew();
+
+                try
+                {
+                    // Fetch responses for this batch
+                    var batchResponses = await _intakeFormResponseRepository
+                        .GetResponsesForMultipleCampsAsync(batchCampIds, ct);
+
+                    // Get patient IDs
+                    var batchPatientIds = batchResponses.Values
+                        .SelectMany(responses => responses.Select(r => r.PatientId))
+                        .Distinct()
+                        .ToList();
+
+                    // Fetch DTO responses
+                    var batchDtoResponses = await _intakeFormResponseRepository
+                        .GetDtoResponsesForMultipleCampsAsync(batchCampIds, batchPatientIds, ct);
+
+                    sw.Stop();
+
+                    // Merge results
+                    foreach (var kvp in batchResponses)
+                    {
+                        allResponsesByCamp[kvp.Key] = kvp.Value;
+                    }
+
+                    foreach (var kvp in batchDtoResponses)
+                    {
+                        if (!allDtoResponsesByPatient.ContainsKey(kvp.Key))
+                        {
+                            allDtoResponsesByPatient[kvp.Key] = new List<IntakeFormResponseDetailDto>();
+                        }
+                        allDtoResponsesByPatient[kvp.Key].AddRange(kvp.Value);
+                    }
+
+                    _logger.LogInformation("  ✅ Batch {Current}/{Total}: {ElapsedMs}ms ({CampCount} camps, {ResponseCount} responses)",
+                        i + 1, campBatches.Count, sw.ElapsedMilliseconds,
+                        batchCampIds.Count, batchResponses.Values.Sum(list => list.Count));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "❌ Batch {Current}/{Total} failed", i + 1, campBatches.Count);
+                    throw;
+                }
+            }
+
+            // Build camp data
             sw = Stopwatch.StartNew();
             var campDataList = new List<CampDataWithInfo>();
 
             foreach (var campId in campIds)
             {
                 if (!campById.TryGetValue(campId, out var camp)) continue;
-                if (!responseByCampId.TryGetValue(campId, out var entityResponses) || !entityResponses.Any()) continue;
+                if (!allResponsesByCamp.TryGetValue(campId, out var entityResponses) || !entityResponses.Any()) continue;
                 if (!participantsByCampId.TryGetValue(campId, out var campParticipants)) continue;
 
                 var campParticipantUserIds = campParticipants.Select(cp => cp.UserId).ToHashSet();
@@ -103,17 +140,15 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 var campPatientIds = filteredEntityResponses.Select(r => r.PatientId).Distinct().ToList();
 
                 var campDtoResponses = campPatientIds
-                    .Where(pid => dtoResponsesByPatient.ContainsKey(pid))
-                    .SelectMany(pid => dtoResponsesByPatient[pid])
+                    .Where(pid => allDtoResponsesByPatient.ContainsKey(pid))
+                    .SelectMany(pid => allDtoResponsesByPatient[pid])
                     .ToList();
-
-                var orgName = allCamps.FirstOrDefault(c => c.Id == campId)?.Organization?.BusinessName ?? "";
 
                 campDataList.Add(new CampDataWithInfo
                 {
                     Camp = camp,
                     CampDate = camp.StartDate,
-                    OrganizationName = orgName,
+                    OrganizationName = camp.Organization?.BusinessName ?? "",
                     EntityResponses = filteredEntityResponses,
                     DtoResponses = campDtoResponses,
                     HealthAssessmentResponses = new Dictionary<Guid, List<HealthAssessmentResponseDto>>(),
@@ -122,12 +157,12 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             }
 
             sw.Stop();
-            _logger.LogInformation("⏱️ Built camp data: {ElapsedMs}ms ({CampCount} camps)",
+            _logger.LogInformation("⏱️ Built camp data: {ElapsedMs}ms ({Count} camps)",
                 sw.ElapsedMilliseconds, campDataList.Count);
 
             overallStopwatch.Stop();
-            _logger.LogInformation("====== DATA FETCH COMPLETED ======");
-            _logger.LogInformation("⏱️ Total time: {TotalSeconds:F2}s", overallStopwatch.Elapsed.TotalSeconds);
+            _logger.LogInformation("====== FETCH COMPLETED: {TotalSeconds:F2}s ======",
+                overallStopwatch.Elapsed.TotalSeconds);
 
             return new MultiCampData { CampDataList = campDataList };
         }

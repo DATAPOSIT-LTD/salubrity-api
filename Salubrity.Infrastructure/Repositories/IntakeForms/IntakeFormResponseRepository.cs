@@ -208,16 +208,17 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     // Batch Fetching Implementation
 
     public async Task<Dictionary<Guid, List<IntakeFormResponse>>> GetResponsesForMultipleCampsAsync(
-        List<Guid> campIds,
-        CancellationToken ct = default)
+    List<Guid> campIds,
+    CancellationToken ct = default)
     {
-        // Single database query to fetch all camps at once
+        // Use AsSplitQuery to avoid cartesian explosion and reduce memory pressure
         var allResponses = await (from r in _db.IntakeFormResponses
                               .Include(r => r.Patient)
                                   .ThenInclude(p => p.User)
                                       .ThenInclude(u => u.Gender)
                               .Include(r => r.FieldResponses)
                                   .ThenInclude(fr => fr.Field)
+                              .AsSplitQuery() // Split into multiple queries
                                   join a in _db.HealthCampServiceAssignments
                                       on r.SubmittedServiceId equals a.AssignmentId
                                   where r.PatientId != null
@@ -229,6 +230,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                                       CampId = a.HealthCampId,
                                       Response = r
                                   })
+                .AsNoTracking()
                 .ToListAsync(ct);
 
         // Group by camp ID

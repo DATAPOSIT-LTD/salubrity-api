@@ -1,30 +1,71 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
+using Microsoft.Extensions.Logging;
 using Salubrity.Application.DTOs.Clinical;
 using Salubrity.Application.DTOs.Forms.IntakeFormResponses;
+using System.Diagnostics;
 
 namespace Salubrity.Application.Services.IntakeForms.CampDataExport
 {
     public class MultiCampDataExcelExporter
     {
+        private readonly ILogger<MultiCampDataExcelExporter>? _logger;
+
+        public MultiCampDataExcelExporter(ILogger<MultiCampDataExcelExporter>? logger = null)
+        {
+            _logger = logger;
+        }
+
         public byte[] Export(ProcessedMultiCampData data)
         {
+            var overallStopwatch = Stopwatch.StartNew();
+            _logger?.LogInformation("====== STARTING EXCEL EXPORT ======");
+
             using var workbook = new XLWorkbook();
             var worksheet = workbook.Worksheets.Add("All Camps Data Export");
 
+            var sw = Stopwatch.StartNew();
             var headerStructure = CreateHeaderStructure(data.FieldsBySection);
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Create header structure: {ElapsedMs}ms", sw.ElapsedMilliseconds);
+
+            sw = Stopwatch.StartNew();
             var totalColumns = SetupStructuredHeaders(worksheet, headerStructure);
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Setup structured headers: {ElapsedMs}ms ({Columns} columns)",
+                sw.ElapsedMilliseconds, totalColumns);
 
+            sw = Stopwatch.StartNew();
             PopulateDataRows(worksheet, data);
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Populate data rows: {ElapsedMs}ms ({Rows} rows)",
+                sw.ElapsedMilliseconds, data.ParticipantRows.Count);
 
+            sw = Stopwatch.StartNew();
             ApplyWorksheetStyling(worksheet, totalColumns, 3 + data.ParticipantRows.Count);
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Apply worksheet styling: {ElapsedMs}ms", sw.ElapsedMilliseconds);
 
+            sw = Stopwatch.StartNew();
             AddSummarySection(worksheet, data, 3 + data.ParticipantRows.Count + 2);
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Add summary section: {ElapsedMs}ms", sw.ElapsedMilliseconds);
 
-            worksheet.SheetView.Freeze(3, 7); // Freeze first 7 columns (includes camp info)
+            worksheet.SheetView.Freeze(3, 7);
 
+            sw = Stopwatch.StartNew();
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
-            return stream.ToArray();
+            var excelData = stream.ToArray();
+            sw.Stop();
+            _logger?.LogInformation("⏱️ Save to stream: {ElapsedMs}ms ({FileSize} bytes)",
+                sw.ElapsedMilliseconds, excelData.Length);
+
+            overallStopwatch.Stop();
+            _logger?.LogInformation("====== EXCEL EXPORT SUMMARY ======");
+            _logger?.LogInformation("⏱️ Total export time: {TotalSeconds:F2}s ({TotalMs}ms)",
+                overallStopwatch.Elapsed.TotalSeconds, overallStopwatch.ElapsedMilliseconds);
+
+            return excelData;
         }
 
         private void PopulateDataRows(IXLWorksheet worksheet, ProcessedMultiCampData data)

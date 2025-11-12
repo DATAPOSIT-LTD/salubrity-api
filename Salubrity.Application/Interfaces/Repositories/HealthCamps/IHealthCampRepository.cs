@@ -59,6 +59,12 @@ public interface IHealthCampRepository
     Task<List<HealthCampParticipant>> GetParticipantsAsync(Guid campId, string? q, string? sort, CancellationToken ct = default);
     Task<HealthCamp?> GetByIdWithPackagesAsync(Guid id, CancellationToken ct = default);
 
+    // MultiCamp batch fetching
+
+    // Add these method signatures
+    Task<List<HealthCamp>> GetAllWithDetailsAsync(CancellationToken ct = default);
+    Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync( List<Guid> campIds, CancellationToken ct = default);
+
 }
 
 

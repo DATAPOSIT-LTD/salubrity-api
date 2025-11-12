@@ -1216,5 +1216,31 @@ public class HealthCampRepository : IHealthCampRepository
             .ToListAsync(ct);
     }
 
+    // MultiCamp batch fetching
+
+    public async Task<List<HealthCamp>> GetAllWithDetailsAsync(CancellationToken ct = default)
+    {
+        return await _context.HealthCamps
+            .AsNoTracking()
+            .Include(h => h.Organization)
+            .Include(h => h.HealthCampStatus)
+            .Where(h => !h.IsDeleted)
+            .OrderByDescending(h => h.CreatedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync(
+        List<Guid> campIds,
+        CancellationToken ct = default)
+    {
+        var allParticipants = await _context.HealthCampParticipants
+            .AsNoTracking()
+            .Where(p => campIds.Contains(p.HealthCampId) && !p.IsDeleted)
+            .ToListAsync(ct);
+
+        return allParticipants
+            .GroupBy(p => p.HealthCampId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    }
 
 }

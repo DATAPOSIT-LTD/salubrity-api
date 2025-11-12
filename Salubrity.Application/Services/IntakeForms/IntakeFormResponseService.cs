@@ -19,6 +19,7 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
+using System.Diagnostics;
 
 namespace Salubrity.Application.Services.Forms;
 
@@ -394,14 +395,20 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     public async Task<(byte[] ExcelData, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default)
     {
+        var totalStopwatch = Stopwatch.StartNew();
         var exportTimestamp = DateTime.Now.AddHours(3);
 
-        _logger.LogInformation("Starting export of all camps data at {Timestamp}", exportTimestamp);
+        _logger.LogInformation("========================================");
+        _logger.LogInformation("🚀 STARTING MULTI-CAMP EXPORT at {Timestamp}", exportTimestamp);
+        _logger.LogInformation("========================================");
 
         // Create a logger for MultiCampDataFetcher using the injected ILoggerFactory
         var multiCampLogger = _loggerFactory.CreateLogger<MultiCampDataFetcher>();
+        var processorLogger = _loggerFactory.CreateLogger<MultiCampDataProcessor>();
+        var exporterLogger = _loggerFactory.CreateLogger<MultiCampDataExcelExporter>();
 
         // 1. Fetch Data from all camps
+        var sw = Stopwatch.StartNew();
         var dataFetcher = new MultiCampDataFetcher(
             _healthCampRepository,
             _intakeFormResponseRepository,
@@ -410,25 +417,92 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             multiCampLogger);
 
         var multiCampData = await dataFetcher.FetchAllCampsDataAsync(ct);
+        sw.Stop();
 
-        _logger.LogInformation("Fetched data for {CampCount} camps with {ParticipantCount} total participants",
+        _logger.LogInformation("========================================");
+        _logger.LogInformation("📦 PHASE 1 - DATA FETCHING COMPLETED");
+        _logger.LogInformation("⏱️ Time: {ElapsedSeconds:F2}s ({ElapsedMs}ms)", sw.Elapsed.TotalSeconds, sw.ElapsedMilliseconds);
+        _logger.LogInformation("📊 Camps: {CampCount}, Participants: {ParticipantCount}",
             multiCampData.CampDataList.Count,
             multiCampData.CampDataList.Sum(c => c.EntityResponses.Count));
+        _logger.LogInformation("========================================");
 
         // 2. Process Data
-        var dataProcessor = new MultiCampDataProcessor();
+        sw = Stopwatch.StartNew();
+        var dataProcessor = new MultiCampDataProcessor(processorLogger);
         var processedData = dataProcessor.Process(multiCampData);
+        sw.Stop();
 
-        _logger.LogInformation("Processed data: {IntakeFields} intake fields, {HealthFields} health fields",
+        _logger.LogInformation("========================================");
+        _logger.LogInformation("⚙️ PHASE 2 - DATA PROCESSING COMPLETED");
+        _logger.LogInformation("⏱️ Time: {ElapsedSeconds:F2}s ({ElapsedMs}ms)", sw.Elapsed.TotalSeconds, sw.ElapsedMilliseconds);
+        _logger.LogInformation("📊 Fields: {IntakeFields} intake, {HealthFields} health, {DoctorFields} doctor",
             processedData.IntakeFieldCount,
-            processedData.HealthFieldCount);
+            processedData.HealthFieldCount,
+            processedData.DoctorRecommendationFieldCount);
+        _logger.LogInformation("========================================");
 
         // 3. Export Data
-        var exporter = new MultiCampDataExcelExporter();
+        sw = Stopwatch.StartNew();
+        var exporter = new MultiCampDataExcelExporter(exporterLogger);
         var excelData = exporter.Export(processedData);
+        sw.Stop();
 
-        _logger.LogInformation("Successfully exported all camps data. File size: {FileSize} bytes", excelData.Length);
+        _logger.LogInformation("========================================");
+        _logger.LogInformation("📄 PHASE 3 - EXCEL GENERATION COMPLETED");
+        _logger.LogInformation("⏱️ Time: {ElapsedSeconds:F2}s ({ElapsedMs}ms)", sw.Elapsed.TotalSeconds, sw.ElapsedMilliseconds);
+        _logger.LogInformation("📁 File size: {FileSizeKB:F2} KB ({FileSize} bytes)",
+            excelData.Length / 1024.0, excelData.Length);
+        _logger.LogInformation("========================================");
+
+        totalStopwatch.Stop();
+
+        _logger.LogInformation("========================================");
+        _logger.LogInformation("✅ EXPORT COMPLETED SUCCESSFULLY");
+        _logger.LogInformation("⏱️ TOTAL TIME: {TotalMinutes:F2} minutes ({TotalSeconds:F2}s)",
+            totalStopwatch.Elapsed.TotalMinutes, totalStopwatch.Elapsed.TotalSeconds);
+        _logger.LogInformation("========================================");
 
         return (excelData, exportTimestamp);
     }
+
+    //public async Task<(byte[] ExcelData, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default)
+    //{
+    //    var exportTimestamp = DateTime.Now.AddHours(3);
+
+    //    _logger.LogInformation("Starting export of all camps data at {Timestamp}", exportTimestamp);
+
+    //    // Create a logger for MultiCampDataFetcher using the injected ILoggerFactory
+    //    var multiCampLogger = _loggerFactory.CreateLogger<MultiCampDataFetcher>();
+
+    //    // 1. Fetch Data from all camps
+    //    var dataFetcher = new MultiCampDataFetcher(
+    //        _healthCampRepository,
+    //        _intakeFormResponseRepository,
+    //        _healthAssessmentFormService,
+    //        _doctorRecommendationService,
+    //        multiCampLogger);
+
+    //    var multiCampData = await dataFetcher.FetchAllCampsDataAsync(ct);
+
+    //    _logger.LogInformation("Fetched data for {CampCount} camps with {ParticipantCount} total participants",
+    //        multiCampData.CampDataList.Count,
+    //        multiCampData.CampDataList.Sum(c => c.EntityResponses.Count));
+
+    //    // 2. Process Data
+    //    var dataProcessor = new MultiCampDataProcessor();
+    //    var processedData = dataProcessor.Process(multiCampData);
+
+    //    _logger.LogInformation("Processed data: {IntakeFields} intake fields, {HealthFields} health fields",
+    //        processedData.IntakeFieldCount,
+    //        processedData.HealthFieldCount);
+
+    //    // 3. Export Data
+    //    var exporter = new MultiCampDataExcelExporter();
+    //    var excelData = exporter.Export(processedData);
+
+    //    _logger.LogInformation("Successfully exported all camps data. File size: {FileSize} bytes", excelData.Length);
+
+    //    return (excelData, exportTimestamp);
+    //}
 }

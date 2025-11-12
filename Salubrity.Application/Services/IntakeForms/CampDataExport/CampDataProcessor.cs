@@ -56,14 +56,6 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 .GroupBy(r => r.PatientId)
                 .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).FirstOrDefault());
 
-            // Create intake form response timestamp lookup
-            var intakeFormTimestampLookup = data.EntityResponses
-                .GroupBy(r => r.PatientId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.OrderByDescending(r => r.CreatedAt).First().CreatedAt
-                );
-
             return new ProcessedCampData
             {
                 CampName = data.Camp.Name,
@@ -72,7 +64,7 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
                 DtoResponseLookup = dtoResponseLookup,
                 HealthAssessmentLookup = healthAssessmentLookup,
                 DoctorRecommendationLookup = doctorRecommendationLookup,
-                IntakeFormTimestampLookup = intakeFormTimestampLookup,
+                IntakeFormTimestampLookup = data.TriageTimestamps,
                 OrderedFields = orderedFields,
                 FieldsBySection = fieldsBySection,
                 IntakeFieldCount = intakeFormFields.Count,

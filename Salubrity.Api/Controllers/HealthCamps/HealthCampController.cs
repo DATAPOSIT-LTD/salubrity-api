@@ -88,20 +88,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    // [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
-    // [HttpGet("my/complete")]
-    // [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
-    // public async Task<IActionResult> GetMyCompleteCampsAsync(
-    //     [FromServices] ICurrentSubcontractorService current,
-    //     CancellationToken ct)
-    // {
-    //     var userId = GetCurrentUserId();
-    //     var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
-    //     var subcontractorId = isAdmin ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-    //     var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
-    //     return Success(result);
-    // }
     [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]

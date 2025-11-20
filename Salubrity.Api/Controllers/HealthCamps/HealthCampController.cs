@@ -105,8 +105,8 @@ public class CampController : BaseController
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCompleteCampsAsync(
-        [FromServices] ICurrentSubcontractorService current,
-        CancellationToken ct)
+       [FromServices] ICurrentSubcontractorService current,
+       CancellationToken ct)
     {
         var userId = GetCurrentUserId();
 
@@ -114,7 +114,7 @@ public class CampController : BaseController
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
         var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
 
-        // Doctors and Concierge are NOT subcontractors — same logic as "upcoming"
+        // SAME RULE AS UPCOMING
         var subcontractorId = (isAdmin || isConcierge || isDoctor)
             ? (Guid?)null
             : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
@@ -122,6 +122,8 @@ public class CampController : BaseController
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
         return Success(result);
     }
+
+
 
 
     [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]

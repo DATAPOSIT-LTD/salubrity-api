@@ -18,11 +18,13 @@ public class CampController : BaseController
 {
     private readonly IHealthCampService _service;
     private readonly IUserService _userService;
+    private readonly ILogger<CampController> _logger;
 
-    public CampController(IHealthCampService service, IUserService userService)
+    public CampController(IHealthCampService service, IUserService userService, ILogger<CampController> logger)
     {
         _service = service;
         _userService = userService;
+        _logger = logger;
     }
 
     [HttpGet]
@@ -100,7 +102,6 @@ public class CampController : BaseController
     //     var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
     //     return Success(result);
     // }
-
     [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
@@ -110,18 +111,55 @@ public class CampController : BaseController
     {
         var userId = GetCurrentUserId();
 
+        // ===== ROLE CHECKS =====
         var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
         var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
+        var isSubcontractor = await _userService.IsInRoleAsync(userId, "Subcontractor");
 
-        // SAME RULE AS UPCOMING
-        var subcontractorId = (isAdmin || isConcierge || isDoctor)
-            ? (Guid?)null
-            : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+        _logger.LogInformation(
+            "[HealthCamps:Complete] User {UserId} Roles => Admin: {Admin}, Concierge: {Concierge}, Doctor: {Doctor}, Subcontractor: {Subcontractor}",
+            userId, isAdmin, isConcierge, isDoctor, isSubcontractor
+        );
+
+        // ===== SUBCONTRACTOR RESOLUTION =====
+        Guid? subcontractorId;
+
+        if (isAdmin || isConcierge || isDoctor)
+        {
+            subcontractorId = null;
+
+            _logger.LogInformation(
+                "[HealthCamps:Complete] User {UserId} is Admin/Concierge/Doctor → subcontractorId set to null",
+                userId
+            );
+        }
+        else
+        {
+            subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+
+            _logger.LogInformation(
+                "[HealthCamps:Complete] User {UserId} is Subcontractor → subcontractorId = {SubId}",
+                userId, subcontractorId
+            );
+        }
+
+        // ===== SERVICE CALL =====
+        _logger.LogInformation(
+            "[HealthCamps:Complete] Fetching complete camps for User {UserId} using subcontractorId = {SubId}",
+            userId, subcontractorId
+        );
 
         var result = await _service.GetMyCompleteCampsAsync(subcontractorId);
+
+        _logger.LogInformation(
+            "[HealthCamps:Complete] User {UserId} received {Count} complete camps",
+            userId, result.Count
+        );
+
         return Success(result);
     }
+
 
 
 

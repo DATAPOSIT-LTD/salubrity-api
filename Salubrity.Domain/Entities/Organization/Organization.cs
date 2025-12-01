@@ -27,5 +27,6 @@ public class Organization : BaseAuditableEntity
 
     public ICollection<OrganizationInsuranceProvider> InsuranceProviders { get; set; } = [];
     public ICollection<OrganizationPackage> Packages { get; set; } = [];
+    public ICollection<OrganizationBranch> Branches { get; set; } = [];
 
 }

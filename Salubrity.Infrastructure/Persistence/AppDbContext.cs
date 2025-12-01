@@ -108,6 +108,8 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
         public DbSet<HealthCampParticipantPackage> HealthCampParticipantPackages { get; set; }
         public DbSet<HealthCampParticipantServiceStatus> HealthCampParticipantServiceStatuses { get; set; }
+        public DbSet<OrganizationBranch> OrganizationBranches => Set<OrganizationBranch>();
+
 
 
         public DbSet<HealthCampPackage> HealthCampPackages { get; set; }

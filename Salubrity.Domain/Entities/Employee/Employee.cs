@@ -6,6 +6,7 @@ using Salubrity.Domain.Entities.Organizations;
 
 namespace Salubrity.Domain.Entities.Identity;
 
+
 public class Employee : BaseAuditableEntity
 {
     public Guid UserId { get; set; }
@@ -19,4 +20,8 @@ public class Employee : BaseAuditableEntity
 
     public Guid? DepartmentId { get; set; }
     public Department? Department { get; set; }
+
+    public Guid? BranchId { get; set; }
+    public OrganizationBranch? Branch { get; set; }
+
 }

@@ -137,6 +137,7 @@ namespace Salubrity.Application
             services.AddScoped<IDoctorRecommendationService, DoctorRecommendationService>();
             services.AddScoped<IHealthCampCheckInService, HealthCampCheckInService>();
             services.AddScoped<IHealthCampParticipantServiceStatusService, HealthCampParticipantServiceStatusService>();
+            services.AddScoped<IOrganizationBranchService, OrganizationBranchService>();
 
 
 

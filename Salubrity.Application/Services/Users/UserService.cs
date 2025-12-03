@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using Salubrity.Application.DTOs.Users;
+using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Domain.Entities.Identity;
@@ -13,14 +15,17 @@ public class UserService : IUserService
     private readonly IUserRoleReadRepository _userRoleReadRepository;
     private readonly IMapper _mapper;
     private readonly IOnboardingService _onboardingService;
+    private readonly IEmployeeReadRepository _employeeReadRepository;
+    private readonly IEmployeeRepository _employeeRepository;
 
-
-    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository, IOnboardingService onboardingService)
+    public UserService(IUserRepository userRepository, IMapper mapper, IUserRoleReadRepository userRoleRepository, IOnboardingService onboardingService, IEmployeeReadRepository employeeReadRepository, IEmployeeRepository employeeRepository)
     {
         _userRepository = userRepository;
         _mapper = mapper;
         _userRoleReadRepository = userRoleRepository;
         _onboardingService = onboardingService;
+        _employeeReadRepository = employeeReadRepository;
+        _employeeRepository = employeeRepository;
     }
 
     public async Task<ApiResponse<UserResponse>> GetByIdAsync(Guid id)
@@ -56,18 +61,27 @@ public class UserService : IUserService
         if (user is null)
             return ApiResponse<string>.CreateFailure("User not found.");
 
-        // Check for duplicate phone number
+        // Phone duplication check
         if (!string.IsNullOrWhiteSpace(request.Phone))
         {
             var existingWithPhone = await _userRepository.FindUserByPhoneAsync(request.Phone);
             if (existingWithPhone != null && existingWithPhone.Id != id)
-            {
                 return ApiResponse<string>.CreateFailure("A user with this phone number already exists.");
-            }
         }
 
+        // Map fields onto user
         _mapper.Map(request, user);
         await _userRepository.UpdateUserAsync(user);
+
+        // Update Employee BranchId (if employee exists)
+        var employee = await _employeeReadRepository.FindByUserIdAsync(user.Id);
+        if (employee != null)
+        {
+            if (request.BranchId.HasValue)
+                employee.BranchId = request.BranchId.Value;
+
+            await _employeeRepository.UpdateAsync(employee);
+        }
 
         await _onboardingService.CheckAndUpdateOnboardingStatusAsync(user.Id);
 

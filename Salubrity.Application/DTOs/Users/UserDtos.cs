@@ -46,4 +46,5 @@ public class UserUpdateRequest
     public string? ProfileImage { get; set; }
     public Guid? GenderId { get; set; }
     public Guid? OrganizationId { get; set; }
+    public Guid? BranchId { get; set; }
 }

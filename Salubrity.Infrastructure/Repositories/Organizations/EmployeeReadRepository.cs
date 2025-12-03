@@ -1,6 +1,7 @@
 // Salubrity.Infrastructure/Repositories/Organizations/EmployeeReadRepository.cs
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Domain.Entities.Identity;
 using Salubrity.Infrastructure.Persistence;
 
 public class EmployeeReadRepository : IEmployeeReadRepository
@@ -18,4 +19,11 @@ public class EmployeeReadRepository : IEmployeeReadRepository
             .Distinct()
             .ToListAsync(ct);
     }
+
+    public async Task<Employee?> FindByUserIdAsync(Guid userId)
+    {
+        return await _db.Employees
+            .FirstOrDefaultAsync(e => e.UserId == userId);
+    }
+
 }

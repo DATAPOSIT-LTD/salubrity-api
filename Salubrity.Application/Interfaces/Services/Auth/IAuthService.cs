@@ -1,4 +1,5 @@
 using Salubrity.Application.DTOs.Auth;
+using Salubrity.Application.DTOs.Identity;
 
 namespace Salubrity.Application.Interfaces.Services.Auth
 {

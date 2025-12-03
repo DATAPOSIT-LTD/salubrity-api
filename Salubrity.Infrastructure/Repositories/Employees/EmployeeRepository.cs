@@ -102,6 +102,13 @@ public class EmployeeRepository : IEmployeeRepository
             .FirstOrDefaultAsync(e => e.UserId == userId && e.OrganizationId == organizationId);
     }
 
+    public async Task<Employee?> GetByIdWithOrgAndBranchAsync(Guid id)
+    {
+        return await _context.Employees
+            .Include(e => e.Organization)
+            .Include(e => e.Branch)
+            .FirstOrDefaultAsync(e => e.Id == id);
+    }
 
 
 }

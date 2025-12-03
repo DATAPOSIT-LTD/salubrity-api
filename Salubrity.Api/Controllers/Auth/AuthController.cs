@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Auth;
+using Salubrity.Application.DTOs.Identity;
 using Salubrity.Application.Interfaces.Services.Auth;
 using Salubrity.Shared.Responses;
 using System.Security.Claims;
@@ -94,7 +95,7 @@ public class AuthController : BaseController
         return SuccessMessage("Logged out.");
     }
 
-  
+
 
 
     [HttpPost("forgot-password")]

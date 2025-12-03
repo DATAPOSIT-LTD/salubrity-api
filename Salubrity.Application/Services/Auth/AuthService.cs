@@ -2,6 +2,7 @@
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Auth;
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.DTOs.Identity;
 using Salubrity.Application.DTOs.Menus;
 using Salubrity.Application.Interfaces.Rbac;
 using Salubrity.Application.Interfaces.Repositories;
@@ -348,24 +349,7 @@ namespace Salubrity.Application.Services.Auth
                 CreatedAt = DateTime.UtcNow
             };
 
-            // await _resetTokenRepository.AddAsync(resetToken);
 
-            // // Step 3: Optionally send email
-            // if (input.SendEmailNotification)
-            // {
-            //     var resetLink = $"{input.BaseUrl}/reset-password?token={token}";
-            //     var subject = "Password Reset Request";
-            //     var body = $@"
-            //     <p>Hello {user.FirstName},</p>
-            //     <p>We received a request to reset your password. 
-            //     Please click the link below to set a new password:</p>
-            //     <p><a href=""{resetLink}"">{resetLink}</a></p>
-            //     <p>This link will expire in 1 hour.</p>
-            //     <p>If you did not request this, please ignore this email.</p>
-            // ";
-
-            //     await _emailSender.SendEmailAsync(user.Email, subject, body);
-            // }
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequestDto input)
@@ -425,14 +409,13 @@ namespace Salubrity.Application.Services.Auth
             var user = await _userRepository.FindUserByIdAsync(userId)
                 ?? throw new NotFoundException("User");
 
+            // ─────────────────────────────────────────────
+            // COLLECT ROLES, PERMISSIONS, MENUS
+            // ─────────────────────────────────────────────
             var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
             var roles = new List<string>();
             var permissions = new HashSet<string>();
             var menus = new List<MenuResponseDto>();
-
-            // Employee? emp = await _employeeRepository.FindByUserAndOrgAsync(user.Id, user.Organization.Id);
-
-
 
             foreach (var roleId in roleIds)
             {
@@ -440,12 +423,14 @@ namespace Salubrity.Application.Services.Auth
                 if (role != null) roles.Add(role.Name);
 
                 var rolePerms = await _rolePermissionGroupService.GetPermissionGroupsByRoleAsync(roleId);
-                foreach (var p in rolePerms) permissions.Add(p.Name);
+                foreach (var p in rolePerms)
+                    permissions.Add(p.Name);
 
                 var roleMenus = await _menuRoleService.GetMenusByRoleAsync(roleId);
                 menus.AddRange(roleMenus);
             }
 
+            // Deduplicate and order menus
             var uniqueMenus = menus
                 .GroupBy(m => m.Id)
                 .Select(g => g.First())
@@ -453,6 +438,7 @@ namespace Salubrity.Application.Services.Auth
                 .OrderBy(m => m.Order)
                 .ToList();
 
+            // Build hierarchy
             var menuDtos = new Dictionary<Guid, MenuResponseDto>();
             var roots = new List<MenuResponseDto>();
 
@@ -464,8 +450,9 @@ namespace Salubrity.Application.Services.Auth
                     Label = menu.Label,
                     Path = menu.Path,
                     Icon = menu.Icon,
-                    Children = []
+                    Children = new()
                 };
+
                 menuDtos[menu.Id] = dto;
 
                 if (menu.ParentId is null)
@@ -478,6 +465,9 @@ namespace Salubrity.Application.Services.Auth
                 }
             }
 
+            // ─────────────────────────────────────────────
+            // ONBOARDING STATUS
+            // ─────────────────────────────────────────────
             var onboardingStatus = await _onboardingService.GetOnboardingStatusAsync(user.Id);
             var isOnboardingComplete = onboardingStatus?.IsOnboardingComplete ?? false;
 
@@ -486,36 +476,91 @@ namespace Salubrity.Application.Services.Auth
                 isOnboardingComplete = await _onboardingService.CheckAndUpdateOnboardingStatusAsync(user.Id);
             }
 
+            // ─────────────────────────────────────────────
+            // PATIENT BILLING STATUS
+            // ─────────────────────────────────────────────
             string? billingStatus = null;
-
             var patient = await _patientRepository.GetByUserIdAsync(userId);
 
             if (patient != null)
             {
-                var participantId = await _healthCampParticipantRepository.GetParticipantIdByPatientIdAsync(patient.Id);
-                var participant = await _healthCampParticipantRepository.GetParticipantWithBillingStatusByIdAsync(participantId.Value);
-                billingStatus = participant?.BillingStatus?.Name;
+                var participantId = await _healthCampParticipantRepository
+                    .GetParticipantIdByPatientIdAsync(patient.Id);
+
+                if (participantId.HasValue)
+                {
+                    var participant = await _healthCampParticipantRepository
+                        .GetParticipantWithBillingStatusByIdAsync(participantId.Value);
+
+                    billingStatus = participant?.BillingStatus?.Name;
+                }
             }
 
+            // ─────────────────────────────────────────────
+            // EMPLOYEE: EXTRACT ORGANIZATION + BRANCH
+            // ─────────────────────────────────────────────
+            MiniOrganizationDto? orgDto = null;
+            MiniBranchDto? branchDto = null;
+            Guid? employeeId = null;
 
+            if (user.RelatedEntityType == "Employee" && user.RelatedEntityId.HasValue)
+            {
+                var employee = await _employeeRepository.GetByIdWithOrgAndBranchAsync(user.RelatedEntityId.Value);
+
+                if (employee != null)
+                {
+                    employeeId = employee.Id;
+
+                    // Organization
+                    if (employee.Organization != null)
+                    {
+                        orgDto = new MiniOrganizationDto
+                        {
+                            Id = employee.Organization.Id,
+                            BusinessName = employee.Organization.BusinessName
+                        };
+                    }
+
+                    // Branch
+                    if (employee.Branch != null)
+                    {
+                        branchDto = new MiniBranchDto
+                        {
+                            Id = employee.Branch.Id,
+                            BranchName = employee.Branch.BranchName
+                        };
+                    }
+                }
+            }
+
+            // ─────────────────────────────────────────────
+            // FINAL RESPONSE
+            // ─────────────────────────────────────────────
             return new MeResponseDto
             {
                 Id = user.Id,
                 Email = user.Email,
                 FullName = $"{user.FirstName} {user.LastName}",
                 Roles = roles,
-                Permissions = [.. permissions],
+                Permissions = permissions.ToList(),
                 Menus = roots,
+
                 RelatedEntityType = user.RelatedEntityType,
                 RelatedEntityId = user.RelatedEntityId,
+
                 OnboardingComplete = isOnboardingComplete,
+
                 BillingStatus = new BillingStatusDto
                 {
                     CanProceed = billingStatus == "Billed" || billingStatus == "Proceed without billing",
                     Status = billingStatus
                 },
-                EmployeeId = null
+
+                EmployeeId = employeeId,
+                Organization = orgDto,
+                Branch = branchDto
             };
         }
+
     }
 }

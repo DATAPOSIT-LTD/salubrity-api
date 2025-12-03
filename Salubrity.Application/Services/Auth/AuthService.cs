@@ -410,7 +410,7 @@ namespace Salubrity.Application.Services.Auth
                 ?? throw new NotFoundException("User");
 
             // ─────────────────────────────────────────────
-            // COLLECT ROLES, PERMISSIONS, MENUS
+            // ROLES, PERMISSIONS, MENUS
             // ─────────────────────────────────────────────
             var roleIds = user.UserRoles.Select(ur => ur.RoleId).ToList();
             var roles = new List<string>();
@@ -430,7 +430,7 @@ namespace Salubrity.Application.Services.Auth
                 menus.AddRange(roleMenus);
             }
 
-            // Deduplicate and order menus
+            // Deduplicate & order menus
             var uniqueMenus = menus
                 .GroupBy(m => m.Id)
                 .Select(g => g.First())
@@ -466,7 +466,7 @@ namespace Salubrity.Application.Services.Auth
             }
 
             // ─────────────────────────────────────────────
-            // ONBOARDING STATUS
+            // ONBOARDING
             // ─────────────────────────────────────────────
             var onboardingStatus = await _onboardingService.GetOnboardingStatusAsync(user.Id);
             var isOnboardingComplete = onboardingStatus?.IsOnboardingComplete ?? false;
@@ -497,39 +497,49 @@ namespace Salubrity.Application.Services.Auth
             }
 
             // ─────────────────────────────────────────────
-            // EMPLOYEE: EXTRACT ORGANIZATION + BRANCH
+            // EMPLOYEE: EXTRACT ORGANIZATION + BRANCH (HYBRID LOGIC)
             // ─────────────────────────────────────────────
             MiniOrganizationDto? orgDto = null;
             MiniBranchDto? branchDto = null;
             Guid? employeeId = null;
 
+            Employee? employee = null;
+
+            // Try clean architecture lookup
             if (user.RelatedEntityType == "Employee" && user.RelatedEntityId.HasValue)
             {
-                var employee = await _employeeRepository.GetByIdWithOrgAndBranchAsync(user.RelatedEntityId.Value);
+                employee = await _employeeRepository
+                    .GetByIdWithOrgAndBranchAsync(user.RelatedEntityId.Value);
+            }
 
-                if (employee != null)
+            // Fallback: Try get employee by UserId
+            if (employee == null)
+            {
+                employee = await _employeeRepository
+                    .GetByUserIdWithOrgAndBranchAsync(user.Id);
+            }
+
+            // If employee found → map organization and branch
+            if (employee != null)
+            {
+                employeeId = employee.Id;
+
+                if (employee.Organization != null)
                 {
-                    employeeId = employee.Id;
-
-                    // Organization
-                    if (employee.Organization != null)
+                    orgDto = new MiniOrganizationDto
                     {
-                        orgDto = new MiniOrganizationDto
-                        {
-                            Id = employee.Organization.Id,
-                            BusinessName = employee.Organization.BusinessName
-                        };
-                    }
+                        Id = employee.Organization.Id,
+                        BusinessName = employee.Organization.BusinessName
+                    };
+                }
 
-                    // Branch
-                    if (employee.Branch != null)
+                if (employee.Branch != null)
+                {
+                    branchDto = new MiniBranchDto
                     {
-                        branchDto = new MiniBranchDto
-                        {
-                            Id = employee.Branch.Id,
-                            BranchName = employee.Branch.BranchName
-                        };
-                    }
+                        Id = employee.Branch.Id,
+                        BranchName = employee.Branch.BranchName
+                    };
                 }
             }
 
@@ -561,6 +571,7 @@ namespace Salubrity.Application.Services.Auth
                 Branch = branchDto
             };
         }
+
 
     }
 }

@@ -14,5 +14,7 @@ public interface IEmployeeRepository
     Task<List<Employee>> WhereAsync(Expression<Func<Employee, bool>> predicate);
     Task CreateEmployeeAndPatientAsync(Employee employee, Patient patient, CancellationToken ct = default);
     Task<Employee?> FindByUserAndOrgAsync(Guid userId, Guid organizationId);
+    Task<Employee?> GetByUserIdWithOrgAndBranchAsync(Guid userId);
     Task<Employee?> GetByIdWithOrgAndBranchAsync(Guid id);
+
 }

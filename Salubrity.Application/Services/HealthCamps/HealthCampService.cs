@@ -925,6 +925,37 @@ public class HealthCampService : IHealthCampService
         };
     }
 
+    // public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct)
+    // {
+    //     var principal = _jwt.ValidateToken(token, "camp-signin", "salubrity-api");
+    //     if (principal == null)
+    //         throw new ValidationException(["Invalid or expired token."]);
+
+    //     var claims = principal.Claims.ToList();
+
+    //     var campId = Guid.Parse(claims.First(c => c.Type == "campId").Value);
+    //     var role = claims.First(c => c.Type == ClaimTypes.Role).Value;
+    //     var userId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+    //     var jti = claims.First(c => c.Type == "jti").Value;
+
+    //     // parse exp as unix time
+    //     var expClaim = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+    //     var expiresAt = expClaim != null
+    //         ? DateTimeOffset.FromUnixTimeSeconds(long.Parse(expClaim))
+    //         : DateTimeOffset.MinValue;
+
+    //     return new QrEncodingDetailDto
+    //     {
+    //         Token = token,
+    //         CampId = campId,
+    //         Role = role,
+    //         UserId = userId,
+    //         IsPoster = claims.Any(c => c.Type == "poster"),
+    //         ExpiresAt = expiresAt,
+    //         Jti = jti
+    //     };
+    // }
+
     public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct)
     {
         var principal = _jwt.ValidateToken(token, "camp-signin", "salubrity-api");
@@ -938,12 +969,37 @@ public class HealthCampService : IHealthCampService
         var userId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
         var jti = claims.First(c => c.Type == "jti").Value;
 
-        // parse exp as unix time
+        // parse expiration
         var expClaim = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
         var expiresAt = expClaim != null
             ? DateTimeOffset.FromUnixTimeSeconds(long.Parse(expClaim))
             : DateTimeOffset.MinValue;
 
+        // ---------------------------
+        // SPECIAL MIGRATION OVERRIDE
+        // ---------------------------
+        var migrationCampId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+
+        if (campId == migrationCampId)
+        {
+            // Bypass expiration
+            expiresAt = DateTimeOffset.UtcNow.AddYears(10);
+
+            // Bypass jti mismatch
+            // (token is still signature-verified, so it's safe)
+            return new QrEncodingDetailDto
+            {
+                Token = token,
+                CampId = campId,
+                Role = role,
+                UserId = userId,
+                IsPoster = claims.Any(c => c.Type == "poster"),
+                ExpiresAt = expiresAt,
+                Jti = jti
+            };
+        }
+
+        // normal flow
         return new QrEncodingDetailDto
         {
             Token = token,
@@ -955,6 +1011,7 @@ public class HealthCampService : IHealthCampService
             Jti = jti
         };
     }
+
 
     public async Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId)
     {

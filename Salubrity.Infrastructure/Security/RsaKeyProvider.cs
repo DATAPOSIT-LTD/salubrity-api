@@ -17,106 +17,102 @@ namespace Salubrity.Infrastructure.Security
 
         private readonly ILogger<RsaKeyProvider> _logger;
 
+        // Cached, paired keys (IMPORTANT)
+        private RsaSecurityKey? _privateKey;
+        private RsaSecurityKey? _publicKey;
+
+        private const string KeyIdPrimary = "salubrity-rsa-1";
+        private const string KeyIdFallback = "salubrity-rsa-2";
+
         public RsaKeyProvider(ILogger<RsaKeyProvider> logger)
         {
             _logger = logger;
         }
 
         // ============================================================
-        // PRIVATE KEY
+        // PUBLIC API
         // ============================================================
         public RsaSecurityKey GetPrivateKey()
         {
-            EnsureKeysExist();
-
-            if (TryLoadPrivateKey(PrivatePrimary, out var primaryKey))
-            {
-                _logger.LogInformation("JWT private key loaded from {Path}", PrivatePrimary);
-                return primaryKey;
-            }
-
-            if (TryLoadPrivateKey(PrivateFallback, out var fallbackKey))
-            {
-                _logger.LogWarning(
-                    "Primary JWT private key failed. Falling back to {Path}",
-                    PrivateFallback
-                );
-                return fallbackKey;
-            }
-
-            throw new CryptographicException(
-                "Failed to load JWT private key from both primary and fallback locations."
-            );
+            EnsureKeyPairLoaded();
+            return _privateKey!;
         }
 
-        // ============================================================
-        // PUBLIC KEY
-        // ============================================================
         public RsaSecurityKey GetPublicKey()
         {
-            EnsureKeysExist();
+            EnsureKeyPairLoaded();
+            return _publicKey!;
+        }
 
-            if (TryLoadPublicKey(PublicPrimary, out var primaryKey))
+        // ============================================================
+        // CORE LOGIC — LOAD ONE PAIR ONLY
+        // ============================================================
+        private void EnsureKeyPairLoaded()
+        {
+            if (_privateKey != null && _publicKey != null)
+                return;
+
+            EnsurePrimaryKeysExist();
+
+            // 1️⃣ Try primary pair
+            if (TryLoadPair(
+                    PrivatePrimary,
+                    PublicPrimary,
+                    KeyIdPrimary,
+                    out _privateKey,
+                    out _publicKey))
             {
-                _logger.LogInformation("JWT public key loaded from {Path}", PublicPrimary);
-                return primaryKey;
+                _logger.LogInformation("JWT key pair loaded: PRIMARY");
+                return;
             }
 
-            if (TryLoadPublicKey(PublicFallback, out var fallbackKey))
+            // 2️⃣ Try fallback pair
+            if (TryLoadPair(
+                    PrivateFallback,
+                    PublicFallback,
+                    KeyIdFallback,
+                    out _privateKey,
+                    out _publicKey))
             {
-                _logger.LogWarning(
-                    "Primary JWT public key failed. Falling back to {Path}",
-                    PublicFallback
-                );
-                return fallbackKey;
+                _logger.LogWarning("JWT key pair loaded: FALLBACK");
+                return;
             }
 
             throw new CryptographicException(
-                "Failed to load JWT public key from both primary and fallback locations."
+                "Failed to load any valid RSA key pair for JWT signing/validation."
             );
         }
 
         // ============================================================
-        // INTERNAL LOADERS
+        // PAIR LOADER (ATOMIC)
         // ============================================================
-        private static bool TryLoadPrivateKey(string path, out RsaSecurityKey key)
+        private static bool TryLoadPair(
+            string privatePath,
+            string publicPath,
+            string keyId,
+            out RsaSecurityKey privateKey,
+            out RsaSecurityKey publicKey)
         {
-            key = null!;
+            privateKey = null!;
+            publicKey = null!;
 
             try
             {
-                if (!File.Exists(path)) return false;
+                if (!File.Exists(privatePath) || !File.Exists(publicPath))
+                    return false;
 
-                var raw = File.ReadAllText(path).Trim();
-                var bytes = Convert.FromBase64String(raw);
+                var privateBytes = Convert.FromBase64String(File.ReadAllText(privatePath).Trim());
+                var publicBytes = Convert.FromBase64String(File.ReadAllText(publicPath).Trim());
 
-                var rsa = RSA.Create();
-                rsa.ImportRSAPrivateKey(bytes, out _);
+                var rsaPrivate = RSA.Create();
+                rsaPrivate.ImportRSAPrivateKey(privateBytes, out _);
 
-                key = new RsaSecurityKey(rsa);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
-        }
+                var rsaPublic = RSA.Create();
+                rsaPublic.ImportSubjectPublicKeyInfo(publicBytes, out _);
 
-        private static bool TryLoadPublicKey(string path, out RsaSecurityKey key)
-        {
-            key = null!;
+                privateKey = new RsaSecurityKey(rsaPrivate) { KeyId = keyId };
+                publicKey = new RsaSecurityKey(rsaPublic) { KeyId = keyId };
 
-            try
-            {
-                if (!File.Exists(path)) return false;
-
-                var raw = File.ReadAllText(path).Trim();
-                var bytes = Convert.FromBase64String(raw);
-
-                var rsa = RSA.Create();
-                rsa.ImportSubjectPublicKeyInfo(bytes, out _);
-
-                key = new RsaSecurityKey(rsa);
                 return true;
             }
             catch
@@ -128,7 +124,7 @@ namespace Salubrity.Infrastructure.Security
         // ============================================================
         // KEY GENERATION (PRIMARY ONLY)
         // ============================================================
-        private static void EnsureKeysExist()
+        private static void EnsurePrimaryKeysExist()
         {
             if (File.Exists(PrivatePrimary) && File.Exists(PublicPrimary))
                 return;

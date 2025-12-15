@@ -149,5 +149,15 @@ namespace Salubrity.Infrastructure.Security
             return handler.ValidateToken(token, validationParams, out _);
         }
 
+        public ClaimsPrincipal DecodeTokenWithoutValidation(string token)
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+
+            var identity = new ClaimsIdentity(jwt.Claims, authenticationType: "QR");
+            return new ClaimsPrincipal(identity);
+        }
+
+
     }
 }

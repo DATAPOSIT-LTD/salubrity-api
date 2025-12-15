@@ -925,36 +925,68 @@ public class HealthCampService : IHealthCampService
         };
     }
 
-    public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct)
+    // public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct)
+    // {
+    //     var principal = _jwt.ValidateToken(token, "camp-signin", "salubrity-api");
+    //     if (principal == null)
+    //         throw new ValidationException(["Invalid or expired token."]);
+
+    //     var claims = principal.Claims.ToList();
+
+    //     var campId = Guid.Parse(claims.First(c => c.Type == "campId").Value);
+    //     var role = claims.First(c => c.Type == ClaimTypes.Role).Value;
+    //     var userId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+    //     var jti = claims.First(c => c.Type == "jti").Value;
+
+    //     // parse exp as unix time
+    //     var expClaim = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+    //     var expiresAt = expClaim != null
+    //         ? DateTimeOffset.FromUnixTimeSeconds(long.Parse(expClaim))
+    //         : DateTimeOffset.MinValue;
+
+    //     return new QrEncodingDetailDto
+    //     {
+    //         Token = token,
+    //         CampId = campId,
+    //         Role = role,
+    //         UserId = userId,
+    //         IsPoster = claims.Any(c => c.Type == "poster"),
+    //         ExpiresAt = expiresAt,
+    //         Jti = jti
+    //     };
+    // }
+
+    public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(
+       string token,
+       CancellationToken ct)
     {
-        var principal = _jwt.ValidateToken(token, "camp-signin", "salubrity-api");
-        if (principal == null)
-            throw new ValidationException(["Invalid or expired token."]);
+        var principal = _jwt.DecodeTokenWithoutValidation(token);
 
         var claims = principal.Claims.ToList();
 
+        // soft validation only
         var campId = Guid.Parse(claims.First(c => c.Type == "campId").Value);
         var role = claims.First(c => c.Type == ClaimTypes.Role).Value;
-        var userId = claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-        var jti = claims.First(c => c.Type == "jti").Value;
 
-        // parse exp as unix time
-        var expClaim = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
-        var expiresAt = expClaim != null
-            ? DateTimeOffset.FromUnixTimeSeconds(long.Parse(expClaim))
-            : DateTimeOffset.MinValue;
+        // optional expiry check (recommended)
+        var exp = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+        if (exp != null &&
+            DateTimeOffset.FromUnixTimeSeconds(long.Parse(exp)) < DateTimeOffset.UtcNow)
+        {
+            throw new ValidationException(["Poster link expired."]);
+        }
 
+        // async work can happen here later
         return new QrEncodingDetailDto
         {
             Token = token,
             CampId = campId,
             Role = role,
-            UserId = userId,
-            IsPoster = claims.Any(c => c.Type == "poster"),
-            ExpiresAt = expiresAt,
-            Jti = jti
+            IsPoster = claims.Any(c => c.Type == "poster")
         };
     }
+
+
 
     public async Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId)
     {

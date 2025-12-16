@@ -114,7 +114,7 @@ namespace Salubrity.Application.Services.Auth
             // --- Extract roleId and org id from camp token if present ---
             if (!string.IsNullOrWhiteSpace(input.CampToken))
             {
-                var principal = _jwtService.ValidateToken(input.CampToken, "camp-signin", "salubrity-api");
+                var principal = _jwtService.ValidateToken(input.CampToken); // "camp-signin", "salubrity-api"
 
                 // Extract roleId
                 var roleIdClaim = principal?.Claims.FirstOrDefault(c => c.Type == "roleId")?.Value;

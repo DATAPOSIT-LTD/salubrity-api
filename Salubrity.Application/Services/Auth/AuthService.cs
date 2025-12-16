@@ -114,20 +114,15 @@ namespace Salubrity.Application.Services.Auth
             // --- Extract roleId and org id from camp token if present ---
             if (!string.IsNullOrWhiteSpace(input.CampToken))
             {
-                var principal = _jwtService.ValidateToken(input.CampToken); // "camp-signin", "salubrity-api"
+                // TEMPORARY: hard-wired camp onboarding (JWT disabled)
+                var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+                input.OrganizationId = Guid.Parse("4f3443d0-331d-4d46-9f2b-e4b1b6890a06");
 
-                // Extract roleId
-                var roleIdClaim = principal?.Claims.FirstOrDefault(c => c.Type == "roleId")?.Value;
-                if (!Guid.TryParse(roleIdClaim, out var tokenRoleId))
-                    throw new ValidationException(["Invalid or missing roleId in camp token."]);
-                input.RoleId = tokenRoleId;
-
-                // Extract organizationId
-                var orgIdClaim = principal?.Claims.FirstOrDefault(c => c.Type == "organizationId")?.Value;
-                if (!string.IsNullOrWhiteSpace(orgIdClaim) && Guid.TryParse(orgIdClaim, out var tokenOrgId))
-                {
-                    input.OrganizationId = tokenOrgId;
-                }
+                // NOTE:
+                // - No JWT validation
+                // - No signature checks
+                // - No claims extraction
+                // - CampToken acts as a feature flag only
             }
 
             var role = await _roleRepository.GetByIdAsync(

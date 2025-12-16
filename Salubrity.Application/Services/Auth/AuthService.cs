@@ -98,6 +98,167 @@ namespace Salubrity.Application.Services.Auth
 
 
 
+        // public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
+        // {
+        //     if (!input.AcceptTerms)
+        //         throw new ValidationException(["You must accept the Terms & Conditions to register."]);
+
+        //     if (input.Password != input.ConfirmPassword)
+        //         throw new ValidationException(["Passwords do not match."]);
+
+        //     var normalizedEmail = input.Email.Trim().ToLowerInvariant();
+        //     var existingUser = await _userRepository.FindUserByEmailAsync(normalizedEmail);
+        //     if (existingUser is not null)
+        //         throw new ValidationException(["A user with this email already exists."]);
+
+        //     // --- Extract roleId and org id from camp token if present ---
+        //     if (!string.IsNullOrWhiteSpace(input.CampToken))
+        //     {
+        //         // TEMPORARY: hard-wired camp onboarding (JWT disabled)
+        //         var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+        //         input.OrganizationId = Guid.Parse("4f3443d0-331d-4d46-9f2b-e4b1b6890a06");
+
+        //         // NOTE:
+        //         // - No JWT validation
+        //         // - No signature checks
+        //         // - No claims extraction
+        //         // - CampToken acts as a feature flag only
+        //     }
+
+        //     input.RoleId = Guid.Parse("d61e86ec-2612-4da3-abaf-e4af7c488b9b");//patient
+
+        //     var role = await _roleRepository.GetByIdAsync(
+        //         input.RoleId ?? throw new ValidationException(["RoleId is required."])
+        //     ) ?? throw new NotFoundException("Role", input.RoleId?.ToString() ?? "null");
+
+        //     // If OrganizationId is provided, make sure it exists
+        //     if (input.OrganizationId.HasValue)
+        //     {
+        //         var orgExists = await _organizationRepository.GetByIdAsync(input.OrganizationId.Value);
+        //         if (orgExists == null)
+        //             throw new NotFoundException("Organization", input.OrganizationId.Value.ToString());
+        //     }
+
+        //     var hashed = _passwordHasher.HashPassword(input.Password);
+        //     var userId = Guid.NewGuid();
+
+        //     var user = new User
+        //     {
+        //         Id = userId,
+        //         FirstName = input.FirstName,
+        //         MiddleName = input.MiddleName,
+        //         LastName = input.LastName,
+        //         Email = normalizedEmail,
+        //         PasswordHash = hashed,
+        //         IsActive = true,
+        //         IsVerified = false,
+        //         CreatedAt = DateTime.UtcNow,
+        //         UserRoles = [new() { UserId = userId, RoleId = input.RoleId ?? throw new ValidationException(["RoleId is required."]) }],
+        //         OrganizationId = input.OrganizationId
+        //     };
+
+        //     // Optional: wrap in a transaction if your infra provides it
+        //     // using var tx = await _unitOfWork.BeginTransactionAsync();
+
+        //     await _userRepository.AddUserAsync(user);
+
+        //     // ---- Create Employee if OrganizationId provided ----
+        //     if (input.OrganizationId.HasValue)
+        //     {
+        //         var orgId = input.OrganizationId.Value;
+
+        //         var existingEmployee = await _employeeRepository.FindByUserAndOrgAsync(user.Id, orgId);
+        //         if (existingEmployee is null)
+        //         {
+        //             var employee = new Employee
+        //             {
+        //                 Id = Guid.NewGuid(),
+        //                 UserId = user.Id,
+        //                 OrganizationId = orgId,
+        //                 CreatedAt = DateTime.UtcNow,
+        //                 IsDeleted = false
+        //                 // JobTitleId, DepartmentId remain null unless you set defaults
+        //             };
+
+        //             await _employeeRepository.CreateAsync(employee);
+        //         }
+        //     }
+
+        //     // ---- Role-specific entity ----
+        //     switch (role.Name)
+        //     {
+        //         case "Subcontractor":
+        //             {
+        //                 var industry = await _industryRepository.GetByNameAsync("General")
+        //                     ?? throw new NotFoundException("Industry", "General");
+        //                 var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
+        //                     ?? throw new NotFoundException("SubcontractorStatus", "Active");
+
+        //                 var subcontractor = new Salubrity.Domain.Entities.Subcontractor.Subcontractor
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     UserId = user.Id,
+        //                     IndustryId = industry.Id,
+        //                     StatusId = status.Id,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     IsDeleted = false
+        //                 };
+        //                 await _subcontractorRepository.AddAsync(subcontractor);
+
+        //                 user.RelatedEntityType = "Subcontractor";
+        //                 user.RelatedEntityId = subcontractor.Id;
+        //                 await _userRepository.UpdateUserAsync(user);
+        //                 break;
+        //             }
+
+        //         case "Patient":
+        //             {
+        //                 var patient = new Patient
+        //                 {
+        //                     Id = Guid.NewGuid(),
+        //                     UserId = user.Id,
+        //                     CreatedAt = DateTime.UtcNow,
+        //                     IsDeleted = false
+        //                 };
+        //                 var patientNumber = await _patientNumberGeneratorService.GenerateAsync();
+        //                 patient.PatientNumber = patientNumber;
+        //                 await _patientRepository.AddAsync(patient);
+
+        //                 user.RelatedEntityType = "Patient";
+        //                 user.RelatedEntityId = patient.Id;
+        //                 await _userRepository.UpdateUserAsync(user);
+        //                 break;
+        //             }
+        //     }
+
+        //     // ---- Best-effort camp linking ----
+        //     CampLinkResultDto? campResult = null;
+        //     if (!string.IsNullOrWhiteSpace(input.CampToken))
+        //     {
+        //         campResult = await _campService.TryLinkUserToCampAsync(user.Id, input.CampToken, CancellationToken.None);
+        //     }
+
+        //     // ---- Tokens ----
+        //     var expiresAt = DateTime.UtcNow.AddMinutes(30);
+        //     var rolesArr = new[] { role.Name };
+        //     var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, rolesArr);
+        //     var refreshToken = _jwtService.GenerateRefreshToken();
+
+        //     // await tx.CommitAsync();
+
+        //     return new AuthResponseDto
+        //     {
+        //         AccessToken = accessToken,
+        //         RefreshToken = refreshToken,
+        //         ExpiresAt = expiresAt,
+        //         CampLinked = campResult?.Linked,
+        //         CampId = campResult?.CampId,
+        //         Warnings = campResult?.Warnings,
+        //         Info = campResult?.Info
+        //     };
+        // }
+
+
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto input)
         {
             if (!input.AcceptTerms)
@@ -125,7 +286,11 @@ namespace Salubrity.Application.Services.Auth
                 // - CampToken acts as a feature flag only
             }
 
-            input.RoleId = Guid.Parse("d61e86ec-2612-4da3-abaf-e4af7c488b9b");//patient
+            //  DEFAULT ROLE ONLY IF NOT PROVIDED
+            if (!input.RoleId.HasValue)
+            {
+                input.RoleId = Guid.Parse("d61e86ec-2612-4da3-abaf-e4af7c488b9b"); // Patient
+            }
 
             var role = await _roleRepository.GetByIdAsync(
                 input.RoleId ?? throw new ValidationException(["RoleId is required."])
@@ -153,12 +318,16 @@ namespace Salubrity.Application.Services.Auth
                 IsActive = true,
                 IsVerified = false,
                 CreatedAt = DateTime.UtcNow,
-                UserRoles = [new() { UserId = userId, RoleId = input.RoleId ?? throw new ValidationException(["RoleId is required."]) }],
+                UserRoles =
+                [
+                    new()
+            {
+                UserId = userId,
+                RoleId = input.RoleId ?? throw new ValidationException(["RoleId is required."])
+            }
+                ],
                 OrganizationId = input.OrganizationId
             };
-
-            // Optional: wrap in a transaction if your infra provides it
-            // using var tx = await _unitOfWork.BeginTransactionAsync();
 
             await _userRepository.AddUserAsync(user);
 
@@ -177,7 +346,6 @@ namespace Salubrity.Application.Services.Auth
                         OrganizationId = orgId,
                         CreatedAt = DateTime.UtcNow,
                         IsDeleted = false
-                        // JobTitleId, DepartmentId remain null unless you set defaults
                     };
 
                     await _employeeRepository.CreateAsync(employee);
@@ -191,6 +359,7 @@ namespace Salubrity.Application.Services.Auth
                     {
                         var industry = await _industryRepository.GetByNameAsync("General")
                             ?? throw new NotFoundException("Industry", "General");
+
                         var status = await _subcontractorStatusRepository.FindByNameAsync("Active")
                             ?? throw new NotFoundException("SubcontractorStatus", "Active");
 
@@ -203,6 +372,7 @@ namespace Salubrity.Application.Services.Auth
                             CreatedAt = DateTime.UtcNow,
                             IsDeleted = false
                         };
+
                         await _subcontractorRepository.AddAsync(subcontractor);
 
                         user.RelatedEntityType = "Subcontractor";
@@ -220,8 +390,10 @@ namespace Salubrity.Application.Services.Auth
                             CreatedAt = DateTime.UtcNow,
                             IsDeleted = false
                         };
+
                         var patientNumber = await _patientNumberGeneratorService.GenerateAsync();
                         patient.PatientNumber = patientNumber;
+
                         await _patientRepository.AddAsync(patient);
 
                         user.RelatedEntityType = "Patient";
@@ -235,7 +407,11 @@ namespace Salubrity.Application.Services.Auth
             CampLinkResultDto? campResult = null;
             if (!string.IsNullOrWhiteSpace(input.CampToken))
             {
-                campResult = await _campService.TryLinkUserToCampAsync(user.Id, input.CampToken, CancellationToken.None);
+                campResult = await _campService.TryLinkUserToCampAsync(
+                    user.Id,
+                    input.CampToken,
+                    CancellationToken.None
+                );
             }
 
             // ---- Tokens ----
@@ -243,8 +419,6 @@ namespace Salubrity.Application.Services.Auth
             var rolesArr = new[] { role.Name };
             var accessToken = _jwtService.GenerateAccessToken(user.Id, user.Email, rolesArr);
             var refreshToken = _jwtService.GenerateRefreshToken();
-
-            // await tx.CommitAsync();
 
             return new AuthResponseDto
             {
@@ -257,6 +431,7 @@ namespace Salubrity.Application.Services.Auth
                 Info = campResult?.Info
             };
         }
+
 
 
 

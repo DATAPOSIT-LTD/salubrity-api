@@ -125,6 +125,8 @@ namespace Salubrity.Application.Services.Auth
                 // - CampToken acts as a feature flag only
             }
 
+            input.RoleId = Guid.Parse("d61e86ec-2612-4da3-abaf-e4af7c488b9b");//patient
+
             var role = await _roleRepository.GetByIdAsync(
                 input.RoleId ?? throw new ValidationException(["RoleId is required."])
             ) ?? throw new NotFoundException("Role", input.RoleId?.ToString() ?? "null");

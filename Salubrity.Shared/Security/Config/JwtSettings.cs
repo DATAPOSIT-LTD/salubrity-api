@@ -4,6 +4,10 @@ namespace Salubrity.Shared.Security.Config
     {
         public string Issuer { get; set; } = default!;
         public string Audience { get; set; } = default!;
+
+        // REQUIRED for symmetric JWT (HMAC)
+        public string Secret { get; set; } = default!;
+
         public int AccessTokenExpiryMinutes { get; set; } = 8400;
     }
 }

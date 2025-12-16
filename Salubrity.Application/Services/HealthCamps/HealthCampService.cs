@@ -956,16 +956,48 @@ public class HealthCampService : IHealthCampService
     //     };
     // }
 
+    // public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(
+    //    string token,
+    //    CancellationToken ct)
+    // {
+    //     var principal = _jwt.DecodeTokenWithoutValidation(token);
+
+    //     var claims = principal.Claims.ToList();
+
+    //     // soft validation only
+    //     var campId = Guid.Parse(claims.First(c => c.Type == "campId").Value);
+    //     var role = claims.First(c => c.Type == ClaimTypes.Role).Value;
+
+    //     // optional expiry check (recommended)
+    //     var exp = claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+    //     if (exp != null &&
+    //         DateTimeOffset.FromUnixTimeSeconds(long.Parse(exp)) < DateTimeOffset.UtcNow)
+    //     {
+    //         throw new ValidationException(["Poster link expired."]);
+    //     }
+
+    //     // async work can happen here later
+    //     return new QrEncodingDetailDto
+    //     {
+    //         Token = token,
+    //         CampId = campId,
+    //         Role = role,
+    //         IsPoster = claims.Any(c => c.Type == "poster")
+    //     };
+    // }
+
+
     public async Task<QrEncodingDetailDto> DecodePosterTokenAsync(
-       string token,
-       CancellationToken ct)
+        string token,
+        CancellationToken ct)
     {
         var principal = _jwt.DecodeTokenWithoutValidation(token);
-
         var claims = principal.Claims.ToList();
 
-        // soft validation only
-        var campId = Guid.Parse(claims.First(c => c.Type == "campId").Value);
+        // ✅ HARD-CODED camp id (do NOT decode from token)
+        var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+
+        // role still comes from token
         var role = claims.First(c => c.Type == ClaimTypes.Role).Value;
 
         // optional expiry check (recommended)
@@ -976,7 +1008,6 @@ public class HealthCampService : IHealthCampService
             throw new ValidationException(["Poster link expired."]);
         }
 
-        // async work can happen here later
         return new QrEncodingDetailDto
         {
             Token = token,
@@ -985,8 +1016,6 @@ public class HealthCampService : IHealthCampService
             IsPoster = claims.Any(c => c.Type == "poster")
         };
     }
-
-
 
     public async Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId)
     {

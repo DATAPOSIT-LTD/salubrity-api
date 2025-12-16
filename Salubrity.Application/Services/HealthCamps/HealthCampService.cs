@@ -787,23 +787,19 @@ public class HealthCampService : IHealthCampService
         return await _repo.GetUpcomingCampDatesAsync(ct);
     }
 
-    public async Task<CampLinkResultDto> TryLinkUserToCampAsync(Guid userId, string campToken, CancellationToken ct = default)
+    public async Task<CampLinkResultDto> TryLinkUserToCampAsync(
+     Guid userId,
+     string campToken, // kept for API compatibility, NOT used
+     CancellationToken ct = default)
     {
         var result = new CampLinkResultDto();
 
+        // 🔒 HARD-CODED CAMP (as requested)
+        var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+        result.CampId = campId;
+
         try
         {
-            var principal = _jwt.ValidateToken(campToken, "camp-signin", "salubrity-api");
-
-            var campIdStr = principal.FindFirst("campId")?.Value;
-            if (!Guid.TryParse(campIdStr, out var campId))
-            {
-                result.Warnings.Add("Camp token is invalid.");
-                return result;
-            }
-
-            result.CampId = campId;
-
             var camp = await _repo.GetByIdAsync(campId);
             if (camp is null)
             {
@@ -811,7 +807,7 @@ public class HealthCampService : IHealthCampService
                 return result;
             }
 
-            // Don't link to past camps
+            // Prevent linking to past camps
             var today = DateTime.UtcNow.Date;
             if (camp.EndDate.HasValue && camp.EndDate.Value.Date < today)
             {
@@ -819,7 +815,10 @@ public class HealthCampService : IHealthCampService
                 return result;
             }
 
-            var alreadyLinked = await _campParticipantRepository.IsParticipantLinkedToCampAsync(campId, userId, ct);
+            var alreadyLinked =
+                await _campParticipantRepository
+                    .IsParticipantLinkedToCampAsync(campId, userId, ct);
+
             if (alreadyLinked)
             {
                 result.Linked = true;
@@ -841,10 +840,6 @@ public class HealthCampService : IHealthCampService
             result.Linked = true;
             result.Info.Add("User linked to camp.");
         }
-        catch (SecurityTokenExpiredException)
-        {
-            result.Warnings.Add("Camp token expired.");
-        }
         catch (Exception)
         {
             result.Warnings.Add("Unexpected error during camp linking.");
@@ -852,6 +847,7 @@ public class HealthCampService : IHealthCampService
 
         return result;
     }
+
 
     public async Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default)
     {

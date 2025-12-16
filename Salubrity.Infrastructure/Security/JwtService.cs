@@ -1,169 +1,3 @@
-// using System;
-// using System.Collections.Generic;
-// using System.IdentityModel.Tokens.Jwt;
-// using System.Security.Claims;
-// using System.Security.Cryptography;
-// using Microsoft.Extensions.Options;
-// using Microsoft.IdentityModel.Tokens;
-// using Salubrity.Application.Interfaces.Security;
-// using Salubrity.Shared.Security.Config;
-
-// namespace Salubrity.Infrastructure.Security
-// {
-//     public class JwtService : IJwtService
-//     {
-//         private readonly IKeyProvider _keyProvider;
-//         private readonly JwtSettings _settings;
-
-//         public JwtService(IKeyProvider keyProvider, IOptions<JwtSettings> options)
-//         {
-//             _keyProvider = keyProvider;
-//             _settings = options.Value;
-//         }
-
-//         public string GenerateAccessToken(Guid userId, string email, string[] roles)
-//         {
-//             var claims = new List<Claim>
-//             {
-//                 new(JwtRegisteredClaimNames.Sub, userId.ToString()),
-//                 new(ClaimTypes.NameIdentifier, userId.ToString()),
-//                 new(JwtRegisteredClaimNames.Email, email),
-//                 new("user_id", userId.ToString())
-//             };
-
-//             foreach (var role in roles)
-//                 claims.Add(new Claim(ClaimTypes.Role, role));
-
-//             var credentials = new SigningCredentials(
-//                 _keyProvider.GetPrivateKey(),
-//                 SecurityAlgorithms.RsaSha256
-//             );
-
-
-//             var token = new JwtSecurityToken(
-//                 issuer: "Salubrity",//_settings.Issuer,
-//                 audience: "SalubrityClient",//_settings.Audience,
-//                 claims: claims,
-//                 notBefore: DateTime.UtcNow,
-//                 expires: DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),
-//                 signingCredentials: credentials
-//             );
-
-//             return new JwtSecurityTokenHandler().WriteToken(token);
-//         }
-
-//         // New overload #1 — claims + roles, uses default issuer/audience
-//         public string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string[] roles)
-//         {
-//             var allClaims = new List<Claim>(claims);
-
-//             foreach (var role in roles)
-//                 allClaims.Add(new Claim(ClaimTypes.Role, role));
-
-//             var credentials = new SigningCredentials(
-//                 _keyProvider.GetPrivateKey(),
-//                 SecurityAlgorithms.RsaSha256
-//             );
-
-//             var token = new JwtSecurityToken(
-//                 issuer: _settings.Issuer,
-//                 audience: _settings.Audience,
-//                 claims: allClaims,
-//                 notBefore: DateTime.UtcNow,
-//                 expires: expiresUtc.UtcDateTime,
-//                 signingCredentials: credentials
-//             );
-
-//             return new JwtSecurityTokenHandler().WriteToken(token);
-//         }
-
-//         // New overload #2 — claims + custom issuer/audience (e.g. for ad hoc camp creds)
-//         public string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string issuer, string? audience)
-//         {
-//             audience ??= _settings.Audience;
-
-//             var credentials = new SigningCredentials(
-//                 _keyProvider.GetPrivateKey(),
-//                 SecurityAlgorithms.RsaSha256
-//             );
-
-//             var token = new JwtSecurityToken(
-//                 issuer: issuer,
-//                 audience: audience,
-//                 claims: claims,
-//                 notBefore: DateTime.UtcNow,
-//                 expires: expiresUtc.UtcDateTime,
-//                 signingCredentials: credentials
-//             );
-
-//             return new JwtSecurityTokenHandler().WriteToken(token);
-//         }
-
-//         public string GenerateRefreshToken()
-//         {
-//             var bytes = new byte[32];
-//             using var rng = RandomNumberGenerator.Create();
-//             rng.GetBytes(bytes);
-//             return Convert.ToBase64String(bytes);
-//         }
-
-//         public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-//         {
-//             var handler = new JwtSecurityTokenHandler();
-//             var validationParams = new TokenValidationParameters
-//             {
-//                 ValidateIssuer = true,
-//                 ValidateAudience = true,
-//                 ValidateLifetime = false,
-//                 ValidateIssuerSigningKey = true,
-//                 ValidIssuer = "Salubrity",//_settings.Issuer,
-//                 ValidAudience = "SalubrityClient",//_settings.Audience,
-//                 IssuerSigningKey = _keyProvider.GetPublicKey()
-//             };
-
-//             try
-//             {
-//                 return handler.ValidateToken(token, validationParams, out _);
-//             }
-//             catch
-//             {
-//                 return null;
-//             }
-//         }
-
-//         public ClaimsPrincipal ValidateToken(string token, string expectedAudience, string expectedIssuer)
-//         {
-//             var handler = new JwtSecurityTokenHandler();
-
-//             var validationParams = new TokenValidationParameters
-//             {
-//                 ValidateIssuer = true,
-//                 ValidateAudience = true,
-//                 ValidateLifetime = true,
-//                 ValidateIssuerSigningKey = true,
-//                 ValidIssuer = expectedIssuer,
-//                 ValidAudience = expectedAudience,
-//                 IssuerSigningKey = _keyProvider.GetPublicKey()
-//             };
-
-//             return handler.ValidateToken(token, validationParams, out _);
-//         }
-
-//         public ClaimsPrincipal DecodeTokenWithoutValidation(string token)
-//         {
-//             var handler = new JwtSecurityTokenHandler();
-//             var jwt = handler.ReadJwtToken(token);
-
-//             var identity = new ClaimsIdentity(jwt.Claims, authenticationType: "QR");
-//             return new ClaimsPrincipal(identity);
-//         }
-
-
-//     }
-// }
-
-
-
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
@@ -187,7 +21,7 @@ namespace Salubrity.Infrastructure.Security
             _settings = options.Value;
 
             if (string.IsNullOrWhiteSpace(_settings.Secret))
-                throw new InvalidOperationException("JWT Secret is missing.");
+                throw new InvalidOperationException("Jwt:Secret is missing.");
 
             _signingKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_settings.Secret)
@@ -211,12 +45,7 @@ namespace Salubrity.Infrastructure.Security
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
 
-            return GenerateTokenInternal(
-                claims,
-                DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),
-                _settings.Issuer,
-                _settings.Audience
-            );
+            return BuildToken(claims, _settings.Issuer, _settings.Audience);
         }
 
         public string GenerateAccessToken(
@@ -229,11 +58,11 @@ namespace Salubrity.Infrastructure.Security
             foreach (var role in roles)
                 allClaims.Add(new Claim(ClaimTypes.Role, role));
 
-            return GenerateTokenInternal(
+            return BuildToken(
                 allClaims,
-                expiresUtc.UtcDateTime,
                 _settings.Issuer,
-                _settings.Audience
+                _settings.Audience,
+                expiresUtc.UtcDateTime
             );
         }
 
@@ -243,19 +72,19 @@ namespace Salubrity.Infrastructure.Security
             string issuer,
             string? audience)
         {
-            return GenerateTokenInternal(
+            return BuildToken(
                 claims,
-                expiresUtc.UtcDateTime,
                 issuer,
-                audience ?? _settings.Audience
+                audience ?? _settings.Audience,
+                expiresUtc.UtcDateTime
             );
         }
 
-        private string GenerateTokenInternal(
+        private string BuildToken(
             IEnumerable<Claim> claims,
-            DateTime expiresUtc,
             string issuer,
-            string audience)
+            string audience,
+            DateTime? expires = null)
         {
             var credentials = new SigningCredentials(
                 _signingKey,
@@ -266,8 +95,7 @@ namespace Salubrity.Infrastructure.Security
                 issuer: issuer,
                 audience: audience,
                 claims: claims,
-                notBefore: DateTime.UtcNow,
-                expires: expiresUtc,
+                expires: expires ?? DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),
                 signingCredentials: credentials
             );
 
@@ -278,10 +106,7 @@ namespace Salubrity.Infrastructure.Security
         // VALIDATION
         // ============================================================
 
-        public ClaimsPrincipal ValidateToken(
-            string token,
-            string expectedAudience,
-            string expectedIssuer)
+        public ClaimsPrincipal ValidateToken(string token)
         {
             var handler = new JwtSecurityTokenHandler();
 
@@ -291,12 +116,9 @@ namespace Salubrity.Infrastructure.Security
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
-
-                ValidIssuer = expectedIssuer,
-                ValidAudience = expectedAudience,
-                IssuerSigningKey = _signingKey,
-
-                ClockSkew = TimeSpan.FromSeconds(30)
+                ValidIssuer = _settings.Issuer,
+                ValidAudience = _settings.Audience,
+                IssuerSigningKey = _signingKey
             };
 
             return handler.ValidateToken(token, parameters, out _);
@@ -310,9 +132,8 @@ namespace Salubrity.Infrastructure.Security
             {
                 ValidateIssuer = true,
                 ValidateAudience = true,
-                ValidateLifetime = false, // allow expired
+                ValidateLifetime = false,
                 ValidateIssuerSigningKey = true,
-
                 ValidIssuer = _settings.Issuer,
                 ValidAudience = _settings.Audience,
                 IssuerSigningKey = _signingKey
@@ -329,28 +150,21 @@ namespace Salubrity.Infrastructure.Security
         }
 
         // ============================================================
-        // NON-VALIDATING DECODE (POSTER / QR USE CASE)
+        // UTILITIES
         // ============================================================
 
         public ClaimsPrincipal DecodeTokenWithoutValidation(string token)
         {
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(token);
-
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(token);
             return new ClaimsPrincipal(
-                new ClaimsIdentity(jwt.Claims, authenticationType: "QR")
+                new ClaimsIdentity(jwt.Claims, "JWT")
             );
         }
-
-        // ============================================================
-        // REFRESH TOKEN
-        // ============================================================
 
         public string GenerateRefreshToken()
         {
             var bytes = new byte[32];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
+            RandomNumberGenerator.Fill(bytes);
             return Convert.ToBase64String(bytes);
         }
     }

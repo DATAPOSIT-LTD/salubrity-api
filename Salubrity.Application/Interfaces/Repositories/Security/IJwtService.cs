@@ -9,17 +9,14 @@ namespace Salubrity.Application.Interfaces.Security
         // SIGNING
         // ============================================================
 
-        // Existing: token based on user ID + email + roles
         string GenerateAccessToken(Guid userId, string email, string[] roles);
 
-        // New: flexible token based on claims + expiry + roles
         string GenerateAccessToken(
             IEnumerable<Claim> claims,
             DateTimeOffset expiresUtc,
             string[] roles
         );
 
-        // Optional: most flexible (custom issuer/audience)
         string GenerateAccessToken(
             IEnumerable<Claim> claims,
             DateTimeOffset expiresUtc,
@@ -30,22 +27,21 @@ namespace Salubrity.Application.Interfaces.Security
         // ============================================================
         // REFRESH
         // ============================================================
+
         string GenerateRefreshToken();
 
         // ============================================================
-        // VALIDATION (FULL CRYPTO)
+        // VALIDATION
         // ============================================================
+
+        ClaimsPrincipal ValidateToken(string token);
+
         ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
 
-        ClaimsPrincipal ValidateToken(
-            string token,
-            string expectedAudience,
-            string expectedIssuer
-        );
+        // ============================================================
+        // DECODE ONLY (NO CRYPTO)
+        // ============================================================
 
-        // ============================================================
-        // DECODE ONLY (NO SIGNATURE / NO CRYPTO)
-        // ============================================================
         ClaimsPrincipal DecodeTokenWithoutValidation(string token);
     }
 }

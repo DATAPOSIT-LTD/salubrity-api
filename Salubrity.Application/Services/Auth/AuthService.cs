@@ -115,7 +115,7 @@ namespace Salubrity.Application.Services.Auth
         //     if (!string.IsNullOrWhiteSpace(input.CampToken))
         //     {
         //         // TEMPORARY: hard-wired camp onboarding (JWT disabled)
-        //         var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+        //         var campId = Guid.Parse("cae880e3-936d-4e37-a6ea-168f5d56deb6");
         //         input.OrganizationId = Guid.Parse("4f3443d0-331d-4d46-9f2b-e4b1b6890a06");
 
         //         // NOTE:
@@ -276,7 +276,7 @@ namespace Salubrity.Application.Services.Auth
             if (!string.IsNullOrWhiteSpace(input.CampToken))
             {
                 // TEMPORARY: hard-wired camp onboarding (JWT disabled)
-                var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+                var campId = Guid.Parse("cae880e3-936d-4e37-a6ea-168f5d56deb6");
                 input.OrganizationId = Guid.Parse("4f3443d0-331d-4d46-9f2b-e4b1b6890a06");
 
                 // NOTE:

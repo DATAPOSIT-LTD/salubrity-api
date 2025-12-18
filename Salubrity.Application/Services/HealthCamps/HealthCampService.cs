@@ -795,7 +795,7 @@ public class HealthCampService : IHealthCampService
         var result = new CampLinkResultDto();
 
         // 🔒 HARD-CODED CAMP (as requested)
-        var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+        var campId = Guid.Parse("cae880e3-936d-4e37-a6ea-168f5d56deb6");
         result.CampId = campId;
 
         try
@@ -991,7 +991,7 @@ public class HealthCampService : IHealthCampService
         var claims = principal.Claims.ToList();
 
         // ✅ HARD-CODED camp id (do NOT decode from token)
-        var campId = Guid.Parse("91a6cfe8-383b-4dcd-b044-b167b526947c");
+        var campId = Guid.Parse("cae880e3-936d-4e37-a6ea-168f5d56deb6");
 
         // role still comes from token
         var role = claims.First(c => c.Type == ClaimTypes.Role).Value;

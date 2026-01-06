@@ -49,6 +49,11 @@ public class HealthCamp : BaseAuditableEntity
     public string? SubcontractorPosterJti { get; set; }
     public DateTimeOffset? PosterTokensExpireAt { get; set; }
 
+    [Required]
+    [MaxLength(160)]
+    public string Slug { get; set; } = default!;
+
+
     public virtual ICollection<HealthCampTempCredential> TempCredentials { get; set; } = new List<HealthCampTempCredential>();
     public virtual ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();
 }

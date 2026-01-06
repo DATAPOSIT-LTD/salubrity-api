@@ -45,7 +45,12 @@ namespace Salubrity.Infrastructure.Security
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
 
-            return BuildToken(claims, _settings.Issuer, _settings.Audience);
+            return BuildToken(
+                claims,
+                _settings.Issuer,
+                _settings.Audience,
+                DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes)
+            );
         }
 
         public string GenerateAccessToken(
@@ -84,7 +89,7 @@ namespace Salubrity.Infrastructure.Security
             IEnumerable<Claim> claims,
             string issuer,
             string audience,
-            DateTime? expires = null)
+            DateTime expiresUtc)
         {
             var credentials = new SigningCredentials(
                 _signingKey,
@@ -95,7 +100,7 @@ namespace Salubrity.Infrastructure.Security
                 issuer: issuer,
                 audience: audience,
                 claims: claims,
-                expires: expires ?? DateTime.UtcNow.AddMinutes(_settings.AccessTokenExpiryMinutes),
+                expires: expiresUtc,
                 signingCredentials: credentials
             );
 
@@ -116,12 +121,31 @@ namespace Salubrity.Infrastructure.Security
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
+
                 ValidIssuer = _settings.Issuer,
-                ValidAudience = _settings.Audience,
-                IssuerSigningKey = _signingKey
+
+                ValidAudiences = new[]
+                {
+                    _settings.Audience, // normal app tokens
+                    "camp-signin"       // health camp poster tokens
+                },
+
+                IssuerSigningKey = _signingKey,
+
+                RequireSignedTokens = true,
+                RequireExpirationTime = true,
+                ClockSkew = TimeSpan.FromMinutes(1)
             };
 
-            return handler.ValidateToken(token, parameters, out _);
+            var principal = handler.ValidateToken(token, parameters, out var validatedToken);
+
+            if (validatedToken is JwtSecurityToken jwt &&
+                !jwt.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.Ordinal))
+            {
+                throw new SecurityTokenException("Invalid token algorithm.");
+            }
+
+            return principal;
         }
 
         public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
@@ -134,9 +158,17 @@ namespace Salubrity.Infrastructure.Security
                 ValidateAudience = true,
                 ValidateLifetime = false,
                 ValidateIssuerSigningKey = true,
+
                 ValidIssuer = _settings.Issuer,
-                ValidAudience = _settings.Audience,
-                IssuerSigningKey = _signingKey
+
+                ValidAudiences = new[]
+                {
+                    _settings.Audience,
+                    "camp-signin"
+                },
+
+                IssuerSigningKey = _signingKey,
+                ClockSkew = TimeSpan.Zero
             };
 
             try

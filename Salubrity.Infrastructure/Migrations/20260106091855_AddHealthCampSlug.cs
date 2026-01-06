@@ -8,7 +8,7 @@ namespace Salubrity.Infrastructure.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Add column as NULLABLE
+            // 1. Add column as nullable
             migrationBuilder.AddColumn<string>(
                 name: "Slug",
                 table: "HealthCamps",
@@ -16,24 +16,42 @@ namespace Salubrity.Infrastructure.Migrations
                 maxLength: 160,
                 nullable: true);
 
-            // Backfill slug from Name + year(StartDate)
+            // 2. Backfill slugs safely (collision-proof)
             migrationBuilder.Sql(@"
-                UPDATE ""HealthCamps""
-                SET ""Slug"" =
-                    LOWER(
+        WITH base_slugs AS (
+            SELECT
+                ""Id"",
+                LOWER(
+                    REGEXP_REPLACE(
                         REGEXP_REPLACE(
-                            REGEXP_REPLACE(
-                                REGEXP_REPLACE(TRIM(""Name""), '[^a-zA-Z0-9\s-]', '', 'g'),
-                                '\s+', '-', 'g'
-                            ),
-                            '-{2,}', '-', 'g'
-                        )
+                            REGEXP_REPLACE(TRIM(""Name""), '[^a-zA-Z0-9\s-]', '', 'g'),
+                            '\s+', '-', 'g'
+                        ),
+                        '-{2,}', '-', 'g'
                     )
-                    || '-' || EXTRACT(YEAR FROM ""StartDate"")::text
-                WHERE ""Slug"" IS NULL;
-            ");
+                )
+                || '-' || EXTRACT(YEAR FROM ""StartDate"")::text AS base_slug
+            FROM ""HealthCamps""
+        ),
+        numbered AS (
+            SELECT
+                ""Id"",
+                base_slug,
+                ROW_NUMBER() OVER (PARTITION BY base_slug ORDER BY ""Id"") AS rn
+            FROM base_slugs
+        )
+        UPDATE ""HealthCamps"" hc
+        SET ""Slug"" =
+            CASE
+                WHEN n.rn = 1 THEN n.base_slug
+                ELSE n.base_slug || '-' || n.rn
+            END
+        FROM numbered n
+        WHERE hc.""Id"" = n.""Id""
+          AND hc.""Slug"" IS NULL;
+    ");
 
-            // Enforce NOT NULL
+            // 3. Enforce NOT NULL
             migrationBuilder.AlterColumn<string>(
                 name: "Slug",
                 table: "HealthCamps",
@@ -43,13 +61,14 @@ namespace Salubrity.Infrastructure.Migrations
                 oldClrType: typeof(string),
                 oldNullable: true);
 
-            // Optional but STRONGLY recommended: unique index
+            // 4. Enforce uniqueness
             migrationBuilder.CreateIndex(
                 name: "IX_HealthCamps_Slug",
                 table: "HealthCamps",
                 column: "Slug",
                 unique: true);
         }
+
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {

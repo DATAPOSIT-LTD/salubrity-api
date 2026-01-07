@@ -484,6 +484,24 @@ public class HealthCampService : IHealthCampService
                        ?? throw new NotFoundException("Camp not found");
             _logger.LogInformation("Loaded camp {CampId} - {CampName}", camp.Id, camp.Name);
 
+            if (string.IsNullOrWhiteSpace(camp.Slug))
+            {
+                // self-heal legacy data
+                camp.Slug = SlugHelper.Generate(
+                    camp.Name,
+                    camp.StartDate.Year
+                );
+
+                await _repo.UpdateAsync(camp);
+
+                _logger.LogInformation(
+                    "Generated missing slug for camp {CampId}: {Slug}",
+                    camp.Id,
+                    camp.Slug
+                );
+            }
+
+
             if (camp.HealthCampStatus == null)
                 throw new InvalidOperationException("Camp status is missing.");
 

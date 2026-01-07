@@ -563,7 +563,7 @@ public class HealthCampService : IHealthCampService
             // ─────────────────────────────────────────────
             // PUBLIC, HUMAN-FRIENDLY POSTER URLS (NO JWT)
             // ─────────────────────────────────────────────
-            var publicBaseUrl = _campTokenOptions.AppBaseUrl.TrimEnd('/');
+            var publicBaseUrl = "https://app.salubritycentre.com/register";// _campTokenOptions.AppBaseUrl.TrimEnd('/');
 
             var participantPosterUrl =
                 $"{publicBaseUrl}/health-camp/{camp.Slug}/participant";

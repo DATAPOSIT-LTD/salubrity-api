@@ -49,7 +49,8 @@ public interface IHealthCampService
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
     Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default);
     Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default);
-    Task<CampLinkResultDto> TryLinkUserToCampAsync(Guid userId, string campToken, CancellationToken ct = default);
+    Task<CampLinkResultDto> LinkUserToCampAsync(Guid userId, Guid campId, CancellationToken ct = default);
+
     // IHealthCampService.cs
     Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default);
     Task UpdateParticipantBillingStatusAsync(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct = default);

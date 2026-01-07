@@ -767,122 +767,74 @@ public class HealthCampService : IHealthCampService
     }
 
 
-    public async Task<CampLinkResultDto> TryLinkUserToCampAsync(
+    public async Task<CampLinkResultDto> LinkUserToCampAsync(
      Guid userId,
-     string campToken,
+     Guid campId,
      CancellationToken ct = default)
     {
-        var result = new CampLinkResultDto();
-
-        try
+        var result = new CampLinkResultDto
         {
-            // ─────────────────────────────────────────────
-            // VALIDATE TOKEN (CRYPTO + EXPIRY + AUDIENCE)
-            // ─────────────────────────────────────────────
-            var principal = _jwt.ValidateToken(campToken);
-            var claims = principal.Claims.ToList();
+            CampId = campId
+        };
 
-            // Must be a poster token
-            var isPoster = claims.Any(c => c.Type == "poster" && c.Value == "1");
-            if (!isPoster)
-            {
-                result.Warnings.Add("Token is not a poster token.");
-                return result;
-            }
+        // ─────────────────────────────────────────────
+        // LOAD CAMP
+        // ─────────────────────────────────────────────
+        var camp = await _repo.GetByIdAsync(campId);
+        if (camp is null)
+        {
+            result.Warnings.Add("Camp not found.");
+            return result;
+        }
 
-            // Extract campId
-            var campIdClaim = claims.FirstOrDefault(c => c.Type == "campId")?.Value;
-            if (!Guid.TryParse(campIdClaim, out var campId))
-            {
-                result.Warnings.Add("Invalid or missing campId in token.");
-                return result;
-            }
+        // ─────────────────────────────────────────────
+        // VALIDATE CAMP STATE
+        // ─────────────────────────────────────────────
+        var today = DateTime.UtcNow.Date;
 
-            result.CampId = campId;
+        if (!camp.IsLaunched)
+        {
+            result.Warnings.Add("Camp is not active.");
+            return result;
+        }
 
-            // Extract role
-            var role = claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-            if (string.IsNullOrWhiteSpace(role))
-            {
-                result.Warnings.Add("Invalid or missing role in token.");
-                return result;
-            }
+        if (camp.EndDate.HasValue && camp.EndDate.Value.Date < today)
+        {
+            result.Warnings.Add("Camp has already ended.");
+            return result;
+        }
 
-            // ─────────────────────────────────────────────
-            // LOAD CAMP
-            // ─────────────────────────────────────────────
-            var camp = await _repo.GetByIdAsync(campId);
-            if (camp is null)
-            {
-                result.Warnings.Add("Camp not found.");
-                return result;
-            }
+        // ─────────────────────────────────────────────
+        // IDEMPOTENT PARTICIPANT LINKING
+        // ─────────────────────────────────────────────
+        var alreadyLinked =
+            await _campParticipantRepository
+                .IsParticipantLinkedToCampAsync(campId, userId, ct);
 
-            // ─────────────────────────────────────────────
-            // VALIDATE CAMP STATE
-            // ─────────────────────────────────────────────
-            var today = DateTime.UtcNow.Date;
-
-            if (!camp.IsLaunched)
-            {
-                result.Warnings.Add("Camp is not active.");
-                return result;
-            }
-
-            if (camp.EndDate.HasValue && camp.EndDate.Value.Date < today)
-            {
-                result.Warnings.Add("Camp has already ended.");
-                return result;
-            }
-
-            // ─────────────────────────────────────────────
-            // LINK BASED ON ROLE
-            // ─────────────────────────────────────────────
-            if (role.Equals("participant", StringComparison.OrdinalIgnoreCase) ||
-                role.Equals("patient", StringComparison.OrdinalIgnoreCase))
-            {
-                var alreadyLinked =
-                    await _campParticipantRepository
-                        .IsParticipantLinkedToCampAsync(campId, userId, ct);
-
-                if (alreadyLinked)
-                {
-                    result.Linked = true;
-                    result.Info.Add("User already linked to camp.");
-                    return result;
-                }
-
-                var participant = new HealthCampParticipant
-                {
-                    Id = Guid.NewGuid(),
-                    HealthCampId = campId,
-                    UserId = userId,
-                    CreatedAt = DateTime.UtcNow,
-                    IsDeleted = false
-                };
-
-                await _campParticipantRepository.AddParticipantAsync(participant, ct);
-            }
-            else
-            {
-                result.Warnings.Add($"Role '{role}' is not eligible for camp linking.");
-                return result;
-            }
-
+        if (alreadyLinked)
+        {
             result.Linked = true;
-            result.Info.Add("User linked to camp.");
+            result.Info.Add("User already registered for this camp.");
+            return result;
         }
-        catch (SecurityTokenException)
+
+        var participant = new HealthCampParticipant
         {
-            result.Warnings.Add("Invalid or expired camp token.");
-        }
-        catch (Exception)
-        {
-            result.Warnings.Add("Unexpected error during camp linking.");
-        }
+            Id = Guid.NewGuid(),
+            HealthCampId = campId,
+            UserId = userId,
+            CreatedAt = DateTime.UtcNow,
+            IsDeleted = false
+        };
+
+        await _campParticipantRepository.AddParticipantAsync(participant, ct);
+
+        result.Linked = true;
+        result.Info.Add("User registered for camp.");
 
         return result;
     }
+
 
 
     public async Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default)

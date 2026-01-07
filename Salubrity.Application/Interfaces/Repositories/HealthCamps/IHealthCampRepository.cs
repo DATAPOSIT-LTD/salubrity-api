@@ -20,6 +20,8 @@ public interface IHealthCampRepository
     Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+    Task<HealthCamp?> GetBySlugAsync(string slug, CancellationToken ct = default);
+
 
     // Admin-wide
     Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default);
@@ -63,7 +65,7 @@ public interface IHealthCampRepository
 
     // Add these method signatures
     Task<List<HealthCamp>> GetAllWithDetailsAsync(CancellationToken ct = default);
-    Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync( List<Guid> campIds, CancellationToken ct = default);
+    Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync(List<Guid> campIds, CancellationToken ct = default);
 
 }
 

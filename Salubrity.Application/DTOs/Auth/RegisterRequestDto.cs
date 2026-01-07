@@ -3,11 +3,20 @@ public class RegisterRequestDto
     public string FirstName { get; set; } = default!;
     public string? MiddleName { get; set; }
     public string LastName { get; set; } = default!;
+
     public string Email { get; set; } = default!;
     public string Password { get; set; } = default!;
     public string ConfirmPassword { get; set; } = default!;
-    public string? CampToken { get; set; }
+
+    // Camp resolution
+    public string? CampSlug { get; set; }
+
+    // Organization fallback (non-camp flows)
     public Guid? OrganizationId { get; set; }
-    public Guid? RoleId { get; set; } // Or string RoleName, depending on implementation
-    public bool AcceptTerms { get; set; } // Optional, if you want to enforce checkbox logic
+
+    // Role resolution (mutually inclusive, precedence rules apply)
+    public Guid? RoleId { get; set; }
+    public string? Role { get; set; } // "participant" | "subcontractor"
+
+    public bool AcceptTerms { get; set; }
 }

@@ -38,6 +38,24 @@ public class HealthCampRepository : IHealthCampRepository
         _subcategoryRepo = serviceSubcategory;
     }
 
+    public async Task<HealthCamp?> GetBySlugAsync(
+    string slug,
+    CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
+
+        var normalizedSlug = slug.Trim().ToLowerInvariant();
+
+        return await _context.HealthCamps
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                c => c.Slug.ToLower() == normalizedSlug && !c.IsDeleted,
+                ct
+            );
+    }
+
+
     public async Task<List<HealthCampListDto>> GetAllAsync()
     {
         var camps = await _context.HealthCamps

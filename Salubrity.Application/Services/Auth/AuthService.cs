@@ -431,7 +431,7 @@ namespace Salubrity.Application.Services.Auth
             // ─────────────────────────────────────────────
             // EMPLOYEE CREATION (PRESERVED ORIGINAL BEHAVIOR)
             // ─────────────────────────────────────────────
-            if (organizationId.HasValue)
+            if (organizationId.HasValue && role.Name != "Subcontractor")
             {
                 var existingEmployee =
                     await _employeeRepository.FindByUserAndOrgAsync(user.Id, organizationId.Value);

@@ -118,15 +118,25 @@ public class IntakeFormResponsesController : BaseController
     //[Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<>), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ExportCampData(Guid campId, CancellationToken ct)
+    public async Task<IActionResult> ExportCampData(
+    Guid campId,
+    [FromQuery] Guid? branchId,
+    CancellationToken ct)
     {
-        var (excelData, campName, organizationName, exportTimestamp) = await _service.ExportCampDataToExcelAsync(campId, ct);
+        var (excelData, campName, organizationName, exportTimestamp) =
+            await _service.ExportCampDataToExcelAsync(campId, branchId, ct);
 
         var safeOrgName = string.Join("_", organizationName.Split(Path.GetInvalidFileNameChars()));
         var safeCampName = string.Join("_", campName.Split(Path.GetInvalidFileNameChars()));
-        var fileName = $"{safeOrgName}_Camp_{safeCampName}_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
 
-        return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        var fileName =
+            $"{safeOrgName}_Camp_{safeCampName}_{exportTimestamp:yyyyMMdd_HHmmss}.xlsx";
+
+        return File(
+            excelData,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName
+        );
     }
 
     [HttpGet("all-camps/data/export")]

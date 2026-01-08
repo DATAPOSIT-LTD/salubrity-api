@@ -374,13 +374,27 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     // Download Findings Implementation
 
-    public async Task<(byte[] ExcelData, string CampName, string OrganizationName, DateTime ExportTimestamp)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default)
+    public async Task<(
+        byte[] ExcelData,
+        string CampName,
+        string OrganizationName,
+        DateTime ExportTimestamp
+    )> ExportCampDataToExcelAsync(
+        Guid campId,
+        Guid? branchId = null,
+        CancellationToken ct = default)
     {
         var exportTimestamp = DateTime.Now.AddHours(3);
 
         // 1. Fetch Data
-        var dataFetcher = new CampDataFetcher(_healthCampRepository, _intakeFormResponseRepository, _healthAssessmentFormService, _doctorRecommendationService);
-        var campData = await dataFetcher.FetchDataAsync(campId, ct);
+        var dataFetcher = new CampDataFetcher(
+            _healthCampRepository,
+            _intakeFormResponseRepository,
+            _healthAssessmentFormService,
+            _doctorRecommendationService
+        );
+
+        var campData = await dataFetcher.FetchDataAsync(campId, branchId, ct);
 
         // 2. Process Data
         var dataProcessor = new CampDataProcessor();
@@ -466,43 +480,5 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return (excelData, exportTimestamp);
     }
 
-    //public async Task<(byte[] ExcelData, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default)
-    //{
-    //    var exportTimestamp = DateTime.Now.AddHours(3);
 
-    //    _logger.LogInformation("Starting export of all camps data at {Timestamp}", exportTimestamp);
-
-    //    // Create a logger for MultiCampDataFetcher using the injected ILoggerFactory
-    //    var multiCampLogger = _loggerFactory.CreateLogger<MultiCampDataFetcher>();
-
-    //    // 1. Fetch Data from all camps
-    //    var dataFetcher = new MultiCampDataFetcher(
-    //        _healthCampRepository,
-    //        _intakeFormResponseRepository,
-    //        _healthAssessmentFormService,
-    //        _doctorRecommendationService,
-    //        multiCampLogger);
-
-    //    var multiCampData = await dataFetcher.FetchAllCampsDataAsync(ct);
-
-    //    _logger.LogInformation("Fetched data for {CampCount} camps with {ParticipantCount} total participants",
-    //        multiCampData.CampDataList.Count,
-    //        multiCampData.CampDataList.Sum(c => c.EntityResponses.Count));
-
-    //    // 2. Process Data
-    //    var dataProcessor = new MultiCampDataProcessor();
-    //    var processedData = dataProcessor.Process(multiCampData);
-
-    //    _logger.LogInformation("Processed data: {IntakeFields} intake fields, {HealthFields} health fields",
-    //        processedData.IntakeFieldCount,
-    //        processedData.HealthFieldCount);
-
-    //    // 3. Export Data
-    //    var exporter = new MultiCampDataExcelExporter();
-    //    var excelData = exporter.Export(processedData);
-
-    //    _logger.LogInformation("Successfully exported all camps data. File size: {FileSize} bytes", excelData.Length);
-
-    //    return (excelData, exportTimestamp);
-    //}
 }

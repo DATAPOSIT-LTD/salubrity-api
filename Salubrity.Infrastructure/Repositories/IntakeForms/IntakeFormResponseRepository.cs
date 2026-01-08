@@ -187,23 +187,58 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     //        .ToListAsync(ct);
     //}
 
-    public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
+    // public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
+    // {
+    //     return await (from r in _db.IntakeFormResponses
+    //                       .Include(r => r.Patient)
+    //                           .ThenInclude(p => p.User)
+    //                             .ThenInclude(u => u.Gender)
+    //                       .Include(r => r.FieldResponses)
+    //                           .ThenInclude(fr => fr.Field)
+    //                   join a in _db.HealthCampServiceAssignments
+    //                       on r.SubmittedServiceId equals a.AssignmentId
+    //                   where r.PatientId != null
+    //                         && a.HealthCampId == campId
+    //                         && !r.IsDeleted
+    //                   orderby r.Patient.User.FirstName, r.Patient.User.LastName
+    //                   select r)
+    //         .ToListAsync(ct);
+    // }
+
+    public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(
+    Guid campId,
+    Guid? branchId = null,
+    CancellationToken ct = default)
     {
-        return await (from r in _db.IntakeFormResponses
-                          .Include(r => r.Patient)
-                              .ThenInclude(p => p.User)
-                                .ThenInclude(u => u.Gender)
-                          .Include(r => r.FieldResponses)
-                              .ThenInclude(fr => fr.Field)
-                      join a in _db.HealthCampServiceAssignments
-                          on r.SubmittedServiceId equals a.AssignmentId
-                      where r.PatientId != null
-                            && a.HealthCampId == campId
-                            && !r.IsDeleted
-                      orderby r.Patient.User.FirstName, r.Patient.User.LastName
-                      select r)
-            .ToListAsync(ct);
+        return await (
+            from r in _db.IntakeFormResponses
+                .Include(r => r.Patient)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.Gender)
+                .Include(r => r.FieldResponses)
+                    .ThenInclude(fr => fr.Field)
+
+            join a in _db.HealthCampServiceAssignments
+                on r.SubmittedServiceId equals a.AssignmentId
+
+            join e in _db.Employees
+                on r.CreatedBy equals e.UserId
+
+            where r.PatientId != null
+                  && a.HealthCampId == campId
+                  && !r.IsDeleted
+                  && (
+                        branchId == null
+                        || e.BranchId == branchId
+                     )
+
+            orderby r.Patient.User.FirstName,
+                    r.Patient.User.LastName
+
+            select r
+        ).ToListAsync(ct);
     }
+
 
     // Batch Fetching Implementation
 

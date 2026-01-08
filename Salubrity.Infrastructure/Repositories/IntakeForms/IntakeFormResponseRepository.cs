@@ -206,9 +206,9 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     // }
 
     public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(
-    Guid campId,
-    Guid? branchId = null,
-    CancellationToken ct = default)
+      Guid campId,
+      Guid? branchId = null,
+      CancellationToken ct = default)
     {
         return await (
             from r in _db.IntakeFormResponses
@@ -221,15 +221,17 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             join a in _db.HealthCampServiceAssignments
                 on r.SubmittedServiceId equals a.AssignmentId
 
+            // LEFT JOIN Employees
             join e in _db.Employees
-                on r.CreatedBy equals e.UserId
+                on r.CreatedBy equals e.UserId into empJoin
+            from e in empJoin.DefaultIfEmpty()
 
             where r.PatientId != null
                   && a.HealthCampId == campId
                   && !r.IsDeleted
                   && (
                         branchId == null
-                        || e.BranchId == branchId
+                        || (e != null && e.BranchId == branchId)
                      )
 
             orderby r.Patient.User.FirstName,
@@ -238,6 +240,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             select r
         ).ToListAsync(ct);
     }
+
 
 
     // Batch Fetching Implementation

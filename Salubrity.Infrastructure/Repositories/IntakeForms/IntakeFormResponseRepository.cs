@@ -210,7 +210,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
       Guid? branchId = null,
       CancellationToken ct = default)
     {
-        return await (
+        var query =
             from r in _db.IntakeFormResponses
                 .Include(r => r.Patient)
                     .ThenInclude(p => p.User)
@@ -221,25 +221,34 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
             join a in _db.HealthCampServiceAssignments
                 on r.SubmittedServiceId equals a.AssignmentId
 
-            // LEFT JOIN Employees
-            join e in _db.Employees
-                on r.CreatedBy equals e.UserId into empJoin
-            from e in empJoin.DefaultIfEmpty()
-
             where r.PatientId != null
                   && a.HealthCampId == campId
                   && !r.IsDeleted
-                  && (
-                        branchId == null
-                        || (e != null && e.BranchId == branchId)
-                     )
 
             orderby r.Patient.User.FirstName,
                     r.Patient.User.LastName
 
-            select r
-        ).ToListAsync(ct);
+            select r;
+
+        // ─────────────────────────────────────────────
+        // BRANCH VISIBILITY FILTER (EMPLOYEE-BASED ONLY)
+        // ─────────────────────────────────────────────
+        if (branchId != null)
+        {
+            query = query.Where(r =>
+                _db.Employees.Any(e =>
+                    e.BranchId == branchId &&
+                    (
+                        e.UserId == r.CreatedBy
+                        || e.UserId == r.Patient.UserId
+                    )
+                )
+            );
+        }
+
+        return await query.ToListAsync(ct);
     }
+
 
 
 

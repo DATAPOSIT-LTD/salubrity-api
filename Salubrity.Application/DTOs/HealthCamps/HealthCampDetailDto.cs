@@ -3,6 +3,7 @@ namespace Salubrity.Application.DTOs.HealthCamps;
 public class HealthCampDetailDto
 {
     public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
     public string Name { get; set; } = default!;
     public string ClientName { get; set; } = default!;
     public string Venue { get; set; } = default!;

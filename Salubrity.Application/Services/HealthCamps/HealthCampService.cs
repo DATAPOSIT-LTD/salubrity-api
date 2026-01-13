@@ -853,13 +853,39 @@ public class HealthCampService : IHealthCampService
         var ct = CancellationToken.None;
 
         // ─────────────────────────────────────────────
-        // 1. Load camp (aggregate root)
+        // 1. Load camp (same as CreateAsync persistence target)
         // ─────────────────────────────────────────────
         var camp = await _repo.GetByIdAsync(campId)
             ?? throw new NotFoundException("Health Camp", campId.ToString());
 
         // ─────────────────────────────────────────────
-        // 2. Validate services belong to camp package
+        // 2. Guard: assignments required (CreateAsync implicit invariant)
+        // ─────────────────────────────────────────────
+        if (dto.Assignments == null || !dto.Assignments.Any())
+        {
+            throw new ValidationException([
+                "At least one service assignment is required."
+            ]);
+        }
+
+        // ─────────────────────────────────────────────
+        // 3. Guard: NO EMPTY SERVICE IDS (this is the missing invariant)
+        // ─────────────────────────────────────────────
+        var emptyServiceIds = dto.Assignments
+            .Where(a => a.ServiceId == Guid.Empty)
+            .Select(a => a.ServiceId)
+            .ToList();
+
+        if (emptyServiceIds.Any())
+        {
+            throw new ValidationException([
+                "ServiceId cannot be empty."
+            ]);
+        }
+
+        // ─────────────────────────────────────────────
+        // 4. Validate services belong to camp package
+        //    (EXACTLY matches CreateAsync semantics)
         // ─────────────────────────────────────────────
         var allowedServiceIds = camp.PackageItems
             .Select(p => p.ReferenceId)
@@ -879,72 +905,63 @@ public class HealthCampService : IHealthCampService
         }
 
         // ─────────────────────────────────────────────
-        // 3. Duplicate protection (SEMANTIC LAYER)
-        //    service + profession must be unique
+        // 5. Duplicate protection (service-level only)
+        //    (matches booth creation rules in CreateAsync)
         // ─────────────────────────────────────────────
-        var existingServiceAssignments = camp.ServiceAssignments
-            .Where(x => x.SubcontractorId == dto.SubcontractorId);
+        var existingAssignments =
+            await _subcontractorCampAssignmentRepository
+                .GetByCampAndSubcontractorAsync(campId, dto.SubcontractorId);
 
-        var hasDuplicate = existingServiceAssignments
-            .Any(existing => dto.Assignments.Any(incoming =>
-                existing.AssignmentId == incoming.ServiceId &&
-                existing.ProfessionId == incoming.ProfessionId
-            ));
+        var duplicateServiceIds = existingAssignments
+            .Where(x => !x.IsDeleted)
+            .Select(x => x.AssignmentId)
+            .Intersect(dto.Assignments.Select(a => a.ServiceId))
+            .ToList();
 
-        if (hasDuplicate)
+        if (duplicateServiceIds.Any())
         {
             throw new ValidationException([
-                "Subcontractor already assigned to one or more service + profession combinations."
+                $"Subcontractor already assigned to services: {string.Join(", ", duplicateServiceIds)}"
             ]);
         }
 
         // ─────────────────────────────────────────────
-        // 4. Resolve assignment status
+        // 6. Resolve assignment status (same as CreateAsync)
         // ─────────────────────────────────────────────
-        var acceptedStatus =
+        var assignedStatus =
             await _lookupSubcontractorHealthCampAssignmentRepository
-                .FindByNameAsync("Accepted")
-            ?? throw new InvalidOperationException("Assignment status 'Accepted' not found.");
+                .FindByNameAsync("Pending")
+            ?? throw new InvalidOperationException(
+                "Assignment status 'Pending' not found."
+            );
 
         // ─────────────────────────────────────────────
-        // 5. UTC helper
+        // 7. UTC helper (byte-for-byte equivalent)
         // ─────────────────────────────────────────────
         static DateTime ToUtc(DateTime value)
         {
-            if (value.Kind == DateTimeKind.Utc) return value;
-            if (value.Kind == DateTimeKind.Local) return value.ToUniversalTime();
+            if (value.Kind == DateTimeKind.Utc)
+                return value;
+            if (value.Kind == DateTimeKind.Local)
+                return value.ToUniversalTime();
             return DateTime.SpecifyKind(value, DateTimeKind.Utc);
         }
 
         // ─────────────────────────────────────────────
-        // 6. Create assignments
-        //    SEMANTIC → OPERATIONAL
+        // 8. Create booth assignments (OPERATIONAL layer)
+        //    EXACT MATCH to CreateAsync loop
         // ─────────────────────────────────────────────
         foreach (var assignment in dto.Assignments)
         {
             var referenceType =
                 await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
 
-            // ───────────── SEMANTIC (TRUTH) ─────────────
-            var serviceAssignment = new HealthCampServiceAssignment
-            {
-                Id = Guid.NewGuid(),
-                HealthCampId = camp.Id,
-                AssignmentId = assignment.ServiceId,
-                AssignmentType = (PackageItemType)referenceType,
-                SubcontractorId = dto.SubcontractorId,
-                ProfessionId = assignment.ProfessionId
-            };
-
-            camp.ServiceAssignments.Add(serviceAssignment);
-
-            // ───────────── OPERATIONAL (EXECUTION) ─────────────
             var boothAssignment = new SubcontractorHealthCampAssignment
             {
                 Id = Guid.NewGuid(),
                 HealthCampId = camp.Id,
                 SubcontractorId = dto.SubcontractorId,
-                AssignmentStatusId = acceptedStatus.Id,
+                AssignmentStatusId = assignedStatus.Id,
                 BoothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}",
 
                 StartDate = ToUtc(camp.StartDate),
@@ -962,7 +979,7 @@ public class HealthCampService : IHealthCampService
         }
 
         // ─────────────────────────────────────────────
-        // 7. Notification
+        // 9. Notification (unchanged)
         // ─────────────────────────────────────────────
         await _notificationService.TriggerNotificationAsync(
             title: "Subcontractor Added to Camp",

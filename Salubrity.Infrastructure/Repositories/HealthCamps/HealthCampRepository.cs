@@ -783,10 +783,7 @@ public class HealthCampRepository : IHealthCampRepository
 
         baseQuery = status.ToLowerInvariant() switch
         {
-            "upcoming" => baseQuery.Where(x =>
-                x.HealthCamp.IsLaunched &&
-                ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today) &&
-                (x.HealthCamp.CloseDate == null || x.HealthCamp.CloseDate >= today)),
+            "upcoming" => baseQuery.Where(x => x.HealthCamp.IsLaunched && (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today),
 
             "complete" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&

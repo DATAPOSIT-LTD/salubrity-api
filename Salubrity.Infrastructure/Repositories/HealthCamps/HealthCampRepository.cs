@@ -268,22 +268,34 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .AsSplitQuery();
     }
-    public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
-    {
-        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
-        var nowUtc = DateTime.UtcNow;
-        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
-        return await CampsForSubcontractor(subcontractorId)
+    public async Task<List<HealthCamp>> GetOngoingCampsAsync(
+    Guid? subcontractorId,
+    CancellationToken ct = default)
+    {
+        // Use Kenya timezone for business logic
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var todayLocal = TimeZoneInfo
+            .ConvertTimeFromUtc(DateTime.UtcNow, tz)
+            .Date;
+
+        IQueryable<HealthCamp> query = _context.HealthCamps
             .Where(c =>
-                (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
-                (
-                    c.StartDate >= todayLocal ||
-                    (c.IsLaunched &&
-                     c.StartDate <= todayLocal &&
-                     (c.EndDate ?? c.StartDate) >= todayLocal)
-                )
-            )
+                !c.IsDeleted &&
+                c.IsLaunched &&
+                c.StartDate <= todayLocal &&
+                (c.EndDate ?? c.StartDate) >= todayLocal);
+
+        // 🔑 OPTIONAL subcontractor filter
+        if (subcontractorId.HasValue)
+        {
+            query = query.Where(c =>
+                c.ServiceAssignments.Any(a =>
+                    !a.IsDeleted &&
+                    a.SubcontractorId == subcontractorId.Value));
+        }
+
+        return await query
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
             .Include(c => c.ServiceAssignments)
@@ -291,6 +303,46 @@ public class HealthCampRepository : IHealthCampRepository
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
+
+    public async Task<List<HealthCamp>> GetUpcomingCampsAsync(
+        Guid? subcontractorId,
+        CancellationToken ct = default)
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var todayLocal = TimeZoneInfo
+            .ConvertTimeFromUtc(DateTime.UtcNow, tz)
+            .Date;
+
+        IQueryable<HealthCamp> query = _context.HealthCamps
+            .Where(c =>
+                !c.IsDeleted &&
+                (c.CloseDate == null || c.CloseDate > DateTime.UtcNow) &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                )
+            );
+
+        //  OPTIONAL subcontractor scope
+        if (subcontractorId.HasValue)
+        {
+            query = query.Where(c =>
+                c.ServiceAssignments.Any(a =>
+                    !a.IsDeleted &&
+                    a.SubcontractorId == subcontractorId.Value));
+        }
+
+        return await query
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
 
     public async Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {

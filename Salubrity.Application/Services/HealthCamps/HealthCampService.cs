@@ -539,23 +539,24 @@ public class HealthCampService : IHealthCampService
     }
 
     //  Use nullable Guid
-    public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId)
-    {
-        var camps = subcontractorId is null
-            ? await _repo.GetAllUpcomingCampsAsync()
-            : await _repo.GetMyUpcomingCampsAsync(subcontractorId.Value);
 
+    public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(
+      Guid? subcontractorId,
+      CancellationToken ct = default)
+    {
+        var camps = await _repo.GetUpcomingCampsAsync(subcontractorId, ct);
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
-    public async Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId)
-    {
-        var camps = subcontractorId is null
-            ? await _repo.GetAllOngoingCampsAsync()
-            : await _repo.GetMyUpcomingCampsAsync(subcontractorId.Value);
 
+    public async Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(
+        Guid? subcontractorId,
+        CancellationToken ct = default)
+    {
+        var camps = await _repo.GetOngoingCampsAsync(subcontractorId, ct);
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
+
 
     public async Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId)
     {

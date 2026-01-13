@@ -1040,7 +1040,7 @@ public class HealthCampRepository : IHealthCampRepository
                 dto.Roles.Add(new RoleAssignmentDto
                 {
                     AssignedBooth = boothName,
-                    AssignedRole = assignment.AssignmentStatus?.Name ?? "—",
+                    AssignedRole = assignment.AssignmentName ?? "—",
                     ServiceId = assignment.AssignmentId
                 });
             }

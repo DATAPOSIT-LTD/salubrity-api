@@ -920,7 +920,20 @@ public class HealthCampRepository : IHealthCampRepository
         string status,
         CancellationToken ct = default)
     {
+        Console.WriteLine("=================================================");
+        Console.WriteLine("START: GetCampsWithRolesByStatusAsync");
+        Console.WriteLine($"Status          : {status}");
+        Console.WriteLine($"SubcontractorId : {subcontractorId}");
+        Console.WriteLine("=================================================");
+
         var today = DateTime.UtcNow.Date;
+        Console.WriteLine($"Today (UTC date): {today}");
+
+        // --------------------------------------------------
+        // STEP 1: Base assignments (NO filters yet)
+        // --------------------------------------------------
+        var rawCount = await _context.HealthCampServiceAssignments.CountAsync(ct);
+        Console.WriteLine($"STEP 1: Total HealthCampServiceAssignments in DB = {rawCount}");
 
         IQueryable<HealthCampServiceAssignment> baseQuery =
             _context.HealthCampServiceAssignments
@@ -934,14 +947,31 @@ public class HealthCampRepository : IHealthCampRepository
                     x.HealthCamp.IsActive &&
                     !x.HealthCamp.IsDeleted);
 
-        //  OPTIONAL subcontractor scope
+        var afterBaseFilters = await baseQuery.CountAsync(ct);
+        Console.WriteLine($"STEP 2: After base filters = {afterBaseFilters}");
+
+        // --------------------------------------------------
+        // STEP 3: Optional subcontractor scope
+        // --------------------------------------------------
         if (subcontractorId.HasValue)
         {
+            Console.WriteLine("STEP 3: Applying subcontractor filter...");
             baseQuery = baseQuery.Where(x =>
                 x.SubcontractorId == subcontractorId.Value);
+
+            var afterSubFilter = await baseQuery.CountAsync(ct);
+            Console.WriteLine($"STEP 3 RESULT: After subcontractor filter = {afterSubFilter}");
+        }
+        else
+        {
+            Console.WriteLine("STEP 3: No subcontractor filter (admin/privileged)");
         }
 
-        //  Status filter
+        // --------------------------------------------------
+        // STEP 4: Status filter
+        // --------------------------------------------------
+        Console.WriteLine($"STEP 4: Applying status filter [{status}]");
+
         baseQuery = status.ToLowerInvariant() switch
         {
             "upcoming" => baseQuery.Where(x =>
@@ -966,17 +996,36 @@ public class HealthCampRepository : IHealthCampRepository
             _ => throw new ValidationException(["Invalid camp status filter."])
         };
 
+        var afterStatusFilter = await baseQuery.CountAsync(ct);
+        Console.WriteLine($"STEP 4 RESULT: After status filter = {afterStatusFilter}");
+
+        // --------------------------------------------------
+        // STEP 5: Materialize assignments
+        // --------------------------------------------------
         var assignments = await baseQuery
             .AsNoTracking()
             .ToListAsync(ct);
 
-        // ─────────────────────────────────────
-        // Normalize subcategory → category
-        // ─────────────────────────────────────
-        var normalized = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
+        Console.WriteLine($"STEP 5: Materialized assignments = {assignments.Count}");
+
+        if (!assignments.Any())
+        {
+            Console.WriteLine("❌ EXIT EARLY: No assignments found after filters");
+            Console.WriteLine("=================================================");
+            return new List<HealthCampWithRolesDto>();
+        }
+
+        // --------------------------------------------------
+        // STEP 6: Normalize subcategory → category
+        // --------------------------------------------------
+        Console.WriteLine("STEP 6: Normalizing service references...");
+        var normalized =
+            new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
 
         foreach (var a in assignments)
         {
+            Console.WriteLine($"  AssignmentId={a.AssignmentId}, Type={a.AssignmentType}");
+
             if (a.AssignmentType == PackageItemType.ServiceSubcategory)
             {
                 var parent = await _context.ServiceSubcategories
@@ -986,6 +1035,7 @@ public class HealthCampRepository : IHealthCampRepository
 
                 if (parent != null)
                 {
+                    Console.WriteLine($"    → Normalized to Category {parent.Id}");
                     normalized.Add((parent.Id, PackageItemType.ServiceCategory, a));
                     continue;
                 }
@@ -994,6 +1044,11 @@ public class HealthCampRepository : IHealthCampRepository
             normalized.Add((a.AssignmentId, a.AssignmentType, a));
         }
 
+        Console.WriteLine($"STEP 6 RESULT: Normalized count = {normalized.Count}");
+
+        // --------------------------------------------------
+        // STEP 7: Deduplicate
+        // --------------------------------------------------
         var finalAssignments = normalized
             .GroupBy(x => x.RefId)
             .Select(g =>
@@ -1003,6 +1058,11 @@ public class HealthCampRepository : IHealthCampRepository
             })
             .ToList();
 
+        Console.WriteLine($"STEP 7: Final deduplicated assignments = {finalAssignments.Count}");
+
+        // --------------------------------------------------
+        // STEP 8: Group by camp and build DTOs
+        // --------------------------------------------------
         var resolver = new PackageReferenceResolverService(
             _serviceRepo,
             _categoryRepo,
@@ -1013,6 +1073,8 @@ public class HealthCampRepository : IHealthCampRepository
         foreach (var campGroup in finalAssignments.GroupBy(x => x.Source.HealthCamp))
         {
             var camp = campGroup.Key;
+
+            Console.WriteLine($"STEP 8: Building DTO for Camp {camp.Id} ({camp.Name})");
 
             var dto = new HealthCampWithRolesDto
             {
@@ -1031,10 +1093,14 @@ public class HealthCampRepository : IHealthCampRepository
                     boothGroup.Key.Type,
                     boothGroup.Key.RefId);
 
+                Console.WriteLine($"  Booth: {boothName}");
+
                 foreach (var role in boothGroup
                     .Select(x => x.Source.Role?.Name ?? "—")
                     .Distinct())
                 {
+                    Console.WriteLine($"    Role: {role}");
+
                     dto.Roles.Add(new RoleAssignmentDto
                     {
                         AssignedBooth = boothName,
@@ -1047,8 +1113,13 @@ public class HealthCampRepository : IHealthCampRepository
             result.Add(dto);
         }
 
+        Console.WriteLine($"STEP 9: Final DTO count = {result.Count}");
+        Console.WriteLine("END: GetCampsWithRolesByStatusAsync");
+        Console.WriteLine("=================================================");
+
         return result;
     }
+
 
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
     Guid campId,

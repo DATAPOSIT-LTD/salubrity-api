@@ -541,19 +541,18 @@ public class HealthCampService : IHealthCampService
     //  Use nullable Guid
 
     public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(
-      Guid? subcontractorId,
+      Guid subcontractorId,
       CancellationToken ct = default)
     {
-        var camps = await _repo.GetUpcomingCampsAsync(subcontractorId, ct);
+        var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId, ct);
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
-
     public async Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(
-        Guid? subcontractorId,
+        Guid subcontractorId,
         CancellationToken ct = default)
     {
-        var camps = await _repo.GetOngoingCampsAsync(subcontractorId, ct);
+        var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId);
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
@@ -594,14 +593,14 @@ public class HealthCampService : IHealthCampService
 
     public async Task<List<HealthCampWithRolesDto>>
     GetMyCampsWithRolesByStatusAsync(
-        Guid? subcontractorId,
+        Guid subcontractorId,
         string status,
         CancellationToken ct = default)
     {
         if (!sourceArray.Contains(status))
             throw new ValidationException(["Invalid camp status filter."]);
 
-        var camps = await _repo.GetCampsWithRolesByStatusAsync(
+        var camps = await _repo.GetMyCampsWithRolesByStatusAsync(
             subcontractorId,
             status,
             ct);
@@ -1077,5 +1076,6 @@ public class HealthCampService : IHealthCampService
             ServicePackageName = p.ServicePackage?.Name,
         })];
     }
+
 
 }

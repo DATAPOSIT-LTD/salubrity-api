@@ -78,11 +78,11 @@ public class SubcontractorCampAssignmentRepository : ISubcontractorCampAssignmen
             .Where(a =>
                 !a.IsDeleted &&
                 a.SubcontractorId == subcontractorId &&
-                a.HealthCamp != null &&
-                !a.HealthCamp.IsDeleted &&
-                a.HealthCamp.EndDate >= today)
+                a.StartDate <= today &&
+                (a.EndDate == null || a.EndDate >= today))
             .AnyAsync(ct);
     }
+
 
     public async Task<List<SubcontractorHealthCampAssignment>> GetByCampAndSubcontractorAsync(
         Guid campId,

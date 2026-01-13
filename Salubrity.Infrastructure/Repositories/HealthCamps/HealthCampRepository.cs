@@ -974,10 +974,15 @@ public class HealthCampRepository : IHealthCampRepository
 
         baseQuery = status.ToLowerInvariant() switch
         {
+
+
             "upcoming" => baseQuery.Where(x =>
-                x.HealthCamp.IsLaunched &&
-                ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today) &&
-                (x.HealthCamp.CloseDate == null || x.HealthCamp.CloseDate >= today)),
+                    x.HealthCamp.IsLaunched &&
+                    (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today &&
+                    (x.HealthCamp.CloseDate == null ||
+                    x.HealthCamp.CloseDate.Value.Date >= today)
+                ),
+
 
             "complete" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&
@@ -989,9 +994,13 @@ public class HealthCampRepository : IHealthCampRepository
                  x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
 
             "ongoing" => baseQuery.Where(x =>
-                x.HealthCamp.IsLaunched &&
-                x.HealthCamp.StartDate <= today &&
-                (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today),
+                    x.HealthCamp.IsLaunched &&
+                    x.HealthCamp.StartDate <= today &&
+                    (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today &&
+                    (x.HealthCamp.CloseDate == null ||
+                    x.HealthCamp.CloseDate.Value.Date >= today)
+                ),
+
 
             _ => throw new ValidationException(["Invalid camp status filter."])
         };

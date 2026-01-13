@@ -286,11 +286,11 @@ public class HealthCampRepository : IHealthCampRepository
                 c.StartDate <= todayLocal &&
                 (c.EndDate ?? c.StartDate) >= todayLocal);
 
-        // 🔑 OPTIONAL subcontractor filter
+        // OPTIONAL subcontractor filter
         if (subcontractorId.HasValue)
         {
             query = query.Where(c =>
-                c.ServiceAssignments.Any(a =>
+                c.SubcontractorAssignments.Any(a =>
                     !a.IsDeleted &&
                     a.SubcontractorId == subcontractorId.Value));
         }
@@ -298,85 +298,48 @@ public class HealthCampRepository : IHealthCampRepository
         return await query
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
-            .Include(c => c.ServiceAssignments)
+            .Include(c => c.SubcontractorAssignments)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
 
     public async Task<List<HealthCamp>> GetUpcomingCampsAsync(
-    Guid? subcontractorId,
-    CancellationToken ct = default)
+     Guid? subcontractorId,
+     CancellationToken ct = default)
     {
-        Console.WriteLine("=================================================");
-        Console.WriteLine("START: GetUpcomingCampsAsync");
-        Console.WriteLine($"SubcontractorId: {(subcontractorId.HasValue ? subcontractorId.Value : "NULL (UNRESTRICTED)")}");
-        Console.WriteLine("=================================================");
-
         var tz = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
-        var nowUtc = DateTime.UtcNow;
-        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, tz).Date;
+        var todayLocal = TimeZoneInfo
+            .ConvertTimeFromUtc(DateTime.UtcNow, tz)
+            .Date;
 
-        Console.WriteLine($"Now UTC       : {nowUtc:O}");
-        Console.WriteLine($"Today (Local) : {todayLocal:yyyy-MM-dd}");
+        IQueryable<HealthCamp> query = _context.HealthCamps
+            .Where(c =>
+                !c.IsDeleted &&
+                (c.CloseDate == null || c.CloseDate > DateTime.UtcNow) &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                )
+            );
 
-        IQueryable<HealthCamp> query = _context.HealthCamps;
-
-        // 🔹 STEP 1 — BASE COUNT
-        var baseCount = await query.CountAsync(ct);
-        Console.WriteLine($"STEP 1: Total HealthCamps in DB = {baseCount}");
-
-        // 🔹 STEP 2 — APPLY CORE FILTERS
-        query = query.Where(c =>
-            !c.IsDeleted &&
-            (c.CloseDate == null || c.CloseDate > nowUtc) &&
-            (
-                c.StartDate >= todayLocal ||
-                (c.IsLaunched &&
-                 c.StartDate <= todayLocal &&
-                 (c.EndDate ?? c.StartDate) >= todayLocal)
-            )
-        );
-
-        var afterLifecycleCount = await query.CountAsync(ct);
-        Console.WriteLine($"STEP 2: After lifecycle/date filters = {afterLifecycleCount}");
-
-        // 🔹 STEP 3 — OPTIONAL SUBCONTRACTOR FILTER
         if (subcontractorId.HasValue)
         {
-            Console.WriteLine("STEP 3: Applying subcontractor filter...");
-
             query = query.Where(c =>
-                c.ServiceAssignments.Any(a =>
+                c.SubcontractorAssignments.Any(a =>
                     !a.IsDeleted &&
                     a.SubcontractorId == subcontractorId.Value));
-
-            var afterSubcontractorCount = await query.CountAsync(ct);
-            Console.WriteLine($"STEP 3: After subcontractor filter = {afterSubcontractorCount}");
-        }
-        else
-        {
-            Console.WriteLine("STEP 3: No subcontractor filter (ADMIN / DOCTOR / CONCIERGE)");
         }
 
-        // 🔹 STEP 4 — FINAL SQL (VERY IMPORTANT)
-        Console.WriteLine("FINAL SQL QUERY:");
-        Console.WriteLine(query.ToQueryString());
-
-        // 🔹 STEP 5 — EXECUTION
-        var results = await query
+        return await query
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
-            .Include(c => c.ServiceAssignments)
+            .Include(c => c.SubcontractorAssignments)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
-
-        Console.WriteLine($"STEP 5: Final result count = {results.Count}");
-        Console.WriteLine("END: GetUpcomingCampsAsync");
-        Console.WriteLine("=================================================");
-
-        return results;
     }
 
 

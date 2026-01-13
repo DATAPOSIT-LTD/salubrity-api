@@ -69,6 +69,7 @@ public class SubcontractorHealthCampAssignment : BaseAuditableEntity
     public string? RoomNumber { get; set; }
 
     public Guid AssignmentStatusId { get; set; }
+
     public virtual SubcontractorHealthCampAssignmentStatus AssignmentStatus { get; set; } = default!;
 
     [Required]

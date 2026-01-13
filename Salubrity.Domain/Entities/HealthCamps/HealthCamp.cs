@@ -4,6 +4,7 @@ using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Organizations;
+using Salubrity.Domain.Entities.Subcontractor;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -53,6 +54,7 @@ public class HealthCamp : BaseAuditableEntity
     [MaxLength(160)]
     public string Slug { get; set; } = default!;
 
+    public virtual ICollection<SubcontractorHealthCampAssignment> SubcontractorAssignments { get; set; } = [];
 
     public virtual ICollection<HealthCampTempCredential> TempCredentials { get; set; } = new List<HealthCampTempCredential>();
     public virtual ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();

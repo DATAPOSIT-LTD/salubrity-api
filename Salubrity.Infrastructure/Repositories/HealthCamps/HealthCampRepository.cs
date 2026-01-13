@@ -914,12 +914,155 @@ public class HealthCampRepository : IHealthCampRepository
 
     //     return result;
     // }
+    // public async Task<List<HealthCampWithRolesDto>>
+    // GetCampsWithRolesByStatusAsync(
+    //     Guid? subcontractorId,
+    //     string status,
+    //     CancellationToken ct = default)
+    // {
+    //     Console.WriteLine("=================================================");
+    //     Console.WriteLine("START: GetCampsWithRolesByStatusAsync");
+    //     Console.WriteLine($"Status          : {status}");
+    //     Console.WriteLine($"SubcontractorId : {subcontractorId}");
+    //     Console.WriteLine("=================================================");
 
+    //     var today = DateTime.UtcNow.Date;
+    //     Console.WriteLine($"Today (UTC date): {today}");
+
+    //     // --------------------------------------------------
+    //     // STEP 1: Base query (CORRECT TABLE)
+    //     // --------------------------------------------------
+    //     IQueryable<SubcontractorHealthCampAssignment> baseQuery =
+    //         _context.SubcontractorHealthCampAssignments
+    //             .Include(x => x.HealthCamp)
+    //                 .ThenInclude(c => c.Organization)
+    //             .Include(x => x.HealthCamp)
+    //                 .ThenInclude(c => c.HealthCampStatus)
+    //             .Include(x => x.AssignmentStatus)
+    //             .Where(x =>
+    //                 !x.IsDeleted &&
+    //                 x.HealthCamp.IsActive &&
+    //                 !x.HealthCamp.IsDeleted);
+
+    //     Console.WriteLine($"STEP 1: Base rows = {await baseQuery.CountAsync(ct)}");
+
+    //     // --------------------------------------------------
+    //     // STEP 2: Optional subcontractor scope
+    //     // --------------------------------------------------
+    //     if (subcontractorId.HasValue)
+    //     {
+    //         baseQuery = baseQuery.Where(x =>
+    //             x.SubcontractorId == subcontractorId.Value);
+
+    //         Console.WriteLine(
+    //             $"STEP 2: After subcontractor filter = {await baseQuery.CountAsync(ct)}");
+    //     }
+
+    //     // --------------------------------------------------
+    //     // STEP 3: Status filter
+    //     // --------------------------------------------------
+    //     baseQuery = status.ToLowerInvariant() switch
+    //     {
+    //         "upcoming" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today),
+
+    //         "ongoing" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             x.HealthCamp.StartDate <= today &&
+    //             (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today &&
+    //             (x.HealthCamp.CloseDate == null ||
+    //              x.HealthCamp.CloseDate.Value.Date >= today)),
+
+    //         "complete" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) < today),
+
+    //         "canceled" => baseQuery.Where(x =>
+    //             !x.HealthCamp.IsLaunched ||
+    //             (x.HealthCamp.HealthCampStatus != null &&
+    //              x.HealthCamp.HealthCampStatus.Name ==
+    //              HealthCampStatusNames.Suspended)),
+
+    //         _ => throw new ValidationException(["Invalid camp status filter."])
+    //     };
+
+    //     Console.WriteLine(
+    //         $"STEP 3: After status filter = {await baseQuery.CountAsync(ct)}");
+
+    //     // --------------------------------------------------
+    //     // STEP 4: Materialize
+    //     // --------------------------------------------------
+    //     var assignments = await baseQuery
+    //         .AsNoTracking()
+    //         .ToListAsync(ct);
+
+    //     Console.WriteLine($"STEP 4: Materialized assignments = {assignments.Count}");
+
+    //     if (!assignments.Any())
+    //     {
+    //         Console.WriteLine("❌ EXIT EARLY: No assignments found");
+    //         return new();
+    //     }
+
+    //     // --------------------------------------------------
+    //     // STEP 5: Build DTOs
+    //     // --------------------------------------------------
+    //     var resolver = new PackageReferenceResolverService(
+    //         _serviceRepo,
+    //         _categoryRepo,
+    //         _subcategoryRepo);
+
+    //     var result = new List<HealthCampWithRolesDto>();
+
+    //     foreach (var campGroup in assignments.GroupBy(x => x.HealthCamp))
+    //     {
+    //         var camp = campGroup.Key;
+
+    //         var dto = new HealthCampWithRolesDto
+    //         {
+    //             CampId = camp.Id,
+    //             ClientName = camp.Organization?.BusinessName ?? "—",
+    //             Venue = camp.Location ?? "—",
+    //             StartDate = camp.StartDate,
+    //             EndDate = camp.EndDate,
+    //             Status = camp.HealthCampStatus?.Name ?? "Unknown",
+    //             Roles = new()
+    //         };
+    //         foreach (var boothGroup in campGroup.GroupBy(x => x.AssignmentId))
+    //         {
+    //             var assignment = boothGroup.First();
+
+    //             var boothName = await resolver.GetNameAsync(
+    //                 assignment.AssignmentType,
+    //                 assignment.AssignmentId);
+
+    //             dto.Roles.Add(new RoleAssignmentDto
+    //             {
+    //                 AssignedBooth = boothName,
+
+    //                 // ✅ THIS IS THE ROLE (profession)
+    //                 AssignedRole = assignment.Profession?.Name ?? "—",
+
+    //                 ServiceId = assignment.AssignmentId
+    //             });
+    //         }
+
+
+    //         result.Add(dto);
+    //     }
+
+    //     Console.WriteLine($"STEP 6: Final DTO count = {result.Count}");
+    //     Console.WriteLine("END: GetCampsWithRolesByStatusAsync");
+    //     Console.WriteLine("=================================================");
+
+    //     return result;
+    // }
 
     public async Task<List<HealthCampWithRolesDto>> GetCampsWithRolesByStatusAsync(
-        Guid? subcontractorId,
-        string status,
-        CancellationToken ct = default)
+           Guid? subcontractorId,
+           string status,
+           CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
 
@@ -937,11 +1080,11 @@ public class HealthCampRepository : IHealthCampRepository
 
         baseQuery = status.ToLowerInvariant() switch
         {
+
+
             "upcoming" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&
-                (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today &&
-                (x.HealthCamp.CloseDate == null ||
-                 x.HealthCamp.CloseDate.Value.Date >= today)),
+                (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today),
 
             "ongoing" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&
@@ -1039,7 +1182,7 @@ public class HealthCampRepository : IHealthCampRepository
                     dto.Roles.Add(new RoleAssignmentDto
                     {
                         AssignedBooth = boothName,
-                        AssignedRole = role, // ✅ EXACT OLD BEHAVIOR
+                        AssignedRole = role,
                         ServiceId = boothGroup.Key.RefId
                     });
                 }

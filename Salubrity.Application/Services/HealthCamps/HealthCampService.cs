@@ -845,223 +845,125 @@ public class HealthCampService : IHealthCampService
         };
     }
 
-
-    // public async Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId)
-    // {
-    //     var ct = CancellationToken.None;
-
-    //     var camp = await _repo.GetByIdAsync(campId);
-    //     if (camp == null)
-    //         throw new NotFoundException("Health Camp", campId.ToString());
-
-    //     // Verify subcontractor exists
-    //     var subcontractorAssignments = await _subcontractorCampAssignmentRepository
-    //         .GetByCampAndSubcontractorAsync(campId, dto.SubcontractorId);
-
-    //     // Ensure the subcontractor is not already assigned for any of the services
-    //     var duplicateServiceIds = subcontractorAssignments
-    //         .Where(a => dto.ServiceIds.Contains(a.AssignmentId) && !a.IsDeleted)
-    //         .Select(a => a.AssignmentId)
-    //         .ToList();
-
-    //     if (duplicateServiceIds.Any())
-    //         throw new ValidationException([$"Subcontractor already assigned to some of these services: {string.Join(", ", duplicateServiceIds)}"]);
-
-    //     // Ensure services being assigned belong to the camp package
-    //     var allowedServiceIds = camp.PackageItems.Select(p => p.ReferenceId).ToHashSet();
-    //     var invalidIds = dto.ServiceIds.Where(id => !allowedServiceIds.Contains(id)).ToList();
-    //     if (invalidIds.Any())
-    //         throw new ValidationException([$"Invalid services: {string.Join(", ", invalidIds)} are not part of this camp’s package."]);
-
-    //     var pendingStatus = await _lookupSubcontractorHealthCampAssignmentRepository.FindByNameAsync("Pending");
-    //     if (pendingStatus == null)
-    //         throw new InvalidOperationException("Assignment status 'Pending' not found.");
-
-    //     //  Helper to enforce UTC (solves PostgreSQL timestamp with time zone error)
-    //     static DateTime ToUtc(DateTime value)
-    //     {
-    //         if (value.Kind == DateTimeKind.Utc)
-    //             return value;
-    //         if (value.Kind == DateTimeKind.Local)
-    //             return value.ToUniversalTime();
-    //         return DateTime.SpecifyKind(value, DateTimeKind.Utc);
-    //     }
-
-    //     foreach (var serviceId in dto.ServiceIds)
-    //     {
-    //         var referenceType = await _referenceResolver.ResolveTypeAsync(serviceId);
-    //         var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
-
-    //         var newAssignment = new SubcontractorHealthCampAssignment
-    //         {
-    //             Id = Guid.NewGuid(),
-    //             HealthCampId = camp.Id,
-    //             SubcontractorId = dto.SubcontractorId,
-    //             AssignmentStatusId = pendingStatus.Id,
-    //             BoothLabel = boothLabel,
-
-    //             // FIX: ensure UTC datetime kind before saving
-    //             StartDate = ToUtc(camp.StartDate),
-
-    //             CreatedAt = DateTime.UtcNow,
-    //             CreatedBy = actingUserId,
-    //             IsDeleted = false,
-    //             AssignmentId = serviceId,
-    //             AssignmentType = (PackageItemType)referenceType
-    //         };
-
-    //         await _subcontractorCampAssignmentRepository.AddAsync(newAssignment);
-    //     }
-
-    //     await _notificationService.TriggerNotificationAsync(
-    //         title: "Subcontractor Added to Camp",
-    //         message: $"A subcontractor has been assigned to '{camp.Name}'.",
-    //         type: "HealthCamp",
-    //         entityId: camp.Id,
-    //         entityType: "Camp",
-    //         ct: ct
-    //     );
-    // }
-
-
-
     public async Task AddSubcontractorToCampAsync(
         Guid campId,
         ModifySubcontractorCampDto dto,
         Guid actingUserId)
     {
-        Console.WriteLine("=================================================");
-        Console.WriteLine("START: AddSubcontractorToCampAsync");
-        Console.WriteLine($"CampId: {campId}");
-        Console.WriteLine($"SubcontractorId: {dto.SubcontractorId}");
-        Console.WriteLine($"ServiceIds: {string.Join(", ", dto.ServiceIds)}");
-        Console.WriteLine($"ActingUserId: {actingUserId}");
-        Console.WriteLine("=================================================");
-
         var ct = CancellationToken.None;
 
-        // 1. Load Camp
-        Console.WriteLine("STEP 1: Loading health camp...");
-        var camp = await _repo.GetByIdAsync(campId);
+        // ─────────────────────────────────────────────
+        // 1. Load camp (aggregate root)
+        // ─────────────────────────────────────────────
+        var camp = await _repo.GetByIdAsync(campId)
+            ?? throw new NotFoundException("Health Camp", campId.ToString());
 
-        if (camp == null)
-        {
-            Console.WriteLine("❌ Camp NOT FOUND");
-            throw new NotFoundException("Health Camp", campId.ToString());
-        }
+        // ─────────────────────────────────────────────
+        // 2. Validate services belong to camp package
+        // ─────────────────────────────────────────────
+        var allowedServiceIds = camp.PackageItems
+            .Select(p => p.ReferenceId)
+            .ToHashSet();
 
-        Console.WriteLine($"✅ Camp found: {camp.Name}");
-        Console.WriteLine($"Camp StartDate (raw): {camp.StartDate}");
-
-        // 2. Existing assignments
-        Console.WriteLine("STEP 2: Checking existing subcontractor assignments...");
-        var subcontractorAssignments =
-            await _subcontractorCampAssignmentRepository
-                .GetByCampAndSubcontractorAsync(campId, dto.SubcontractorId);
-
-        Console.WriteLine($"Existing assignments found: {subcontractorAssignments.Count}");
-
-        // 3. Duplicate service protection
-        Console.WriteLine("STEP 3: Checking for duplicate services...");
-        var duplicateServiceIds = subcontractorAssignments
-            .Where(a => dto.ServiceIds.Contains(a.AssignmentId) && !a.IsDeleted)
-            .Select(a => a.AssignmentId)
+        var invalidServices = dto.Assignments
+            .Where(a => !allowedServiceIds.Contains(a.ServiceId))
+            .Select(a => a.ServiceId)
+            .Distinct()
             .ToList();
 
-        if (duplicateServiceIds.Any())
+        if (invalidServices.Any())
         {
-            Console.WriteLine($"❌ DUPLICATES FOUND: {string.Join(", ", duplicateServiceIds)}");
             throw new ValidationException([
-                $"Subcontractor already assigned to services: {string.Join(", ", duplicateServiceIds)}"
+                $"Invalid services not part of this camp package: {string.Join(", ", invalidServices)}"
             ]);
         }
 
-        Console.WriteLine("✅ No duplicate service assignments");
+        // ─────────────────────────────────────────────
+        // 3. Duplicate protection (SEMANTIC LAYER)
+        //    service + profession must be unique
+        // ─────────────────────────────────────────────
+        var existingServiceAssignments = camp.ServiceAssignments
+            .Where(x => x.SubcontractorId == dto.SubcontractorId);
 
-        // 4. Validate services belong to camp package
-        Console.WriteLine("STEP 4: Validating services belong to camp package...");
-        var allowedServiceIds = camp.PackageItems.Select(p => p.ReferenceId).ToHashSet();
+        var hasDuplicate = existingServiceAssignments
+            .Any(existing => dto.Assignments.Any(incoming =>
+                existing.AssignmentId == incoming.ServiceId &&
+                existing.ProfessionId == incoming.ProfessionId
+            ));
 
-        var invalidIds = dto.ServiceIds
-            .Where(id => !allowedServiceIds.Contains(id))
-            .ToList();
-
-        if (invalidIds.Any())
+        if (hasDuplicate)
         {
-            Console.WriteLine($"❌ INVALID SERVICES: {string.Join(", ", invalidIds)}");
             throw new ValidationException([
-                $"Invalid services: {string.Join(", ", invalidIds)}"
+                "Subcontractor already assigned to one or more service + profession combinations."
             ]);
         }
 
-        Console.WriteLine("✅ All services belong to camp package");
-
-        // 5. Resolve Pending status
-        Console.WriteLine("STEP 5: Resolving 'Pending' assignment status...");
-        var pendingStatus =
+        // ─────────────────────────────────────────────
+        // 4. Resolve assignment status
+        // ─────────────────────────────────────────────
+        var acceptedStatus =
             await _lookupSubcontractorHealthCampAssignmentRepository
-                .FindByNameAsync("Accepted");
+                .FindByNameAsync("Accepted")
+            ?? throw new InvalidOperationException("Assignment status 'Accepted' not found.");
 
-        if (pendingStatus == null)
-        {
-            Console.WriteLine("❌ Pending status NOT FOUND");
-            throw new InvalidOperationException("Assignment status 'Pending' not found.");
-        }
-
-        Console.WriteLine($"✅ Pending status resolved: {pendingStatus.Id}");
-
+        // ─────────────────────────────────────────────
+        // 5. UTC helper
+        // ─────────────────────────────────────────────
         static DateTime ToUtc(DateTime value)
         {
-            if (value.Kind == DateTimeKind.Utc)
-                return value;
-            if (value.Kind == DateTimeKind.Local)
-                return value.ToUniversalTime();
+            if (value.Kind == DateTimeKind.Utc) return value;
+            if (value.Kind == DateTimeKind.Local) return value.ToUniversalTime();
             return DateTime.SpecifyKind(value, DateTimeKind.Utc);
         }
 
-        // 6. Insert assignments
-        Console.WriteLine("STEP 6: Creating assignments...");
-
-        foreach (var serviceId in dto.ServiceIds)
+        // ─────────────────────────────────────────────
+        // 6. Create assignments
+        //    SEMANTIC → OPERATIONAL
+        // ─────────────────────────────────────────────
+        foreach (var assignment in dto.Assignments)
         {
-            Console.WriteLine("---------------------------------------------");
-            Console.WriteLine($"Processing ServiceId: {serviceId}");
+            var referenceType =
+                await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
 
-            var referenceType = await _referenceResolver.ResolveTypeAsync(serviceId);
-            Console.WriteLine($"Resolved AssignmentType: {referenceType}");
-
-            var boothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}";
-            Console.WriteLine($"Generated BoothLabel: {boothLabel}");
-
-            var assignmentId = Guid.NewGuid();
-
-            var newAssignment = new SubcontractorHealthCampAssignment
+            // ───────────── SEMANTIC (TRUTH) ─────────────
+            var serviceAssignment = new HealthCampServiceAssignment
             {
-                Id = assignmentId,
+                Id = Guid.NewGuid(),
+                HealthCampId = camp.Id,
+                AssignmentId = assignment.ServiceId,
+                AssignmentType = (PackageItemType)referenceType,
+                SubcontractorId = dto.SubcontractorId,
+                ProfessionId = assignment.ProfessionId
+            };
+
+            camp.ServiceAssignments.Add(serviceAssignment);
+
+            // ───────────── OPERATIONAL (EXECUTION) ─────────────
+            var boothAssignment = new SubcontractorHealthCampAssignment
+            {
+                Id = Guid.NewGuid(),
                 HealthCampId = camp.Id,
                 SubcontractorId = dto.SubcontractorId,
-                AssignmentStatusId = pendingStatus.Id,
-                BoothLabel = boothLabel,
+                AssignmentStatusId = acceptedStatus.Id,
+                BoothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}",
+
                 StartDate = ToUtc(camp.StartDate),
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = actingUserId,
+
                 IsDeleted = false,
-                AssignmentId = serviceId,
+                IsPrimaryAssignment = true,
+
+                AssignmentId = assignment.ServiceId,
                 AssignmentType = (PackageItemType)referenceType
             };
 
-            Console.WriteLine("INSERTING ASSIGNMENT:");
-            Console.WriteLine($"  AssignmentRowId: {assignmentId}");
-            Console.WriteLine($"  AssignmentType: {referenceType}");
-            Console.WriteLine($"  StartDate (UTC): {newAssignment.StartDate}");
-
-            await _subcontractorCampAssignmentRepository.AddAsync(newAssignment);
-
-            Console.WriteLine("✅ Assignment inserted");
+            await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
         }
 
+        // ─────────────────────────────────────────────
         // 7. Notification
-        Console.WriteLine("STEP 7: Triggering notification...");
+        // ─────────────────────────────────────────────
         await _notificationService.TriggerNotificationAsync(
             title: "Subcontractor Added to Camp",
             message: $"A subcontractor has been assigned to '{camp.Name}'.",
@@ -1070,10 +972,6 @@ public class HealthCampService : IHealthCampService
             entityType: "Camp",
             ct: ct
         );
-
-        Console.WriteLine("✅ Notification triggered");
-        Console.WriteLine("END: AddSubcontractorToCampAsync");
-        Console.WriteLine("=================================================");
     }
 
 

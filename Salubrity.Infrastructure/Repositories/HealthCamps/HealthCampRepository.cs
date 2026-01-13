@@ -977,11 +977,10 @@ public class HealthCampRepository : IHealthCampRepository
 
 
             "upcoming" => baseQuery.Where(x =>
-                    x.HealthCamp.IsLaunched &&
-                    (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today &&
-                    (x.HealthCamp.CloseDate == null ||
-                    x.HealthCamp.CloseDate.Value.Date >= today)
+                x.HealthCamp.IsLaunched &&
+                (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today
                 ),
+
 
 
             "complete" => baseQuery.Where(x =>

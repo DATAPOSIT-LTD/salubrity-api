@@ -1000,7 +1000,7 @@ public class HealthCampService : IHealthCampService
         Console.WriteLine("STEP 5: Resolving 'Pending' assignment status...");
         var pendingStatus =
             await _lookupSubcontractorHealthCampAssignmentRepository
-                .FindByNameAsync("Pending");
+                .FindByNameAsync("Accepted");
 
         if (pendingStatus == null)
         {

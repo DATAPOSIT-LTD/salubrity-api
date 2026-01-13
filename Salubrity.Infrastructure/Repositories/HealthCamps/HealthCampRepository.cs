@@ -9,7 +9,6 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
-using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Infrastructure.Persistence;
 using Salubrity.Shared.Constants;
 using Salubrity.Shared.Exceptions;
@@ -269,80 +268,29 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .AsSplitQuery();
     }
-
-    public async Task<List<HealthCamp>> GetOngoingCampsAsync(
-    Guid? subcontractorId,
-    CancellationToken ct = default)
+    public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
-        // Use Kenya timezone for business logic
-        var tz = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
-        var todayLocal = TimeZoneInfo
-            .ConvertTimeFromUtc(DateTime.UtcNow, tz)
-            .Date;
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
 
-        IQueryable<HealthCamp> query = _context.HealthCamps
+        return await CampsForSubcontractor(subcontractorId)
             .Where(c =>
-                !c.IsDeleted &&
-                c.IsLaunched &&
-                c.StartDate <= todayLocal &&
-                (c.EndDate ?? c.StartDate) >= todayLocal);
-
-        // OPTIONAL subcontractor filter
-        if (subcontractorId.HasValue)
-        {
-            query = query.Where(c =>
-                c.SubcontractorAssignments.Any(a =>
-                    !a.IsDeleted &&
-                    a.SubcontractorId == subcontractorId.Value));
-        }
-
-        return await query
-            .Include(c => c.HealthCampStatus)
-            .Include(c => c.Organization)
-            .Include(c => c.SubcontractorAssignments)
-            .AsNoTracking()
-            .OrderBy(c => c.StartDate)
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<HealthCamp>> GetUpcomingCampsAsync(
-     Guid? subcontractorId,
-     CancellationToken ct = default)
-    {
-        var tz = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
-        var todayLocal = TimeZoneInfo
-            .ConvertTimeFromUtc(DateTime.UtcNow, tz)
-            .Date;
-
-        IQueryable<HealthCamp> query = _context.HealthCamps
-            .Where(c =>
-                !c.IsDeleted &&
-                (c.CloseDate == null || c.CloseDate > DateTime.UtcNow) &&
+                (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
                 (
                     c.StartDate >= todayLocal ||
                     (c.IsLaunched &&
                      c.StartDate <= todayLocal &&
                      (c.EndDate ?? c.StartDate) >= todayLocal)
                 )
-            );
-
-        if (subcontractorId.HasValue)
-        {
-            query = query.Where(c =>
-                c.SubcontractorAssignments.Any(a =>
-                    !a.IsDeleted &&
-                    a.SubcontractorId == subcontractorId.Value));
-        }
-
-        return await query
+            )
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
-            .Include(c => c.SubcontractorAssignments)
+            .Include(c => c.ServiceAssignments)
             .AsNoTracking()
             .OrderBy(c => c.StartDate)
             .ToListAsync(ct);
     }
-
 
     public async Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default)
     {
@@ -799,8 +747,8 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
 
-    public async Task<List<HealthCampWithRolesDto>> GetCampsWithRolesByStatusAsync(
-        Guid? subcontractorId,
+    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
+        Guid subcontractorId,
         string status,
         CancellationToken ct = default)
     {
@@ -915,7 +863,6 @@ public class HealthCampRepository : IHealthCampRepository
         return result;
     }
 
-
     public async Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
     Guid campId,
     string filter,
@@ -1027,7 +974,7 @@ public class HealthCampRepository : IHealthCampRepository
         if (patient == null)
             return null;
 
-        // STEP 3:  Served check (now uses ParticipantServiceStatuses)
+        // STEP 3: ✅ Served check (now uses ParticipantServiceStatuses)
         var served = await _context.HealthCampParticipantServiceStatuses
             .AnyAsync(s => s.ParticipantId == participantId && s.ServedAt != null, ct);
 

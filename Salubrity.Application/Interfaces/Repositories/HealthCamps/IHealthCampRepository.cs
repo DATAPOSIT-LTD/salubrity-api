@@ -17,17 +17,7 @@ public interface IHealthCampRepository
     Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert);
 
     // Subcontractor-scoped
-    // Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default);
-    // Unified upcoming camps (optional subcontractor scope)
-    Task<List<HealthCamp>> GetUpcomingCampsAsync(
-        Guid? subcontractorId,
-        CancellationToken ct = default);
-
-    Task<List<HealthCamp>> GetOngoingCampsAsync(
-        Guid? subcontractorId,
-        CancellationToken ct = default);
-
-
+    Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<HealthCamp?> GetBySlugAsync(string slug, CancellationToken ct = default);
@@ -48,6 +38,7 @@ public interface IHealthCampRepository
 
     Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
         Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default);
     Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
            Guid campId,
            string filter,
@@ -62,12 +53,6 @@ public interface IHealthCampRepository
          Guid participantId,
          Guid? subcontractorId, // null => admin (all assignments)
          CancellationToken ct = default);
-    Task<List<HealthCampWithRolesDto>> GetCampsWithRolesByStatusAsync(
-        Guid? subcontractorId,
-        string status,
-        CancellationToken ct = default);
-
-
 
     // Organization-scoped
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);

@@ -48,7 +48,6 @@ public interface IHealthCampRepository
 
     Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
         Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
-    Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default);
     Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
            Guid campId,
            string filter,
@@ -63,6 +62,12 @@ public interface IHealthCampRepository
          Guid participantId,
          Guid? subcontractorId, // null => admin (all assignments)
          CancellationToken ct = default);
+    Task<List<HealthCampWithRolesDto>> GetCampsWithRolesByStatusAsync(
+        Guid? subcontractorId,
+        string status,
+        CancellationToken ct = default);
+
+
 
     // Organization-scoped
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);

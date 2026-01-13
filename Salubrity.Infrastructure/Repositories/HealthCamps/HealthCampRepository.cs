@@ -798,22 +798,150 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
 
-    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
-        Guid subcontractorId,
+    // public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
+    //     Guid subcontractorId,
+    //     string status,
+    //     CancellationToken ct = default)
+    // {
+    //     var today = DateTime.UtcNow.Date;
+
+    //     var baseQuery = _context.HealthCampServiceAssignments
+    //         .Where(x => x.SubcontractorId == subcontractorId)
+    //         .Include(x => x.HealthCamp)
+    //             .ThenInclude(c => c.Organization)
+    //         .Include(x => x.HealthCamp)
+    //             .ThenInclude(c => c.HealthCampStatus)
+    //         .Include(x => x.Role)
+    //         .Where(x => x.HealthCamp.IsActive);
+
+    //     baseQuery = status.ToLowerInvariant() switch
+    //     {
+    //         "upcoming" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today) &&
+    //             (x.HealthCamp.CloseDate == null || x.HealthCamp.CloseDate >= today)),
+
+    //         "complete" => baseQuery.Where(x =>
+    //             x.HealthCamp.IsLaunched &&
+    //             ((x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) < today)),
+
+    //         "canceled" => baseQuery.Where(x =>
+    //             !x.HealthCamp.IsLaunched ||
+    //             (x.HealthCamp.HealthCampStatus != null &&
+    //              x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
+
+    //         _ => baseQuery
+    //     };
+
+    //     // Materialize
+    //     var assignments = await baseQuery.AsNoTracking().ToListAsync(ct);
+
+    //     // Normalize subcategory → category
+    //     var normalized = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
+    //     foreach (var a in assignments)
+    //     {
+    //         if (a.AssignmentType == PackageItemType.ServiceSubcategory)
+    //         {
+    //             var parent = await _context.ServiceSubcategories
+    //                 .Where(sc => sc.Id == a.AssignmentId)
+    //                 .Select(sc => sc.ServiceCategory)
+    //                 .FirstOrDefaultAsync(ct);
+
+    //             if (parent != null)
+    //             {
+    //                 normalized.Add((parent.Id, PackageItemType.ServiceCategory, a));
+    //                 continue;
+    //             }
+    //         }
+
+    //         normalized.Add((a.AssignmentId, a.AssignmentType, a));
+    //     }
+
+    //     // Deduplicate: prefer category over subcategory
+    //     var finalAssignments = normalized
+    //         .GroupBy(x => x.RefId)
+    //         .Select(g =>
+    //         {
+    //             var category = g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory);
+    //             return category.RefId != Guid.Empty ? category : g.First();
+    //         })
+    //         .ToList();
+
+    //     // Resolver
+    //     var resolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
+
+    //     var result = new List<HealthCampWithRolesDto>();
+
+    //     foreach (var campGroup in finalAssignments.GroupBy(x => x.Source.HealthCamp))
+    //     {
+    //         var dto = new HealthCampWithRolesDto
+    //         {
+    //             CampId = campGroup.Key.Id,
+    //             ClientName = campGroup.Key.Organization?.BusinessName ?? "—",
+    //             Venue = campGroup.Key.Location ?? "—",
+    //             StartDate = campGroup.Key.StartDate,
+    //             EndDate = campGroup.Key.EndDate,
+    //             Status = campGroup.Key.HealthCampStatus?.Name ?? "Unknown",
+    //             Roles = new List<RoleAssignmentDto>()
+    //         };
+
+    //         // Group by booth name only
+    //         foreach (var boothGroup in campGroup.GroupBy(x => new { x.RefId, x.Type }))
+    //         {
+    //             var any = boothGroup.First();
+    //             var boothName = await resolver.GetNameAsync(boothGroup.Key.Type, boothGroup.Key.RefId);
+
+    //             // Collect all roles for this booth
+    //             var roles = boothGroup
+    //                 .Select(x => x.Source.Role?.Name ?? "—")
+    //                 .Distinct()
+    //                 .ToList();
+
+    //             foreach (var role in roles)
+    //             {
+    //                 dto.Roles.Add(new RoleAssignmentDto
+    //                 {
+    //                     AssignedBooth = boothName,
+    //                     AssignedRole = role,
+    //                     ServiceId = boothGroup.Key.RefId
+    //                 });
+    //             }
+    //         }
+
+    //         result.Add(dto);
+    //     }
+
+    //     return result;
+    // }
+
+    public async Task<List<HealthCampWithRolesDto>>
+    GetCampsWithRolesByStatusAsync(
+        Guid? subcontractorId,
         string status,
         CancellationToken ct = default)
     {
         var today = DateTime.UtcNow.Date;
 
-        var baseQuery = _context.HealthCampServiceAssignments
-            .Where(x => x.SubcontractorId == subcontractorId)
-            .Include(x => x.HealthCamp)
-                .ThenInclude(c => c.Organization)
-            .Include(x => x.HealthCamp)
-                .ThenInclude(c => c.HealthCampStatus)
-            .Include(x => x.Role)
-            .Where(x => x.HealthCamp.IsActive);
+        IQueryable<HealthCampServiceAssignment> baseQuery =
+            _context.HealthCampServiceAssignments
+                .Include(x => x.HealthCamp)
+                    .ThenInclude(c => c.Organization)
+                .Include(x => x.HealthCamp)
+                    .ThenInclude(c => c.HealthCampStatus)
+                .Include(x => x.Role)
+                .Where(x =>
+                    !x.IsDeleted &&
+                    x.HealthCamp.IsActive &&
+                    !x.HealthCamp.IsDeleted);
 
+        //  OPTIONAL subcontractor scope
+        if (subcontractorId.HasValue)
+        {
+            baseQuery = baseQuery.Where(x =>
+                x.SubcontractorId == subcontractorId.Value);
+        }
+
+        //  Status filter
         baseQuery = status.ToLowerInvariant() switch
         {
             "upcoming" => baseQuery.Where(x =>
@@ -830,14 +958,23 @@ public class HealthCampRepository : IHealthCampRepository
                 (x.HealthCamp.HealthCampStatus != null &&
                  x.HealthCamp.HealthCampStatus.Name == HealthCampStatusNames.Suspended)),
 
-            _ => baseQuery
+            "ongoing" => baseQuery.Where(x =>
+                x.HealthCamp.IsLaunched &&
+                x.HealthCamp.StartDate <= today &&
+                (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today),
+
+            _ => throw new ValidationException(["Invalid camp status filter."])
         };
 
-        // Materialize
-        var assignments = await baseQuery.AsNoTracking().ToListAsync(ct);
+        var assignments = await baseQuery
+            .AsNoTracking()
+            .ToListAsync(ct);
 
+        // ─────────────────────────────────────
         // Normalize subcategory → category
+        // ─────────────────────────────────────
         var normalized = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
+
         foreach (var a in assignments)
         {
             if (a.AssignmentType == PackageItemType.ServiceSubcategory)
@@ -857,7 +994,6 @@ public class HealthCampRepository : IHealthCampRepository
             normalized.Add((a.AssignmentId, a.AssignmentType, a));
         }
 
-        // Deduplicate: prefer category over subcategory
         var finalAssignments = normalized
             .GroupBy(x => x.RefId)
             .Select(g =>
@@ -867,37 +1003,37 @@ public class HealthCampRepository : IHealthCampRepository
             })
             .ToList();
 
-        // Resolver
-        var resolver = new PackageReferenceResolverService(_serviceRepo, _categoryRepo, _subcategoryRepo);
+        var resolver = new PackageReferenceResolverService(
+            _serviceRepo,
+            _categoryRepo,
+            _subcategoryRepo);
 
         var result = new List<HealthCampWithRolesDto>();
 
         foreach (var campGroup in finalAssignments.GroupBy(x => x.Source.HealthCamp))
         {
+            var camp = campGroup.Key;
+
             var dto = new HealthCampWithRolesDto
             {
-                CampId = campGroup.Key.Id,
-                ClientName = campGroup.Key.Organization?.BusinessName ?? "—",
-                Venue = campGroup.Key.Location ?? "—",
-                StartDate = campGroup.Key.StartDate,
-                EndDate = campGroup.Key.EndDate,
-                Status = campGroup.Key.HealthCampStatus?.Name ?? "Unknown",
+                CampId = camp.Id,
+                ClientName = camp.Organization?.BusinessName ?? "—",
+                Venue = camp.Location ?? "—",
+                StartDate = camp.StartDate,
+                EndDate = camp.EndDate,
+                Status = camp.HealthCampStatus?.Name ?? "Unknown",
                 Roles = new List<RoleAssignmentDto>()
             };
 
-            // Group by booth name only
             foreach (var boothGroup in campGroup.GroupBy(x => new { x.RefId, x.Type }))
             {
-                var any = boothGroup.First();
-                var boothName = await resolver.GetNameAsync(boothGroup.Key.Type, boothGroup.Key.RefId);
+                var boothName = await resolver.GetNameAsync(
+                    boothGroup.Key.Type,
+                    boothGroup.Key.RefId);
 
-                // Collect all roles for this booth
-                var roles = boothGroup
+                foreach (var role in boothGroup
                     .Select(x => x.Source.Role?.Name ?? "—")
-                    .Distinct()
-                    .ToList();
-
-                foreach (var role in roles)
+                    .Distinct())
                 {
                     dto.Roles.Add(new RoleAssignmentDto
                     {

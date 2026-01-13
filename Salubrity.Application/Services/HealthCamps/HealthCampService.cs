@@ -590,14 +590,25 @@ public class HealthCampService : IHealthCampService
         => _repo.GetCampParticipantsNotSeenAsync(campId, serviceAssignmentId, q, sort, page, pageSize);
 
     // Status-based camps with optional subcontractor
-    public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default)
+
+
+    public async Task<List<HealthCampWithRolesDto>>
+    GetMyCampsWithRolesByStatusAsync(
+        Guid? subcontractorId,
+        string status,
+        CancellationToken ct = default)
     {
         if (!sourceArray.Contains(status))
             throw new ValidationException(["Invalid camp status filter."]);
 
-        var camps = await _repo.GetMyCampsWithRolesByStatusAsync(subcontractorId ?? Guid.Empty, status, ct);
+        var camps = await _repo.GetCampsWithRolesByStatusAsync(
+            subcontractorId,
+            status,
+            ct);
+
         return _mapper.Map<List<HealthCampWithRolesDto>>(camps);
     }
+
 
     public Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
         Guid campId,

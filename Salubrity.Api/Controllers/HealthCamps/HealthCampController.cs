@@ -84,7 +84,7 @@ public class CampController : BaseController
         // Admins have no subcontractorId → pass null to service
         var subcontractorId = (isAdmin || isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId, ct);
         return Success(result);
     }
 
@@ -182,7 +182,7 @@ public class CampController : BaseController
             ? (Guid?)null
             : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        var result = await _service.GetMyOngoingCampsAsync(subcontractorId);
+        var result = await _service.GetMyOngoingCampsAsync(subcontractorId, ct);
         return Success(result);
     }
 

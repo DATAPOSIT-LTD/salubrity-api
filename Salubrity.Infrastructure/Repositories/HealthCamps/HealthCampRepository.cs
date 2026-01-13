@@ -258,7 +258,7 @@ public class HealthCampRepository : IHealthCampRepository
     }
 
 
-    private IQueryable<HealthCamp> CampsForSubcontractor(Guid subcontractorId)
+    private IQueryable<HealthCamp> CampsForSubcontractor(Guid? subcontractorId)
     {
         return _context.HealthCampServiceAssignments
             .Where(a => (a.SubcontractorId == subcontractorId) && !a.HealthCamp.IsDeleted)
@@ -268,12 +268,30 @@ public class HealthCampRepository : IHealthCampRepository
             .AsNoTracking()
             .AsSplitQuery();
     }
-    public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default)
+    public async Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid? subcontractorId, CancellationToken ct = default)
     {
         var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
         var nowUtc = DateTime.UtcNow;
         var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
-
+        if (subcontractorId == null)
+        {
+            return await _context.HealthCamps
+            .Where(c =>
+                (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                )
+            )
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+        }
         return await CampsForSubcontractor(subcontractorId)
             .Where(c =>
                 (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
@@ -748,7 +766,7 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(
-        Guid subcontractorId,
+        Guid? subcontractorId,
         string status,
         CancellationToken ct = default)
     {

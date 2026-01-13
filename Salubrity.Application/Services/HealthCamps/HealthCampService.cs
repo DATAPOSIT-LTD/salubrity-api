@@ -541,7 +541,7 @@ public class HealthCampService : IHealthCampService
     //  Use nullable Guid
 
     public async Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(
-      Guid subcontractorId,
+      Guid? subcontractorId,
       CancellationToken ct = default)
     {
         var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId, ct);
@@ -549,7 +549,7 @@ public class HealthCampService : IHealthCampService
     }
 
     public async Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(
-        Guid subcontractorId,
+        Guid? subcontractorId,
         CancellationToken ct = default)
     {
         var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId);
@@ -593,7 +593,7 @@ public class HealthCampService : IHealthCampService
 
     public async Task<List<HealthCampWithRolesDto>>
     GetMyCampsWithRolesByStatusAsync(
-        Guid subcontractorId,
+        Guid? subcontractorId,
         string status,
         CancellationToken ct = default)
     {

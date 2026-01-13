@@ -13,7 +13,7 @@ public interface IHealthCampService
     Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto);
 
     // These now accept nullable Guid?
-    Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct);
+    Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId, CancellationToken ct);
     Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId);
     Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid? subcontractorId);
 
@@ -29,7 +29,7 @@ public interface IHealthCampService
     Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct);
 
     // This also needs to support nullable
-    Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct);
+    Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct);
 
     Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
         Guid campId,
@@ -55,7 +55,7 @@ public interface IHealthCampService
     Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default);
     Task UpdateParticipantBillingStatusAsync(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct = default);
     Task<ParticipantBillingStatusDto> GetParticipantBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default);
-    Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+    Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId, CancellationToken ct = default);
     Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId);
     Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId);
     Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct);

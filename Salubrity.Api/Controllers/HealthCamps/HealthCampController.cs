@@ -200,6 +200,8 @@ public class CampController : BaseController
 
 
     [HttpGet("{campId:guid}/participants")]
+    [ProducesResponseType(typeof(PagedResult<CampParticipantListDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetCampParticipants(
      Guid campId,
      [FromQuery] Guid serviceId,

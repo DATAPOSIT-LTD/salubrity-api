@@ -60,9 +60,11 @@ public class HealthCampService : IHealthCampService
     private readonly IHealthCampParticipantPackageRepository _participantPackageRepo;
     private readonly IHealthCampPackageRepository _campPackageRepository;
     private readonly CampTokenOptions _campTokenOptions;
+    private readonly IHealthCampServiceAssignmentRepository _healthCampServiceAssignmentRepository;
 
 
-    public HealthCampService(ILogger<HealthCampService> logger, IHealthCampPackageRepository campPackageRepository, IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository, IHealthCampParticipantPackageRepository participantPackageRepo)
+
+    public HealthCampService(ILogger<HealthCampService> logger, IHealthCampPackageRepository campPackageRepository, IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository, IHealthCampParticipantPackageRepository participantPackageRepo, IHealthCampServiceAssignmentRepository healthCampServiceAssignmentRepository)
     {
         _repo = repo;
         _mapper = mapper;
@@ -82,6 +84,7 @@ public class HealthCampService : IHealthCampService
         _roleRepository = roleRepository ?? throw new ArgumentNullException(nameof(roleRepository));
         _participantPackageRepo = participantPackageRepo ?? throw new ArgumentNullException(nameof(participantPackageRepo));
         _campPackageRepository = campPackageRepository;
+        _healthCampServiceAssignmentRepository = healthCampServiceAssignmentRepository;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -992,33 +995,24 @@ public class HealthCampService : IHealthCampService
 
 
     public async Task AddSubcontractorToCampAsync(
-      Guid campId,
-      ModifySubcontractorCampDto dto,
-      Guid actingUserId)
+     Guid campId,
+     ModifySubcontractorCampDto dto,
+     Guid actingUserId)
     {
         var ct = CancellationToken.None;
 
-        // ─────────────────────────────────────────────
-        // 1. Load camp (same aggregate as CreateAsync)
-        // ─────────────────────────────────────────────
+        // 1. Load camp
         var camp = await _repo.GetByIdAsync(campId)
             ?? throw new NotFoundException("Health Camp", campId.ToString());
 
-        // ─────────────────────────────────────────────
-        // 2. Guard: assignments required
-        // ─────────────────────────────────────────────
+        // 2. Guards
         if (dto.Assignments == null || !dto.Assignments.Any())
             throw new ValidationException(["At least one service assignment is required."]);
 
-        // ─────────────────────────────────────────────
-        // 3. Guard: no empty service IDs
-        // ─────────────────────────────────────────────
         if (dto.Assignments.Any(a => a.ServiceId == Guid.Empty))
             throw new ValidationException(["ServiceId cannot be empty."]);
 
-        // ─────────────────────────────────────────────
-        // 4. Validate services belong to camp package
-        // ─────────────────────────────────────────────
+        // 3. Validate against package
         var allowedServiceIds = camp.PackageItems
             .Select(p => p.ReferenceId)
             .ToHashSet();
@@ -1030,18 +1024,14 @@ public class HealthCampService : IHealthCampService
             .ToList();
 
         if (invalidServices.Any())
-        {
             throw new ValidationException([
                 $"Invalid services not part of this camp package: {string.Join(", ", invalidServices)}"
             ]);
-        }
 
-        // ─────────────────────────────────────────────
-        // 5. Duplicate protection (operational layer)
-        // ─────────────────────────────────────────────
+        // 4. Duplicate protection (operational)
         var existingBooths =
             await _subcontractorCampAssignmentRepository
-                .GetByCampAndSubcontractorAsync(campId, dto.SubcontractorId);
+                .GetByCampAndSubcontractorAsync(campId, dto.SubcontractorId, ct);
 
         var duplicateServiceIds = existingBooths
             .Where(x => !x.IsDeleted)
@@ -1050,96 +1040,70 @@ public class HealthCampService : IHealthCampService
             .ToList();
 
         if (duplicateServiceIds.Any())
-        {
             throw new ValidationException([
                 $"Subcontractor already assigned to services: {string.Join(", ", duplicateServiceIds)}"
             ]);
-        }
 
-        // ─────────────────────────────────────────────
-        // 6. Resolve assignment status
-        // ─────────────────────────────────────────────
+        // 5. Resolve assignment status
         var assignedStatus =
             await _lookupSubcontractorHealthCampAssignmentRepository
                 .FindByNameAsync("Pending")
             ?? throw new InvalidOperationException("Assignment status 'Pending' not found.");
 
-        // ─────────────────────────────────────────────
-        // 7. UTC helper (same as CreateAsync)
-        // ─────────────────────────────────────────────
-        static DateTime ToUtc(DateTime value)
-        {
-            if (value.Kind == DateTimeKind.Utc) return value;
-            if (value.Kind == DateTimeKind.Local) return value.ToUniversalTime();
-            return DateTime.SpecifyKind(value, DateTimeKind.Utc);
-        }
-
-        // ─────────────────────────────────────────────
-        // 8. DESIGN-TIME SERVICE ASSIGNMENTS
-        //    (THIS is what powers GetMyCamps*, stations, roles)
-        // ─────────────────────────────────────────────
+        // 6. DESIGN-TIME SERVICE ASSIGNMENTS (FIX)
         foreach (var assignment in dto.Assignments)
         {
-            var exists = camp.ServiceAssignments.Any(sa =>
-                sa.AssignmentId == assignment.ServiceId &&
-                sa.SubcontractorId == dto.SubcontractorId);
+            var exists = await _healthCampServiceAssignmentRepository.ExistsAsync(
+                campId,
+                dto.SubcontractorId,
+                assignment.ServiceId,
+                ct);
 
             if (!exists)
             {
                 var referenceType =
                     await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
 
-                camp.ServiceAssignments.Add(new HealthCampServiceAssignment
-                {
-                    Id = Guid.NewGuid(),
-                    HealthCampId = camp.Id,
-                    AssignmentId = assignment.ServiceId,
-                    AssignmentType = (PackageItemType)referenceType,
-                    SubcontractorId = dto.SubcontractorId,
-                    ProfessionId = assignment.ProfessionId
-                });
+                await _healthCampServiceAssignmentRepository.AddAsync(
+                    new HealthCampServiceAssignment
+                    {
+                        Id = Guid.NewGuid(),
+                        HealthCampId = camp.Id,
+                        SubcontractorId = dto.SubcontractorId,
+                        AssignmentId = assignment.ServiceId,
+                        AssignmentType = (PackageItemType)referenceType,
+                        ProfessionId = assignment.ProfessionId
+                    },
+                    ct);
             }
         }
 
-        // ─────────────────────────────────────────────
-        // 9. OPERATIONAL BOOTH ASSIGNMENTS
-        //    (exact mirror of CreateAsync)
-        // ─────────────────────────────────────────────
+        // 7. OPERATIONAL BOOTHS
         foreach (var assignment in dto.Assignments)
         {
             var referenceType =
                 await _referenceResolver.ResolveTypeAsync(assignment.ServiceId);
 
-            var boothAssignment = new SubcontractorHealthCampAssignment
-            {
-                Id = Guid.NewGuid(),
-                HealthCampId = camp.Id,
-                SubcontractorId = dto.SubcontractorId,
-                AssignmentStatusId = assignedStatus.Id,
-                BoothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}",
-
-                StartDate = ToUtc(camp.StartDate),
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = actingUserId,
-
-                IsDeleted = false,
-                IsPrimaryAssignment = true,
-
-                AssignmentId = assignment.ServiceId,
-                AssignmentType = (PackageItemType)referenceType
-            };
-
-            await _subcontractorCampAssignmentRepository.AddAsync(boothAssignment);
+            await _subcontractorCampAssignmentRepository.AddAsync(
+                new SubcontractorHealthCampAssignment
+                {
+                    Id = Guid.NewGuid(),
+                    HealthCampId = camp.Id,
+                    SubcontractorId = dto.SubcontractorId,
+                    AssignmentStatusId = assignedStatus.Id,
+                    BoothLabel = $"Booth-{Guid.NewGuid().ToString()[..4].ToUpper()}",
+                    StartDate = DateTime.SpecifyKind(camp.StartDate, DateTimeKind.Utc),
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = actingUserId,
+                    IsDeleted = false,
+                    IsPrimaryAssignment = true,
+                    AssignmentId = assignment.ServiceId,
+                    AssignmentType = (PackageItemType)referenceType
+                },
+                ct);
         }
 
-        // ─────────────────────────────────────────────
-        // 10. **PERSIST AGGREGATE**  ← THIS WAS MISSING
-        // ─────────────────────────────────────────────
-        await _repo.UpdateAsync(camp);
-
-        // ─────────────────────────────────────────────
-        // 11. Notification
-        // ─────────────────────────────────────────────
+        // 8. Notification
         await _notificationService.TriggerNotificationAsync(
             title: "Subcontractor Added to Camp",
             message: $"A subcontractor has been assigned to '{camp.Name}'.",
@@ -1149,7 +1113,6 @@ public class HealthCampService : IHealthCampService
             ct: ct
         );
     }
-
 
 
 

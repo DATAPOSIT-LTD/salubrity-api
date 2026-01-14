@@ -34,7 +34,7 @@ public interface IHealthCampRepository
 
     Task<PagedResult<CampParticipantListDto>> GetCampParticipantsAsync(
         Guid campId,
-        Guid serviceAssignmentId,             // station / service context (required)
+        Guid serviceId,             // station / service context (required)
         CampParticipantServeStatus status,    // All | Served | NotServed | Suspended
         string? q,
         string? sort,

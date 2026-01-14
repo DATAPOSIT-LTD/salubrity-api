@@ -992,9 +992,9 @@ public class HealthCampService : IHealthCampService
 
 
     public async Task AddSubcontractorToCampAsync(
-    Guid campId,
-    ModifySubcontractorCampDto dto,
-    Guid actingUserId)
+      Guid campId,
+      ModifySubcontractorCampDto dto,
+      Guid actingUserId)
     {
         var ct = CancellationToken.None;
 
@@ -1037,7 +1037,7 @@ public class HealthCampService : IHealthCampService
         }
 
         // ─────────────────────────────────────────────
-        // 5. Duplicate protection (OPERATIONAL layer)
+        // 5. Duplicate protection (operational layer)
         // ─────────────────────────────────────────────
         var existingBooths =
             await _subcontractorCampAssignmentRepository
@@ -1075,8 +1075,8 @@ public class HealthCampService : IHealthCampService
         }
 
         // ─────────────────────────────────────────────
-        // 8. ENSURE DESIGN-TIME ASSIGNMENTS
-        //    (THIS is what makes GetMyCamps* work)
+        // 8. DESIGN-TIME SERVICE ASSIGNMENTS
+        //    (THIS is what powers GetMyCamps*, stations, roles)
         // ─────────────────────────────────────────────
         foreach (var assignment in dto.Assignments)
         {
@@ -1102,8 +1102,8 @@ public class HealthCampService : IHealthCampService
         }
 
         // ─────────────────────────────────────────────
-        // 9. CREATE OPERATIONAL BOOTHS
-        //    (exactly matches CreateAsync)
+        // 9. OPERATIONAL BOOTH ASSIGNMENTS
+        //    (exact mirror of CreateAsync)
         // ─────────────────────────────────────────────
         foreach (var assignment in dto.Assignments)
         {
@@ -1133,7 +1133,12 @@ public class HealthCampService : IHealthCampService
         }
 
         // ─────────────────────────────────────────────
-        // 10. Notification (unchanged)
+        // 10. **PERSIST AGGREGATE**  ← THIS WAS MISSING
+        // ─────────────────────────────────────────────
+        await _repo.UpdateAsync(camp);
+
+        // ─────────────────────────────────────────────
+        // 11. Notification
         // ─────────────────────────────────────────────
         await _notificationService.TriggerNotificationAsync(
             title: "Subcontractor Added to Camp",
@@ -1144,6 +1149,7 @@ public class HealthCampService : IHealthCampService
             ct: ct
         );
     }
+
 
 
 

@@ -11,6 +11,12 @@ public interface IIntakeFormResponseRepository
     /// </summary>
     Task<IntakeFormResponse> AddAsync(IntakeFormResponse response, CancellationToken ct = default);
 
+    Task SaveChangesAsync(CancellationToken ct);
+    Task<IntakeFormResponse?> GetWithFieldResponsesAsync(
+      Guid responseId,
+      CancellationToken ct);
+
+
     /// <summary>
     /// Fetches an intake form response including its field responses.
     /// </summary>

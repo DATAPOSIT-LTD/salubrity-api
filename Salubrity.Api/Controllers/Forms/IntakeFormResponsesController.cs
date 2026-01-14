@@ -151,4 +151,23 @@ public class IntakeFormResponsesController : BaseController
 
         return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
+
+
+    [HttpPatch("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Patch(
+    Guid id,
+    [FromBody] PatchIntakeFormResponseDto dto,
+    CancellationToken ct)
+    {
+        if (id != dto.ResponseId)
+            return Failure("Mismatched response ID.");
+
+        var userId = GetCurrentUserId();
+
+        await _service.PatchResponseAsync(dto, userId, ct);
+
+        return Success(id, "Response updated successfully.");
+    }
+
 }

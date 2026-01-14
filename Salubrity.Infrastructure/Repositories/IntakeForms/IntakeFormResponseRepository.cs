@@ -24,7 +24,19 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         await _db.SaveChangesAsync(ct);
         return response;
     }
+    public async Task SaveChangesAsync(CancellationToken ct)
+    {
+        await _db.SaveChangesAsync(ct);
+    }
 
+    public async Task<IntakeFormResponse?> GetWithFieldResponsesAsync(
+     Guid responseId,
+     CancellationToken ct)
+    {
+        return await _db.IntakeFormResponses
+            .Include(r => r.FieldResponses)
+            .FirstOrDefaultAsync(r => r.Id == responseId, ct);
+    }
     public Task<IntakeFormResponse?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         return _db.IntakeFormResponses

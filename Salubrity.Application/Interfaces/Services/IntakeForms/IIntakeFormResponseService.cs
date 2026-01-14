@@ -15,4 +15,9 @@ public interface IIntakeFormResponseService
 
 
     Task<(byte[] ExcelData, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default);
+
+    Task PatchResponseAsync(
+       PatchIntakeFormResponseDto dto,
+       Guid actingUserId,
+       CancellationToken ct);
 }

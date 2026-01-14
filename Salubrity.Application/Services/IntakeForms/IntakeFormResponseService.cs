@@ -308,6 +308,60 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return responseId;
     }
 
+    public async Task PatchResponseAsync(
+         PatchIntakeFormResponseDto dto,
+         Guid actingUserId,
+         CancellationToken ct)
+    {
+        var response = await _intakeFormResponseRepository
+            .GetWithFieldResponsesAsync(dto.ResponseId, ct);
+
+        if (response == null)
+            throw new NotFoundException(
+                "IntakeFormResponse",
+                dto.ResponseId.ToString());
+
+        // ------------------------------------
+        // Optional status update
+        // ------------------------------------
+        if (dto.ResponseStatusId.HasValue &&
+            dto.ResponseStatusId.Value != response.ResponseStatusId)
+        {
+            response.ResponseStatusId = dto.ResponseStatusId.Value;
+        }
+
+        // ------------------------------------
+        // Field UPSERT (domain-safe)
+        // ------------------------------------
+        foreach (var incoming in dto.FieldResponses)
+        {
+            var existing = response.FieldResponses
+                .FirstOrDefault(fr => fr.FieldId == incoming.FieldId);
+
+            if (existing != null)
+            {
+                existing.Value = incoming.Value;
+                existing.UpdatedBy = actingUserId;
+                existing.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                response.FieldResponses.Add(new IntakeFormFieldResponse
+                {
+                    ResponseId = response.Id,
+                    FieldId = incoming.FieldId,
+                    Value = incoming.Value,
+                    CreatedBy = actingUserId
+                });
+            }
+        }
+
+        response.UpdatedBy = actingUserId;
+        response.UpdatedAt = DateTime.UtcNow;
+
+        await _intakeFormResponseRepository.SaveChangesAsync(ct);
+    }
+
     public async Task<IntakeFormResponseDto?> GetAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await _intakeFormResponseRepository.GetByIdAsync(id, ct);

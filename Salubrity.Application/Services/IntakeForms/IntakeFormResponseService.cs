@@ -246,33 +246,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             await _stationCheckInRepository.UpdateAsync(checkIn, ct);
         }
 
-        // --- Mark participant as served for this specific service station ---
-        // if (dto.ServiceId.HasValue)
-        // {
-        //     var participantService = await _participantServiceStatusRepository
-        //         .GetByParticipantAndAssignmentAsync(dto.ParticipantId, dto.ServiceId.Value, ct);
 
-        //     if (participantService == null)
-        //     {
-        //         participantService = new HealthCampParticipantServiceStatus
-        //         {
-        //             Id = Guid.NewGuid(),
-        //             ParticipantId = dto.ParticipantId,
-        //             ServiceAssignmentId = dto.ServiceId.Value,
-        //             SubcontractorId = submittedByUserId,
-        //             ServedAt = DateTime.UtcNow
-        //         };
-
-        //         await _participantServiceStatusRepository.AddAsync(participantService, ct);
-        //         _logger.LogInformation("Marked participant {ParticipantId} as served at service {ServiceAssignmentId}", dto.PatientId, dto.HealthCampServiceAssignmentId);
-        //     }
-        //     else if (participantService.ServedAt == null)
-        //     {
-        //         participantService.ServedAt = DateTime.UtcNow;
-        //         await _participantServiceStatusRepository.UpdateAsync(participantService, ct);
-        //         _logger.LogInformation("Updated service served timestamp for participant {ParticipantId}", dto.PatientId);
-        //     }
-        // }
 
         // --- Mark participant as served for this specific service station ---
         if (dto.ServiceId.HasValue)

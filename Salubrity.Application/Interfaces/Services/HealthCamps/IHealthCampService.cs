@@ -1,4 +1,5 @@
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.Enums;
 
 namespace Salubrity.Application.Interfaces.Services.HealthCamps;
 
@@ -17,14 +18,18 @@ public interface IHealthCampService
     Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId);
     Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid? subcontractorId);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsPagedAsync(
+         Guid campId,
+         Guid serviceAssignmentId,          // REQUIRED: station / service context
+         CampParticipantServeStatus status, // All | Served | NotSeen
+         string? q,
+         string? sort,
+         int page,
+         int pageSize,
+         CancellationToken ct = default
+     );
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 
     Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct);
 

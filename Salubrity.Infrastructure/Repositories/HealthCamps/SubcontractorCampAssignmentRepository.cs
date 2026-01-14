@@ -22,28 +22,13 @@ public class SubcontractorCampAssignmentRepository : ISubcontractorCampAssignmen
 
     public async Task AddAsync(SubcontractorHealthCampAssignment assignment, CancellationToken ct = default)
     {
-        Console.WriteLine(">>> [REPO] AddAsync CALLED");
-        Console.WriteLine($"    AssignmentId      : {assignment.Id}");
-        Console.WriteLine($"    HealthCampId      : {assignment.HealthCampId}");
-        Console.WriteLine($"    SubcontractorId   : {assignment.SubcontractorId}");
-        Console.WriteLine($"    AssignmentType    : {assignment.AssignmentType}");
-        Console.WriteLine($"    IsDeleted         : {assignment.IsDeleted}");
 
-        Console.WriteLine(">>> [REPO] CurrentTransaction: " +
-            (_db.Database.CurrentTransaction?.TransactionId.ToString() ?? "NONE"));
 
         // Add entity
         await _db.SubcontractorHealthCampAssignments.AddAsync(assignment, ct);
 
-        Console.WriteLine(">>> [REPO] Entity added to DbSet");
-        Console.WriteLine($"    EntityState BEFORE Save: {_db.Entry(assignment).State}");
-
-        Console.WriteLine(">>> [REPO] Calling SaveChangesAsync...");
         var affectedRows = await _db.SaveChangesAsync(ct);
 
-        Console.WriteLine($">>> [REPO] SaveChangesAsync DONE");
-        Console.WriteLine($">>> [REPO] Rows affected: {affectedRows}");
-        Console.WriteLine($"    EntityState AFTER Save: {_db.Entry(assignment).State}");
     }
 
     public async Task<List<SubcontractorHealthCampAssignment>> GetByCampIdAsync(

@@ -1,4 +1,5 @@
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.Enums;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.Join;
 
@@ -30,14 +31,18 @@ public interface IHealthCampRepository
     Task<List<HealthCamp>> GetAllCanceledCampsAsync(CancellationToken ct = default);
 
     // Participants
-    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    Task<PagedResult<CampParticipantListDto>> GetCampParticipantsAsync(
+        Guid campId,
+        Guid serviceAssignmentId,             // station / service context (required)
+        CampParticipantServeStatus status,    // All | Served | NotServed | Suspended
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+
     Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default);
     Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
            Guid campId,

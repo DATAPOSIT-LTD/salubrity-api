@@ -1,3 +1,4 @@
+using Salubrity.Application.DTOs.Users;
 using Salubrity.Domain.Entities.Identity;
 
 namespace Salubrity.Application.Interfaces.Repositories.Users
@@ -11,7 +12,8 @@ namespace Salubrity.Application.Interfaces.Repositories.Users
         Task AddUserAsync(User user);
         Task UpdateUserAsync(User user);
         Task RevokeUserRefreshTokenAsync(Guid userId);
-        Task<IEnumerable<User>> GetAllAsync(CancellationToken ct = default);
+        Task<List<UserListItemResponse>> GetAllUsersAsync(CancellationToken ct);
+
         Task DeleteUserAsync(Guid userId);
 
         Task<int> BackfillSubcontractorLinksAsync(CancellationToken ct = default);

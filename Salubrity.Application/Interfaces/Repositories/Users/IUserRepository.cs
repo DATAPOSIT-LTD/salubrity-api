@@ -18,6 +18,8 @@ namespace Salubrity.Application.Interfaces.Repositories.Users
 
         Task<int> BackfillSubcontractorLinksAsync(CancellationToken ct = default);
         Task<int> BackfillPatientLinksAsync(CancellationToken ct = default);
+        Task<List<User>> GetAllActiveUsersAsync(CancellationToken ct = default);
+
 
     }
 }

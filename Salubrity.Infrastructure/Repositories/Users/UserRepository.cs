@@ -151,5 +151,15 @@ namespace Salubrity.Infrastructure.Repositories.Users
                   AND (u.""RelatedEntityId"" IS NULL OR u.""RelatedEntityType"" IS NULL);
             ", ct);
         }
+        public async Task<List<User>> GetAllActiveUsersAsync(
+    CancellationToken ct = default)
+        {
+            return await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .Where(u => !u.IsDeleted && u.IsActive)
+                .ToListAsync(ct);
+        }
+
     }
 }

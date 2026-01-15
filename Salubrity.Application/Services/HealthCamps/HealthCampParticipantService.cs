@@ -1,3 +1,4 @@
+using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.HealthCamps.Participants;
 using Salubrity.Shared.Exceptions;
 
@@ -12,32 +13,38 @@ public class HealthCampParticipantService : IHealthCampParticipantService
     }
 
     public async Task RemovePatientFromCampAsync(
-        RemoveCampParticipantDto dto,
-        Guid actingUserId,
-        CancellationToken ct)
+     RemoveCampParticipantDto dto,
+     Guid actingUserId,
+     CancellationToken ct)
     {
-        var participant = await _repo.GetPatientParticipantAsync(
+        var participant = await _repo.GetParticipantAsync(
             dto.CampId,
-            dto.PatientId,
+            dto.ParticipantId,
             ct);
 
         if (participant == null)
             throw new NotFoundException(
                 "HealthCampParticipant",
-                $"Camp={dto.CampId}, Patient={dto.PatientId}");
+                $"Camp={dto.CampId}, Participant={dto.ParticipantId}");
+
+        var patientId = participant.PatientId
+         ?? throw new InvalidOperationException(
+             $"HealthCampParticipant {participant.Id} has no PatientId");
+
 
         // --------------------------------------
         // 1. Resolve camp services
         // --------------------------------------
-        var serviceIds = await _repo
-            .GetServiceIdsForCampAsync(dto.CampId, ct);
+        var serviceIds = await _repo.GetServiceIdsForCampAsync(
+            dto.CampId, ct);
 
         // --------------------------------------
         // 2. Invalidate related form responses
         // --------------------------------------
+
         var responses = await _repo
             .GetFormResponsesForPatientAndServicesAsync(
-                dto.PatientId,
+                patientId,
                 serviceIds,
                 ct);
 
@@ -66,4 +73,5 @@ public class HealthCampParticipantService : IHealthCampParticipantService
 
         await _repo.SaveChangesAsync(ct);
     }
+
 }

@@ -13,9 +13,9 @@ public class HealthCampParticipantService : IHealthCampParticipantService
     }
 
     public async Task RemovePatientFromCampAsync(
-     RemoveCampParticipantDto dto,
-     Guid actingUserId,
-     CancellationToken ct)
+    RemoveCampParticipantDto dto,
+    Guid actingUserId,
+    CancellationToken ct)
     {
         var participant = await _repo.GetParticipantAsync(
             dto.CampId,
@@ -27,26 +27,31 @@ public class HealthCampParticipantService : IHealthCampParticipantService
                 "HealthCampParticipant",
                 $"Camp={dto.CampId}, Participant={dto.ParticipantId}");
 
-        var patientId = participant.PatientId
-         ?? throw new InvalidOperationException(
-             $"HealthCampParticipant {participant.Id} has no PatientId");
+        // ------------------------------------------------
+        // Resolve PatientId via existing repository method
+        // ------------------------------------------------
+        var patientId = await _repo.GetPatientIdByParticipantIdAsync(
+            participant.Id,
+            ct);
 
+        if (!patientId.HasValue)
+            throw new InvalidOperationException(
+                $"HealthCampParticipant {participant.Id} is not linked to a Patient");
 
-        // --------------------------------------
-        // 1. Resolve camp services
-        // --------------------------------------
+        // ------------------------------------------------
+        // Resolve camp services
+        // ------------------------------------------------
         var serviceIds = await _repo.GetServiceIdsForCampAsync(
-            dto.CampId, ct);
+            dto.CampId,
+            ct);
 
-        // --------------------------------------
-        // 2. Invalidate related form responses
-        // --------------------------------------
-
-        var responses = await _repo
-            .GetFormResponsesForPatientAndServicesAsync(
-                patientId,
-                serviceIds,
-                ct);
+        // ------------------------------------------------
+        // Invalidate form submissions
+        // ------------------------------------------------
+        var responses = await _repo.GetFormResponsesForPatientAndServicesAsync(
+            patientId.Value,
+            serviceIds,
+            ct);
 
         foreach (var response in responses)
         {
@@ -62,16 +67,16 @@ public class HealthCampParticipantService : IHealthCampParticipantService
             }
         }
 
-        // --------------------------------------
-        // 3. Remove participant
-        // --------------------------------------
+        // ------------------------------------------------
+        // Remove participant
+        // ------------------------------------------------
         participant.IsDeleted = true;
         participant.DeletedAt = DateTime.UtcNow;
         participant.DeletedBy = actingUserId;
-        // participant.RemovalReasonId = dto.RemovalReasonId;
-        // participant.RemovalNotes = dto.Notes;
+        participant.Notes = dto.Notes;
 
         await _repo.SaveChangesAsync(ct);
     }
+
 
 }

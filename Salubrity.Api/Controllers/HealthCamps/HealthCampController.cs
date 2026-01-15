@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.DTOs.HealthCamps.Participants;
 using Salubrity.Application.Enums;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.Users;
@@ -20,12 +21,14 @@ public class CampController : BaseController
     private readonly IHealthCampService _service;
     private readonly IUserService _userService;
     private readonly ILogger<CampController> _logger;
+    private readonly IHealthCampParticipantService _healthCampParticipantService;
 
-    public CampController(IHealthCampService service, IUserService userService, ILogger<CampController> logger)
+    public CampController(IHealthCampService service, IUserService userService, ILogger<CampController> logger, IHealthCampParticipantService healthCampParticipantService)
     {
         _service = service;
         _userService = userService;
         _logger = logger;
+        _healthCampParticipantService = healthCampParticipantService;
     }
 
     [HttpGet]
@@ -406,6 +409,20 @@ public class CampController : BaseController
     {
         var result = await _service.GetAllPackagesByCampAsync(campId, ct);
         return Success(result);
+    }
+
+    [HttpPost("participants/remove")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveParticipant(
+        [FromBody] RemoveCampParticipantDto dto,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+
+        await _healthCampParticipantService
+            .RemovePatientFromCampAsync(dto, userId, ct);
+
+        return Success("Patient removed from camp successfully.");
     }
 
 

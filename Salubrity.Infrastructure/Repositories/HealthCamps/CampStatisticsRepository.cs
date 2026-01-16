@@ -108,8 +108,6 @@ public class CampStatisticsRepository : ICampStatisticsRepository
             {
                 Participants = participantsCount,
                 Staff = staffCount,
-                Vendors = 0,
-                Visitors = 0
             },
 
             Packages = new CampStatsPackageDto

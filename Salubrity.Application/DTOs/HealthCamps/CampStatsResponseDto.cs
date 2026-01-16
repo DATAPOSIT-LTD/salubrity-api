@@ -15,8 +15,8 @@ public class CampStatsCountsDto
 {
     public int Participants { get; set; }
     public int Staff { get; set; }
-    public int Vendors { get; set; }
-    public int Visitors { get; set; }
+    // public int Vendors { get; set; }
+    // public int Visitors { get; set; }
 }
 
 public class CampStatsPackageDto

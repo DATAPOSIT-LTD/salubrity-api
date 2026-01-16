@@ -738,6 +738,25 @@ public class HealthCampRepository : IHealthCampRepository
             x => x.ServedAt);
 
         // ==================================================
+        // 2.1 Early exit if no participants
+        // ==================================================
+        var activePackages = await _context.HealthCampParticipantPackages
+        .AsNoTracking()
+        .Where(pp => !pp.IsDeleted && pp.IsActive)
+        .Select(pp => new
+        {
+            pp.ParticipantId,
+            pp.HealthCampPackageId,
+            PackageName = pp.HealthCampPackage.ServicePackage.Name
+        })
+        .ToListAsync(ct);
+
+        var packageLookup = activePackages.ToDictionary(
+            x => x.ParticipantId,
+            x => new { x.HealthCampPackageId, x.PackageName });
+
+
+        // ==================================================
         // 3. Base participant query (PURE EF + NAVS LOADED)
         // ==================================================
         var baseQuery =
@@ -804,13 +823,23 @@ public class HealthCampRepository : IHealthCampRepository
                 Id = x.Participant.Id,
                 UserId = x.Participant.UserId,
                 PatientId = x.PatientId,
+
                 FullName = x.Participant.User.FullName!,
                 Email = x.Participant.User.Email,
                 PhoneNumber = x.Participant.User.Phone,
                 CompanyName = x.Participant.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = x.Participant.ParticipatedAt,
+
                 Served = null, // camp-wide mode
-                CompletedServices = completed
+                CompletedServices = completed,
+
+                PackageId = packageLookup.TryGetValue(x.Participant.Id, out var pkg)
+            ? pkg.HealthCampPackageId
+            : null,
+
+                PackageName = packageLookup.TryGetValue(x.Participant.Id, out var pkg2)
+            ? pkg2.PackageName
+            : null
             };
         }).ToList();
 

@@ -640,13 +640,13 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
-     Guid campId,
-     CampParticipantServeStatus status,
-     string? q,
-     string? sort,
-     int page,
-     int pageSize,
-     CancellationToken ct = default)
+      Guid campId,
+      CampParticipantServeStatus status,
+      string? q,
+      string? sort,
+      int page,
+      int pageSize,
+      CancellationToken ct = default)
     {
         if (page <= 0) page = 1;
         if (pageSize <= 0) pageSize = 20;
@@ -738,23 +738,24 @@ public class HealthCampRepository : IHealthCampRepository
             x => x.ServedAt);
 
         // ==================================================
-        // 3. Base participant query (PURE EF)
+        // 3. Base participant query (PURE EF + NAVS LOADED)
         // ==================================================
         var baseQuery =
-            from p in _context.HealthCampParticipants
-            where p.HealthCampId == campId
-
-            let patientId =
-                _context.Patients
-                    .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
-                    .Select(pa => pa.Id)
-                    .FirstOrDefault()
-
-            select new
-            {
-                Participant = p,
-                PatientId = patientId
-            };
+            _context.HealthCampParticipants
+                .AsNoTracking()
+                .Include(p => p.User)
+                .Include(p => p.HealthCamp)
+                    .ThenInclude(h => h.Organization)
+                .Where(p => p.HealthCampId == campId)
+                .Select(p => new
+                {
+                    Participant = p,
+                    PatientId =
+                        _context.Patients
+                            .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
+                            .Select(pa => pa.Id)
+                            .FirstOrDefault()
+                });
 
         // ---------------- SEARCH ----------------
         if (!string.IsNullOrWhiteSpace(q))
@@ -779,7 +780,6 @@ public class HealthCampRepository : IHealthCampRepository
         var rawParticipants = await baseQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .AsNoTracking()
             .ToListAsync(ct);
 
         // ==================================================
@@ -809,7 +809,7 @@ public class HealthCampRepository : IHealthCampRepository
                 PhoneNumber = x.Participant.User.Phone,
                 CompanyName = x.Participant.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = x.Participant.ParticipatedAt,
-                Served = null,
+                Served = null, // camp-wide mode
                 CompletedServices = completed
             };
         }).ToList();
@@ -834,7 +834,6 @@ public class HealthCampRepository : IHealthCampRepository
             Items = items
         };
     }
-
 
 
     public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)

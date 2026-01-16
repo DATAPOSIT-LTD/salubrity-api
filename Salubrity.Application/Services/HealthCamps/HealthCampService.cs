@@ -580,25 +580,22 @@ public class HealthCampService : IHealthCampService
     }
 
     public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsPagedAsync(
-        Guid campId,
-        Guid serviceAssignmentId,
-        CampParticipantServeStatus status,
-        string? q,
-        string? sort,
-        int page,
-        int pageSize,
-        CancellationToken ct)
+     Guid campId,
+     Guid? serviceId,
+     CampParticipantServeStatus status,
+     string? q,
+     string? sort,
+     int page,
+     int pageSize,
+     CancellationToken ct)
     {
-        return _repo.GetCampParticipantsAsync(
-            campId,
-            serviceAssignmentId,
-            status,
-            q,
-            sort,
-            page,
-            pageSize,
-            ct);
+        return serviceId.HasValue
+            ? _repo.GetCampParticipantsByServiceAsync(
+                campId, serviceId.Value, status, q, sort, page, pageSize, ct)
+            : _repo.GetCampParticipantsCampWideAsync(
+                campId, status, q, sort, page, pageSize, ct);
     }
+
 
 
 

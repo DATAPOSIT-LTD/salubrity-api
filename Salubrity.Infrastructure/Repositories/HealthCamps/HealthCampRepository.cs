@@ -477,35 +477,37 @@ public class HealthCampRepository : IHealthCampRepository
         return query.AsNoTracking();
     }
 
-    public async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsAsync(
-     Guid campId,
-     Guid serviceId, // THIS IS A SERVICE REFERENCE ID (Service / Category / Subcategory)
-     CampParticipantServeStatus status,
-     string? q,
-     string? sort,
-     int page,
-     int pageSize,
-     CancellationToken ct = default)
+    // =========================================================
+    // INTERNAL: service-scoped participant query engine
+    // =========================================================
+    private async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByResolvedServiceAsync(
+        Guid campId,
+        Guid serviceReferenceId, // service / category / subcategory
+        CampParticipantServeStatus status,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct)
     {
         if (page <= 0) page = 1;
         if (pageSize <= 0) pageSize = 20;
 
         // --------------------------------------------------
-        // Resolve camp-scoped assignment from service reference
+        // Resolve camp-scoped assignment
         // --------------------------------------------------
         var assignment = await _context.HealthCampServiceAssignments
             .AsNoTracking()
             .Where(a =>
                 a.HealthCampId == campId &&
                 !a.IsDeleted &&
-                a.AssignmentId == serviceId
-            )
+                a.AssignmentId == serviceReferenceId)
             .Select(a => new { a.AssignmentId, a.AssignmentType })
             .FirstOrDefaultAsync(ct);
 
         if (assignment == null)
             throw new InvalidOperationException(
-                $"No HealthCampServiceAssignment found for service reference {serviceId} in camp {campId}");
+                $"No HealthCampServiceAssignment found for service reference {serviceReferenceId} in camp {campId}");
 
         // --------------------------------------------------
         // Resolve ROOT ServiceId (authoritative)
@@ -532,7 +534,7 @@ public class HealthCampRepository : IHealthCampRepository
         };
 
         // --------------------------------------------------
-        // Base participant projection
+        // Participant projection (service-scoped)
         // --------------------------------------------------
         var query =
             from p in _context.HealthCampParticipants
@@ -559,7 +561,8 @@ public class HealthCampRepository : IHealthCampRepository
                 PhoneNumber = p.User.Phone,
                 CompanyName = p.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = p.ParticipatedAt,
-                Served = served
+                Served = served,
+                CompletedServices = new() // not used in this mode
             };
 
         // --------------------------------------------------
@@ -567,10 +570,8 @@ public class HealthCampRepository : IHealthCampRepository
         // --------------------------------------------------
         query = status switch
         {
-            CampParticipantServeStatus.All => query,
-            CampParticipantServeStatus.Served => query.Where(x => x.Served),
-            CampParticipantServeStatus.NotServed => query.Where(x => !x.Served),
-            CampParticipantServeStatus.Suspended => query.Where(_ => false), // future-safe
+            CampParticipantServeStatus.Served => query.Where(x => x.Served == true),
+            CampParticipantServeStatus.NotServed => query.Where(x => x.Served == false),
             _ => query
         };
 
@@ -599,7 +600,7 @@ public class HealthCampRepository : IHealthCampRepository
         // --------------------------------------------------
         // Pagination
         // --------------------------------------------------
-        var totalCount = await query.CountAsync(ct);
+        var total = await query.CountAsync(ct);
 
         var items = await query
             .Skip((page - 1) * pageSize)
@@ -611,7 +612,197 @@ public class HealthCampRepository : IHealthCampRepository
         {
             Page = page,
             PageSize = pageSize,
-            Total = totalCount,
+            Total = total,
+            Items = items
+        };
+    }
+
+    public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByServiceAsync(
+        Guid campId,
+        Guid serviceId,
+        CampParticipantServeStatus status,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
+    {
+        return GetCampParticipantsByResolvedServiceAsync(
+            campId,
+            serviceId,
+            status,
+            q,
+            sort,
+            page,
+            pageSize,
+            ct);
+    }
+
+
+    public async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
+        Guid campId,
+        CampParticipantServeStatus status,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
+    {
+        if (page <= 0) page = 1;
+        if (pageSize <= 0) pageSize = 20;
+
+        // --------------------------------------------------
+        // Load raw assignments (NO nav props)
+        // --------------------------------------------------
+        var rawAssignments = await _context.HealthCampServiceAssignments
+            .AsNoTracking()
+            .Where(a => a.HealthCampId == campId && !a.IsDeleted)
+            .Select(a => new
+            {
+                a.Id,
+                a.AssignmentId,
+                a.AssignmentType
+            })
+            .ToListAsync(ct);
+
+        // --------------------------------------------------
+        // Resolve canonical services explicitly
+        // --------------------------------------------------
+        var campServices = new List<(Guid AssignmentId, Guid ServiceId, string ServiceName)>();
+
+        foreach (var a in rawAssignments)
+        {
+            switch (a.AssignmentType)
+            {
+                case PackageItemType.Service:
+                    {
+                        var svc = await _context.Services
+                            .Where(s => s.Id == a.AssignmentId)
+                            .Select(s => new { s.Id, s.Name })
+                            .FirstAsync(ct);
+
+                        campServices.Add((a.Id, svc.Id, svc.Name));
+                        break;
+                    }
+
+                case PackageItemType.ServiceCategory:
+                    {
+                        var cat = await _context.ServiceCategories
+                            .Where(c => c.Id == a.AssignmentId)
+                            .Select(c => new { c.ServiceId, c.Name })
+                            .FirstAsync(ct);
+
+                        campServices.Add((a.Id, cat.ServiceId, cat.Name));
+                        break;
+                    }
+
+                case PackageItemType.ServiceSubcategory:
+                    {
+                        var sub = await _context.ServiceSubcategories
+                            .Where(sc => sc.Id == a.AssignmentId)
+                            .Select(sc => new
+                            {
+                                sc.ServiceCategory.ServiceId,
+                                sc.Name
+                            })
+                            .FirstAsync(ct);
+
+                        campServices.Add((a.Id, sub.ServiceId, sub.Name));
+                        break;
+                    }
+
+                default:
+                    throw new InvalidOperationException(
+                        $"Unsupported assignment type: {a.AssignmentType}");
+            }
+        }
+
+        // --------------------------------------------------
+        // Participant query
+        // --------------------------------------------------
+        var query =
+            from p in _context.HealthCampParticipants
+            where p.HealthCampId == campId
+
+            let patientId =
+                _context.Patients
+                    .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
+                    .Select(pa => pa.Id)
+                    .FirstOrDefault()
+
+            let completedServices =
+                campServices.Select(cs => new ServiceCompletionDto
+                {
+                    ServiceAssignmentId = cs.AssignmentId,
+                    ResolvedServiceId = cs.ServiceId,
+                    ServiceName = cs.ServiceName,
+                    ServedAt = _context.IntakeFormResponses
+                        .Where(r =>
+                            r.PatientId == patientId &&
+                            r.ResolvedServiceId == cs.ServiceId)
+                        .Select(r => (DateTime?)r.CreatedAt)
+                        .FirstOrDefault()
+                }).ToList()
+
+            select new CampParticipantListDto
+            {
+                Id = p.Id,
+                UserId = p.UserId,
+                PatientId = patientId,
+                FullName = p.User.FullName!,
+                Email = p.User.Email,
+                PhoneNumber = p.User.Phone,
+                CompanyName = p.HealthCamp.Organization.BusinessName!,
+                ParticipatedAt = p.ParticipatedAt,
+                Served = null,
+                CompletedServices = completedServices
+            };
+
+        // --------------------------------------------------
+        // Status filter
+        // --------------------------------------------------
+        query = status switch
+        {
+            CampParticipantServeStatus.Served =>
+                query.Where(p => p.CompletedServices.Any(s => s.ServedAt != null)),
+
+            CampParticipantServeStatus.NotServed =>
+                query.Where(p => p.CompletedServices.All(s => s.ServedAt == null)),
+
+            _ => query
+        };
+
+        // --------------------------------------------------
+        // Search / sort / paginate (unchanged)
+        // --------------------------------------------------
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var term = q.Trim();
+            query = query.Where(x =>
+                EF.Functions.ILike(x.FullName, $"%{term}%") ||
+                EF.Functions.ILike(x.Email!, $"%{term}%") ||
+                EF.Functions.ILike(x.PhoneNumber!, $"%{term}%"));
+        }
+
+        query = sort?.ToLowerInvariant() switch
+        {
+            "name" => query.OrderBy(x => x.FullName),
+            "oldest" => query.OrderBy(x => x.ParticipatedAt),
+            _ => query.OrderByDescending(x => x.ParticipatedAt)
+        };
+
+        var total = await query.CountAsync(ct);
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        return new PagedResult<CampParticipantListDto>
+        {
+            Page = page,
+            PageSize = pageSize,
+            Total = total,
             Items = items
         };
     }

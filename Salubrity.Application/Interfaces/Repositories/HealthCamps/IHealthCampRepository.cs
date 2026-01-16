@@ -30,18 +30,32 @@ public interface IHealthCampRepository
     Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default);
     Task<List<HealthCamp>> GetAllCanceledCampsAsync(CancellationToken ct = default);
 
-    // Participants
+    // =====================================================
+    // Participants — PUBLIC CONTRACT
+    // =====================================================
 
-    Task<PagedResult<CampParticipantListDto>> GetCampParticipantsAsync(
+    // Station / service-scoped view
+    Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByServiceAsync(
         Guid campId,
-        Guid serviceId,             // station / service context (required)
-        CampParticipantServeStatus status,    // All | Served | NotServed | Suspended
+        Guid serviceId,
+        CampParticipantServeStatus status,
         string? q,
         string? sort,
         int page,
         int pageSize,
         CancellationToken ct = default);
 
+    // Camp-wide admin view
+
+
+    Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
+        Guid campId,
+        CampParticipantServeStatus status,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default);
 
     Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default);
     Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(

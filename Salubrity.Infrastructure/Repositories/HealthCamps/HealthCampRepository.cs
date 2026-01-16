@@ -640,20 +640,20 @@ public class HealthCampRepository : IHealthCampRepository
 
 
     public async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
-        Guid campId,
-        CampParticipantServeStatus status,
-        string? q,
-        string? sort,
-        int page,
-        int pageSize,
-        CancellationToken ct = default)
+     Guid campId,
+     CampParticipantServeStatus status,
+     string? q,
+     string? sort,
+     int page,
+     int pageSize,
+     CancellationToken ct = default)
     {
         if (page <= 0) page = 1;
         if (pageSize <= 0) pageSize = 20;
 
-        // --------------------------------------------------
-        // Load raw assignments (NO nav props)
-        // --------------------------------------------------
+        // ==================================================
+        // 1. Resolve camp services (IN MEMORY – SAFE)
+        // ==================================================
         var rawAssignments = await _context.HealthCampServiceAssignments
             .AsNoTracking()
             .Where(a => a.HealthCampId == campId && !a.IsDeleted)
@@ -665,9 +665,6 @@ public class HealthCampRepository : IHealthCampRepository
             })
             .ToListAsync(ct);
 
-        // --------------------------------------------------
-        // Resolve canonical services explicitly
-        // --------------------------------------------------
         var campServices = new List<(Guid AssignmentId, Guid ServiceId, string ServiceName)>();
 
         foreach (var a in rawAssignments)
@@ -717,10 +714,33 @@ public class HealthCampRepository : IHealthCampRepository
             }
         }
 
-        // --------------------------------------------------
-        // Participant query
-        // --------------------------------------------------
-        var query =
+        var serviceIds = campServices.Select(s => s.ServiceId).Distinct().ToList();
+
+        // ==================================================
+        // 2. Load all service responses ONCE (SQL only)
+        // ==================================================
+        var responseRows = await _context.IntakeFormResponses
+            .AsNoTracking()
+            .Where(r =>
+                r.PatientId != null &&
+                serviceIds.Contains(r.ResolvedServiceId))
+            .GroupBy(r => new { r.PatientId, r.ResolvedServiceId })
+            .Select(g => new
+            {
+                g.Key.PatientId,
+                g.Key.ResolvedServiceId,
+                ServedAt = g.Min(x => x.CreatedAt)
+            })
+            .ToListAsync(ct);
+
+        var responseLookup = responseRows.ToDictionary(
+            x => (x.PatientId, x.ResolvedServiceId),
+            x => x.ServedAt);
+
+        // ==================================================
+        // 3. Base participant query (PURE EF)
+        // ==================================================
+        var baseQuery =
             from p in _context.HealthCampParticipants
             where p.HealthCampId == campId
 
@@ -730,73 +750,81 @@ public class HealthCampRepository : IHealthCampRepository
                     .Select(pa => pa.Id)
                     .FirstOrDefault()
 
-            let completedServices =
-                campServices.Select(cs => new ServiceCompletionDto
-                {
-                    ServiceAssignmentId = cs.AssignmentId,
-                    ResolvedServiceId = cs.ServiceId,
-                    ServiceName = cs.ServiceName,
-                    ServedAt = _context.IntakeFormResponses
-                        .Where(r =>
-                            r.PatientId == patientId &&
-                            r.ResolvedServiceId == cs.ServiceId)
-                        .Select(r => (DateTime?)r.CreatedAt)
-                        .FirstOrDefault()
-                }).ToList()
-
-            select new CampParticipantListDto
+            select new
             {
-                Id = p.Id,
-                UserId = p.UserId,
-                PatientId = patientId,
-                FullName = p.User.FullName!,
-                Email = p.User.Email,
-                PhoneNumber = p.User.Phone,
-                CompanyName = p.HealthCamp.Organization.BusinessName!,
-                ParticipatedAt = p.ParticipatedAt,
-                Served = null,
-                CompletedServices = completedServices
+                Participant = p,
+                PatientId = patientId
             };
 
-        // --------------------------------------------------
-        // Status filter
-        // --------------------------------------------------
-        query = status switch
-        {
-            CampParticipantServeStatus.Served =>
-                query.Where(p => p.CompletedServices.Any(s => s.ServedAt != null)),
-
-            CampParticipantServeStatus.NotServed =>
-                query.Where(p => p.CompletedServices.All(s => s.ServedAt == null)),
-
-            _ => query
-        };
-
-        // --------------------------------------------------
-        // Search / sort / paginate (unchanged)
-        // --------------------------------------------------
+        // ---------------- SEARCH ----------------
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
-            query = query.Where(x =>
-                EF.Functions.ILike(x.FullName, $"%{term}%") ||
-                EF.Functions.ILike(x.Email!, $"%{term}%") ||
-                EF.Functions.ILike(x.PhoneNumber!, $"%{term}%"));
+            baseQuery = baseQuery.Where(x =>
+                EF.Functions.ILike(x.Participant.User.FullName!, $"%{term}%") ||
+                EF.Functions.ILike(x.Participant.User.Email!, $"%{term}%") ||
+                EF.Functions.ILike(x.Participant.User.Phone!, $"%{term}%"));
         }
 
-        query = sort?.ToLowerInvariant() switch
+        // ---------------- SORT ----------------
+        baseQuery = sort?.ToLowerInvariant() switch
         {
-            "name" => query.OrderBy(x => x.FullName),
-            "oldest" => query.OrderBy(x => x.ParticipatedAt),
-            _ => query.OrderByDescending(x => x.ParticipatedAt)
+            "name" => baseQuery.OrderBy(x => x.Participant.User.FullName),
+            "oldest" => baseQuery.OrderBy(x => x.Participant.ParticipatedAt),
+            _ => baseQuery.OrderByDescending(x => x.Participant.ParticipatedAt)
         };
 
-        var total = await query.CountAsync(ct);
-        var items = await query
+        var total = await baseQuery.CountAsync(ct);
+
+        var rawParticipants = await baseQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .AsNoTracking()
             .ToListAsync(ct);
+
+        // ==================================================
+        // 4. ENRICH IN MEMORY (NO EF HERE)
+        // ==================================================
+        var items = rawParticipants.Select(x =>
+        {
+            var completed = campServices.Select(cs => new ServiceCompletionDto
+            {
+                ServiceAssignmentId = cs.AssignmentId,
+                ResolvedServiceId = cs.ServiceId,
+                ServiceName = cs.ServiceName,
+                ServedAt =
+                    x.PatientId != null &&
+                    responseLookup.TryGetValue((x.PatientId, cs.ServiceId), out var servedAt)
+                        ? servedAt
+                        : null
+            }).ToList();
+
+            return new CampParticipantListDto
+            {
+                Id = x.Participant.Id,
+                UserId = x.Participant.UserId,
+                PatientId = x.PatientId,
+                FullName = x.Participant.User.FullName!,
+                Email = x.Participant.User.Email,
+                PhoneNumber = x.Participant.User.Phone,
+                CompanyName = x.Participant.HealthCamp.Organization.BusinessName!,
+                ParticipatedAt = x.Participant.ParticipatedAt,
+                Served = null,
+                CompletedServices = completed
+            };
+        }).ToList();
+
+        // ---------------- STATUS FILTER ----------------
+        items = status switch
+        {
+            CampParticipantServeStatus.Served =>
+                items.Where(p => p.CompletedServices.Any(s => s.ServedAt != null)).ToList(),
+
+            CampParticipantServeStatus.NotServed =>
+                items.Where(p => p.CompletedServices.All(s => s.ServedAt == null)).ToList(),
+
+            _ => items
+        };
 
         return new PagedResult<CampParticipantListDto>
         {

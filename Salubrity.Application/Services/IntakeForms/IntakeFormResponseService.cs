@@ -80,7 +80,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     public async Task<Guid> SubmitResponseAsync(CreateIntakeFormResponseDto dto, Guid submittedByUserId, CancellationToken ct = default)
     {
-        _logger.LogInformation("🚀 Submitting intake form for participant: {ParticipantId}, SubmittedBy: {UserId}", dto.PatientId, submittedByUserId);
+        _logger.LogInformation("Submitting intake form for participant: {ParticipantId}, SubmittedBy: {UserId}", dto.PatientId, submittedByUserId);
 
         var versionExists = await _intakeFormResponseRepository.IntakeFormVersionExistsAsync(dto.IntakeFormVersionId, ct);
         if (!versionExists)
@@ -108,7 +108,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             submittedServiceId = assignment.AssignmentId;
             submittedServiceType = assignment.AssignmentType;
 
-            _logger.LogInformation("📦 Assignment found: Type={Type}, Id={Id}", submittedServiceType, submittedServiceId);
+            _logger.LogInformation("Assignment found: Type={Type}, Id={Id}", submittedServiceType, submittedServiceId);
 
             resolvedServiceId = assignment.AssignmentType switch
             {
@@ -129,7 +129,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         else if (dto.ServiceId.HasValue)
         {
             var incomingRefId = dto.ServiceId.Value;
-            _logger.LogInformation("🧾 Incoming reference Id (from client ServiceId field): {RefId}", incomingRefId);
+            _logger.LogInformation("Incoming reference Id (from client ServiceId field): {RefId}", incomingRefId);
 
             // Detect what the incomingRefId actually is and resolve to top-level ServiceId
             if (await _serviceRepository.ExistsByIdAsync(incomingRefId, ct))
@@ -137,7 +137,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 submittedServiceType = PackageItemType.Service;
                 submittedServiceId = incomingRefId;
                 resolvedServiceId = incomingRefId;
-                _logger.LogInformation("🧭 Detected type=Service. Using ServiceId as resolved: {ServiceId}", resolvedServiceId);
+                _logger.LogInformation("Detected type=Service. Using ServiceId as resolved: {ServiceId}", resolvedServiceId);
             }
             else
             {
@@ -148,7 +148,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                     submittedServiceType = PackageItemType.ServiceCategory;
                     submittedServiceId = incomingRefId;
                     resolvedServiceId = category.ServiceId;
-                    _logger.LogInformation("🧭 Detected type=ServiceCategory. Resolved root ServiceId: {ServiceId}", resolvedServiceId);
+                    _logger.LogInformation("Detected type=ServiceCategory. Resolved root ServiceId: {ServiceId}", resolvedServiceId);
                 }
                 else
                 {
@@ -162,11 +162,11 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                         if (parentServiceId == null)
                             throw new ValidationException(["Subcategory is not linked to a root Service via its category."]);
                         resolvedServiceId = parentServiceId.Value;
-                        _logger.LogInformation("🧭 Detected type=ServiceSubcategory. Resolved root ServiceId: {ServiceId}", resolvedServiceId);
+                        _logger.LogInformation("Detected type=ServiceSubcategory. Resolved root ServiceId: {ServiceId}", resolvedServiceId);
                     }
                     else
                     {
-                        _logger.LogError("❌ Incoming reference Id does not match Service/Category/Subcategory: {RefId}", incomingRefId);
+                        _logger.LogError("Incoming reference Id does not match Service/Category/Subcategory: {RefId}", incomingRefId);
                         throw new ValidationException([$"Invalid ServiceId: {incomingRefId} is not a Service, ServiceCategory, or ServiceSubcategory."]);
                     }
                 }

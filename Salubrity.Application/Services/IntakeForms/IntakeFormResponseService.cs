@@ -379,6 +379,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             SubmittedServiceType = entity.SubmittedServiceType,
             ResolvedServiceId = entity.ResolvedServiceId,
             ResponseStatusId = entity.ResponseStatusId,
+            HealthCampId = entity.HealthCampId ?? Guid.Empty,
             FieldResponses = entity.FieldResponses
                 .OrderBy(f => f.CreatedAt)
                 .Select(field => new IntakeFormFieldResponseDto

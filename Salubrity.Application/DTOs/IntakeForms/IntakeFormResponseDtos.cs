@@ -53,12 +53,13 @@ public sealed class IntakeFormResponseDto
 
     public Guid PatientId { get; set; }
 
-    // 🔥 NEW SERVICE TRACKING FIELDS
+    // NEW SERVICE TRACKING FIELDS
     public Guid? SubmittedServiceId { get; set; }           // Raw ID from user/assignment
     public PackageItemType? SubmittedServiceType { get; set; } // Enum: Service / Category / Subcategory
     public Guid? ResolvedServiceId { get; set; }            // Final FK to Service
 
     public Guid ResponseStatusId { get; set; }
+    public Guid HealthCampId { get; set; }
 
     public List<IntakeFormFieldResponseDto> FieldResponses { get; set; } = [];
 }

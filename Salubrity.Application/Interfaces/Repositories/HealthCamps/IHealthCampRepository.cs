@@ -38,6 +38,7 @@ public interface IHealthCampRepository
     Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByServiceAsync(
         Guid campId,
         Guid serviceId,
+        Guid? participantId, // Filter by participant
         CampParticipantServeStatus status,
         string? q,
         string? sort,
@@ -50,6 +51,7 @@ public interface IHealthCampRepository
 
     Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
         Guid campId,
+        Guid? participantId, // Filter by participant
         CampParticipantServeStatus status,
         string? q,
         string? sort,

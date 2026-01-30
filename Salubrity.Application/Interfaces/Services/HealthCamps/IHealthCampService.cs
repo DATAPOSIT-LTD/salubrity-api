@@ -21,6 +21,7 @@ public interface IHealthCampService
     public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsPagedAsync(
          Guid campId,
          Guid? serviceId,          // REQUIRED: station / service context
+         Guid? participantId,    // Filter by participant
          CampParticipantServeStatus status, // All | Served | NotSeen
          string? q,
          string? sort,

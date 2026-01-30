@@ -483,6 +483,7 @@ public class HealthCampRepository : IHealthCampRepository
     private async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByResolvedServiceAsync(
         Guid campId,
         Guid serviceReferenceId, // service / category / subcategory
+        Guid participantId, // Filter by participant
         CampParticipantServeStatus status,
         string? q,
         string? sort,
@@ -565,6 +566,11 @@ public class HealthCampRepository : IHealthCampRepository
                 CompletedServices = new() // not used in this mode
             };
 
+        if (participantId != Guid.Empty)
+        {
+            query = query.Where(x => x.Id == participantId);
+        }
+
         // --------------------------------------------------
         // Status filter
         // --------------------------------------------------
@@ -620,6 +626,7 @@ public class HealthCampRepository : IHealthCampRepository
     public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByServiceAsync(
         Guid campId,
         Guid serviceId,
+        Guid? participantId, // Filter by participant
         CampParticipantServeStatus status,
         string? q,
         string? sort,
@@ -630,6 +637,7 @@ public class HealthCampRepository : IHealthCampRepository
         return GetCampParticipantsByResolvedServiceAsync(
             campId,
             serviceId,
+            participantId.HasValue ? participantId.Value : Guid.Empty,
             status,
             q,
             sort,
@@ -641,6 +649,7 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
       Guid campId,
+      Guid? participantId, // Filter by participant
       CampParticipantServeStatus status,
       string? q,
       string? sort,
@@ -776,6 +785,10 @@ public class HealthCampRepository : IHealthCampRepository
                             .FirstOrDefault()
                 });
 
+        if (participantId.HasValue)
+        {
+            baseQuery = baseQuery.Where(x => x.Participant.Id == participantId.Value);
+        }
         // ---------------- SEARCH ----------------
         if (!string.IsNullOrWhiteSpace(q))
         {

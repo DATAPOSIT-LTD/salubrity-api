@@ -579,22 +579,26 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
+
+
     public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsPagedAsync(
-     Guid campId,
-     Guid? serviceId,
-     CampParticipantServeStatus status,
-     string? q,
-     string? sort,
-     int page,
-     int pageSize,
-     CancellationToken ct)
+    Guid campId,
+    Guid? serviceId,
+    Guid? participantId,
+    CampParticipantServeStatus status,
+    string? q,
+    string? sort,
+    int page,
+    int pageSize,
+    CancellationToken ct)
     {
         return serviceId.HasValue
             ? _repo.GetCampParticipantsByServiceAsync(
-                campId, serviceId.Value, status, q, sort, page, pageSize, ct)
+                campId, serviceId.Value, participantId, status, q, sort, page, pageSize, ct)
             : _repo.GetCampParticipantsCampWideAsync(
-                campId, status, q, sort, page, pageSize, ct);
+                campId, participantId, status, q, sort, page, pageSize, ct);
     }
+
 
 
 

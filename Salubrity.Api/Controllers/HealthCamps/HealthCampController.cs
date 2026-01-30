@@ -204,18 +204,20 @@ public class CampController : BaseController
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(PagedResult<CampParticipantListDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampParticipants(
-        Guid campId,
-        [FromQuery] Guid? serviceId, // 👈 now optional
-        [FromQuery] CampParticipantServeStatus status = CampParticipantServeStatus.All,
-        [FromQuery] string? q = null,
-        [FromQuery] string? sort = null,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        CancellationToken ct = default)
+      Guid campId,
+      [FromQuery] Guid? serviceId,
+      [FromQuery] Guid? participantId,
+      [FromQuery] CampParticipantServeStatus status = CampParticipantServeStatus.All,
+      [FromQuery] string? q = null,
+      [FromQuery] string? sort = null,
+      [FromQuery] int page = 1,
+      [FromQuery] int pageSize = 20,
+      CancellationToken ct = default)
     {
         var result = await _service.GetCampParticipantsPagedAsync(
             campId,
             serviceId,
+            participantId,
             status,
             q,
             sort,
@@ -225,6 +227,7 @@ public class CampController : BaseController
 
         return Success(result);
     }
+
 
 
 

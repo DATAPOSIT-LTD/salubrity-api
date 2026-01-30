@@ -97,6 +97,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 SubmittedByUserId = r.SubmittedByUserId,
                 PatientId = r.PatientId,
                 ServiceId = r.ResolvedServiceId,
+                HealthCampId = a.HealthCampId,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,
                 Status = new ResponseStatusDto

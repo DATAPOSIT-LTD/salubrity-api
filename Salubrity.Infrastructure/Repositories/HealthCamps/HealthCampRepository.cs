@@ -1044,6 +1044,9 @@ public class HealthCampRepository : IHealthCampRepository
         // ==================================================
         // 6. Enrich IN MEMORY — allocation enforced
         // ==================================================
+        // ==================================================
+        // 6. Enrich IN MEMORY — allocation + response enforced
+        // ==================================================
         var items = rawParticipants.Select(x =>
         {
             packageLookup.TryGetValue(x.Participant.Id, out var pkg);
@@ -1054,19 +1057,28 @@ public class HealthCampRepository : IHealthCampRepository
                     : new HashSet<Guid>();
 
             var completed = campServices
-                .Where(cs => allowedServices.Contains(cs.ServiceId))
-                .Select(cs => new ServiceCompletionDto
+                //  keep camp services, but evaluate allocation PER SERVICE
+                .Select(cs =>
                 {
-                    ServiceAssignmentId = cs.AssignmentId,
-                    ResolvedServiceId = cs.ServiceId,
-                    ServiceName = cs.ServiceName,
-                    ServedAt =
-                        x.PatientId != null &&
-                        responseLookup.TryGetValue((x.PatientId, cs.ServiceId), out var servedAt)
-                            ? servedAt
-                            : null
+                    // service must be allocated to participant
+                    if (!allowedServices.Contains(cs.ServiceId))
+                        return null;
+
+                    responseLookup.TryGetValue(
+                        (x.PatientId, cs.ServiceId),
+                        out var servedAt
+                    );
+
+                    return new ServiceCompletionDto
+                    {
+                        ServiceAssignmentId = cs.AssignmentId,
+                        ResolvedServiceId = cs.ServiceId,
+                        ServiceName = cs.ServiceName,
+                        ServedAt = servedAt
+                    };
                 })
-                .ToList();
+                .Where(s => s != null) // remove non-allocated services
+                .ToList()!;
 
             return new CampParticipantListDto
             {
@@ -1078,7 +1090,7 @@ public class HealthCampRepository : IHealthCampRepository
                 PhoneNumber = x.Participant.User.Phone,
                 CompanyName = x.Participant.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = x.Participant.ParticipatedAt,
-                Served = null,
+                Served = null, // camp-wide mode
                 CompletedServices = completed,
                 PackageId = pkg?.HealthCampPackageId,
                 PackageName = pkg?.PackageName

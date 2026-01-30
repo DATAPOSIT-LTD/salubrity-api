@@ -36,7 +36,7 @@ public class CampParticipantListDto
     // --------------------------------------------------
     // Camp-wide service completion
     // --------------------------------------------------
-    public List<ServiceCompletionDto> CompletedServices { get; set; } = new();
+    public List<ServiceCompletionDto?> CompletedServices { get; set; } = new();
 }
 
 public class ServiceCompletionDto

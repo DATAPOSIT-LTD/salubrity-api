@@ -24,6 +24,7 @@ public sealed class CreateIntakeFormResponseDto
     public Guid? ResponseStatusId { get; set; }
 
     public Guid ParticipantId { get; set; }
+    public Guid? HealthCampId { get; set; }
 
     public List<CreateIntakeFormFieldResponseDto> FieldResponses { get; set; } = [];
 }

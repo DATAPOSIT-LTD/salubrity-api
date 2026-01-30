@@ -200,6 +200,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             SubmittedServiceType = submittedServiceType, // detected type of that raw thing
             ResolvedServiceId = resolvedServiceId,       // top-level ServiceId (FK-safe)
             ResponseStatusId = statusId,
+            HealthCampId = dto.HealthCampId,
             FieldResponses = dto.FieldResponses.Select(f => new IntakeFormFieldResponse
             {
                 Id = Guid.NewGuid(),

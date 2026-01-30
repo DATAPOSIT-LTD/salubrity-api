@@ -1,4 +1,5 @@
 using AutoMapper;
+using DocumentFormat.OpenXml.Office2010.Excel;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Forms;
 using Salubrity.Application.DTOs.HealthCamps;
@@ -835,7 +836,7 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
       Guid campId,
-      Guid? participantId, // Filter by participant
+      Guid? participantId,
       CampParticipantServeStatus status,
       string? q,
       string? sort,
@@ -847,17 +848,12 @@ public class HealthCampRepository : IHealthCampRepository
         if (pageSize <= 0) pageSize = 20;
 
         // ==================================================
-        // 1. Resolve camp services (IN MEMORY – SAFE)
+        // 1. Load ALL camp service assignments (camp-wide)
         // ==================================================
         var rawAssignments = await _context.HealthCampServiceAssignments
             .AsNoTracking()
             .Where(a => a.HealthCampId == campId && !a.IsDeleted)
-            .Select(a => new
-            {
-                a.Id,
-                a.AssignmentId,
-                a.AssignmentType
-            })
+            .Select(a => new { a.Id, a.AssignmentId, a.AssignmentType })
             .ToListAsync(ct);
 
         var campServices = new List<(Guid AssignmentId, Guid ServiceId, string ServiceName)>();
@@ -904,21 +900,21 @@ public class HealthCampRepository : IHealthCampRepository
                     }
 
                 default:
-                    throw new InvalidOperationException(
-                        $"Unsupported assignment type: {a.AssignmentType}");
+                    throw new InvalidOperationException($"Unsupported assignment type: {a.AssignmentType}");
             }
         }
 
-        var serviceIds = campServices.Select(s => s.ServiceId).Distinct().ToList();
+        var campServiceIds = campServices.Select(s => s.ServiceId).Distinct().ToList();
 
         // ==================================================
-        // 2. Load all service responses ONCE (SQL only)
+        // 2. Load IntakeFormResponses (STRICTLY camp-scoped)
         // ==================================================
         var responseRows = await _context.IntakeFormResponses
             .AsNoTracking()
             .Where(r =>
                 r.PatientId != null &&
-                serviceIds.Contains(r.ResolvedServiceId))
+                r.HealthCampId == campId &&
+                campServiceIds.Contains(r.ResolvedServiceId))
             .GroupBy(r => new { r.PatientId, r.ResolvedServiceId })
             .Select(g => new
             {
@@ -933,26 +929,74 @@ public class HealthCampRepository : IHealthCampRepository
             x => x.ServedAt);
 
         // ==================================================
-        // 2.1 Early exit if no participants
+        // 3. Load participant packages
         // ==================================================
-        var activePackages = await _context.HealthCampParticipantPackages
-        .AsNoTracking()
-        .Where(pp => !pp.IsDeleted && pp.IsActive)
-        .Select(pp => new
-        {
-            pp.ParticipantId,
-            pp.HealthCampPackageId,
-            PackageName = pp.HealthCampPackage.ServicePackage.Name
-        })
-        .ToListAsync(ct);
+        var participantPackages = await _context.HealthCampParticipantPackages
+            .AsNoTracking()
+            .Where(pp => !pp.IsDeleted && pp.IsActive)
+            .Select(pp => new
+            {
+                pp.ParticipantId,
+                pp.HealthCampPackageId,
+                pp.HealthCampPackage.ServicePackageId,
+                PackageName = pp.HealthCampPackage.ServicePackage.Name
+            })
+            .ToListAsync(ct);
 
-        var packageLookup = activePackages.ToDictionary(
+        var packageLookup = participantPackages.ToDictionary(
             x => x.ParticipantId,
-            x => new { x.HealthCampPackageId, x.PackageName });
-
+            x => x);
 
         // ==================================================
-        // 3. Base participant query (PURE EF + NAVS LOADED)
+        // 4. Resolve package → allowed services (ONCE)
+        // ==================================================
+        var packageItems = await _context.HealthCampPackageItems
+            .AsNoTracking()
+            .Where(pi => pi.HealthCampId == campId && pi.ServicePackageId != null)
+            .Select(pi => new
+            {
+                pi.ServicePackageId,
+                pi.ReferenceType,
+                pi.ReferenceId
+            })
+            .ToListAsync(ct);
+
+        var packageServiceMap = new Dictionary<Guid, HashSet<Guid>>();
+
+        foreach (var pi in packageItems)
+        {
+            if (!packageServiceMap.TryGetValue(pi.ServicePackageId!.Value, out var set))
+            {
+                set = new HashSet<Guid>();
+                packageServiceMap[pi.ServicePackageId.Value] = set;
+            }
+
+            switch (pi.ReferenceType)
+            {
+                case PackageItemType.Service:
+                    set.Add(pi.ReferenceId);
+                    break;
+
+                case PackageItemType.ServiceCategory:
+                    set.UnionWith(
+                        await _context.ServiceCategories
+                            .Where(c => c.Id == pi.ReferenceId)
+                            .Select(c => c.ServiceId)
+                            .ToListAsync(ct));
+                    break;
+
+                case PackageItemType.ServiceSubcategory:
+                    set.UnionWith(
+                        await _context.ServiceSubcategories
+                            .Where(sc => sc.Id == pi.ReferenceId)
+                            .Select(sc => sc.ServiceCategory.ServiceId)
+                            .ToListAsync(ct));
+                    break;
+            }
+        }
+
+        // ==================================================
+        // 5. Base participant query
         // ==================================================
         var baseQuery =
             _context.HealthCampParticipants
@@ -972,10 +1016,8 @@ public class HealthCampRepository : IHealthCampRepository
                 });
 
         if (participantId.HasValue)
-        {
             baseQuery = baseQuery.Where(x => x.Participant.Id == participantId.Value);
-        }
-        // ---------------- SEARCH ----------------
+
         if (!string.IsNullOrWhiteSpace(q))
         {
             var term = q.Trim();
@@ -985,7 +1027,6 @@ public class HealthCampRepository : IHealthCampRepository
                 EF.Functions.ILike(x.Participant.User.Phone!, $"%{term}%"));
         }
 
-        // ---------------- SORT ----------------
         baseQuery = sort?.ToLowerInvariant() switch
         {
             "name" => baseQuery.OrderBy(x => x.Participant.User.FullName),
@@ -1001,48 +1042,52 @@ public class HealthCampRepository : IHealthCampRepository
             .ToListAsync(ct);
 
         // ==================================================
-        // 4. ENRICH IN MEMORY (NO EF HERE)
+        // 6. Enrich IN MEMORY — allocation enforced
         // ==================================================
         var items = rawParticipants.Select(x =>
         {
-            var completed = campServices.Select(cs => new ServiceCompletionDto
-            {
-                ServiceAssignmentId = cs.AssignmentId,
-                ResolvedServiceId = cs.ServiceId,
-                ServiceName = cs.ServiceName,
-                ServedAt =
-                    x.PatientId != null &&
-                    responseLookup.TryGetValue((x.PatientId, cs.ServiceId), out var servedAt)
-                        ? servedAt
-                        : null
-            }).ToList();
+            packageLookup.TryGetValue(x.Participant.Id, out var pkg);
+
+            var allowedServices =
+                pkg != null && packageServiceMap.TryGetValue(pkg.ServicePackageId, out var set)
+                    ? set
+                    : new HashSet<Guid>();
+
+            var completed = campServices
+                .Where(cs => allowedServices.Contains(cs.ServiceId))
+                .Select(cs => new ServiceCompletionDto
+                {
+                    ServiceAssignmentId = cs.AssignmentId,
+                    ResolvedServiceId = cs.ServiceId,
+                    ServiceName = cs.ServiceName,
+                    ServedAt =
+                        x.PatientId != null &&
+                        responseLookup.TryGetValue((x.PatientId, cs.ServiceId), out var servedAt)
+                            ? servedAt
+                            : null
+                })
+                .ToList();
 
             return new CampParticipantListDto
             {
                 Id = x.Participant.Id,
                 UserId = x.Participant.UserId,
                 PatientId = x.PatientId,
-
                 FullName = x.Participant.User.FullName!,
                 Email = x.Participant.User.Email,
                 PhoneNumber = x.Participant.User.Phone,
                 CompanyName = x.Participant.HealthCamp.Organization.BusinessName!,
                 ParticipatedAt = x.Participant.ParticipatedAt,
-
-                Served = null, // camp-wide mode
+                Served = null,
                 CompletedServices = completed,
-
-                PackageId = packageLookup.TryGetValue(x.Participant.Id, out var pkg)
-            ? pkg.HealthCampPackageId
-            : null,
-
-                PackageName = packageLookup.TryGetValue(x.Participant.Id, out var pkg2)
-            ? pkg2.PackageName
-            : null
+                PackageId = pkg?.HealthCampPackageId,
+                PackageName = pkg?.PackageName
             };
         }).ToList();
 
-        // ---------------- STATUS FILTER ----------------
+        // ==================================================
+        // 7. Status filter
+        // ==================================================
         items = status switch
         {
             CampParticipantServeStatus.Served =>
@@ -1062,6 +1107,7 @@ public class HealthCampRepository : IHealthCampRepository
             Items = items
         };
     }
+
 
 
     public async Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default)

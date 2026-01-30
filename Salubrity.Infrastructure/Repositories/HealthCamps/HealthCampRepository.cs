@@ -550,7 +550,9 @@ public class HealthCampRepository : IHealthCampRepository
             let served =
                 _context.IntakeFormResponses.Any(r =>
                     r.PatientId == patientId &&
-                    r.ResolvedServiceId == resolvedServiceId)
+                    r.ResolvedServiceId == resolvedServiceId &&
+                     r.HealthCampId == campId
+                    )
 
             select new CampParticipantListDto
             {
@@ -637,7 +639,7 @@ public class HealthCampRepository : IHealthCampRepository
         return GetCampParticipantsByResolvedServiceAsync(
             campId,
             serviceId,
-            participantId.HasValue ? participantId.Value : Guid.Empty,
+            participantId ?? Guid.Empty,
             status,
             q,
             sort,
@@ -1266,7 +1268,7 @@ public class HealthCampRepository : IHealthCampRepository
         if (patient == null)
             return null;
 
-        // STEP 3: ✅ Served check (now uses ParticipantServiceStatuses)
+        // STEP 3: Served check (now uses ParticipantServiceStatuses)
         var served = await _context.HealthCampParticipantServiceStatuses
             .AnyAsync(s => s.ParticipantId == participantId && s.ServedAt != null, ct);
 

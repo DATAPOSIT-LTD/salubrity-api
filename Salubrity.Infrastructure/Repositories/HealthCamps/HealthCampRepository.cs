@@ -725,12 +725,18 @@ public class HealthCampRepository : IHealthCampRepository
                 )
 
             // 3.2 Has the service actually been served in THIS camp?
+            // Include responses with HealthCampId == campId, or HealthCampId == null when the response's patient is a participant in this camp
             let served =
                 isAllocated &&
                 _context.IntakeFormResponses.Any(r =>
                     r.PatientId == patientId &&
                     r.ResolvedServiceId == resolvedServiceId &&
-                    r.HealthCampId == campId)
+                    (r.HealthCampId == campId ||
+                     (r.HealthCampId == null &&
+                      _context.HealthCampParticipants.Any(pp =>
+                          pp.HealthCampId == campId &&
+                          _context.Patients.Any(pa =>
+                              pa.Id == r.PatientId && !pa.IsDeleted && pa.UserId == pp.UserId)))))
 
             select new CampParticipantListDto
             {

@@ -250,32 +250,35 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
 
         // --- Mark participant as served for this specific service station ---
-        if (dto.ServiceId.HasValue)
+        // Run when client sends either HealthCampServiceAssignmentId (assignment Id) or ServiceId (we resolve to assignment)
+        Guid? resolvedAssignmentId = null;
+        if (dto.HealthCampServiceAssignmentId.HasValue)
         {
-            // Get participant to resolve their camp
+            var assignmentById = await _assignmentRepository.GetByIdAsync(dto.HealthCampServiceAssignmentId.Value, ct);
+            if (assignmentById != null)
+                resolvedAssignmentId = assignmentById.Id;
+        }
+        else if (dto.ServiceId.HasValue)
+        {
             var participant = await _participantRepository
                 .GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
-
             if (participant == null)
                 throw new ValidationException([$"Participant {dto.ParticipantId} not found."]);
-
             var campId = participant.HealthCampId;
-
-            // Get correct camp-specific assignment
             var assignment = await _assignmentRepository.FirstOrDefaultAsync(
                 a => a.AssignmentId == dto.ServiceId.Value &&
                      a.HealthCampId == campId &&
                      !a.IsDeleted,
                 ct);
-
             if (assignment == null)
                 throw new ValidationException([$"No HealthCampServiceAssignment found for ServiceId {dto.ServiceId} in camp {campId}"]);
+            resolvedAssignmentId = assignment.Id;
+        }
 
-            var resolvedAssignmentId = assignment.Id;
-
-            // Continue with normal logic
+        if (resolvedAssignmentId.HasValue)
+        {
             var participantService = await _participantServiceStatusRepository
-                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, resolvedAssignmentId, ct);
+                .GetByParticipantAndAssignmentAsync(dto.ParticipantId, resolvedAssignmentId.Value, ct);
 
             if (participantService == null)
             {
@@ -283,17 +286,16 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
                 {
                     Id = Guid.NewGuid(),
                     ParticipantId = dto.ParticipantId,
-                    ServiceAssignmentId = resolvedAssignmentId,
+                    ServiceAssignmentId = resolvedAssignmentId.Value,
                     SubcontractorId = submittedByUserId,
                     ServedAt = DateTime.UtcNow
                 };
 
                 await _participantServiceStatusRepository.AddAsync(participantService, ct);
                 _logger.LogInformation(
-                    "Marked participant {ParticipantId} as served at assignment {AssignmentId} (resolved from ServiceId {ServiceId})",
+                    "Marked participant {ParticipantId} as served at assignment {AssignmentId}",
                     dto.ParticipantId,
-                    resolvedAssignmentId,
-                    dto.ServiceId);
+                    resolvedAssignmentId.Value);
             }
             else if (participantService.ServedAt == null)
             {

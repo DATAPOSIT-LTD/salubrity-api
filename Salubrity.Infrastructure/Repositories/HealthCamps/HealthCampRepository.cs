@@ -724,13 +724,13 @@ public class HealthCampRepository : IHealthCampRepository
                     )
                 )
 
-            // 3.2 Has the service actually been served? (IntakeFormResponses; include null HealthCampId for this camp’s participants)
+            // 3.2 Has the service actually been served in THIS camp?
             let served =
                 isAllocated &&
                 _context.IntakeFormResponses.Any(r =>
                     r.PatientId == patientId &&
                     r.ResolvedServiceId == resolvedServiceId &&
-                    (r.HealthCampId == campId || r.HealthCampId == null))
+                    r.HealthCampId == campId)
 
             select new CampParticipantListDto
             {

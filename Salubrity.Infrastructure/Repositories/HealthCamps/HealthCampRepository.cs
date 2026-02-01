@@ -641,7 +641,7 @@ public class HealthCampRepository : IHealthCampRepository
         if (pageSize <= 0) pageSize = 20;
 
         // --------------------------------------------------
-        // 1. Resolve camp-scoped assignment
+        // 1. Resolve camp-scoped assignment (by AssignmentId or by resolved Service.Id)
         // --------------------------------------------------
         var assignment = await _context.HealthCampServiceAssignments
             .AsNoTracking()
@@ -651,6 +651,38 @@ public class HealthCampRepository : IHealthCampRepository
                 a.AssignmentId == serviceReferenceId)
             .Select(a => new { a.AssignmentId, a.AssignmentType })
             .FirstOrDefaultAsync(ct);
+
+        if (assignment == null)
+        {
+            // Frontend may send resolved Service.Id; find assignment that resolves to this service
+            var assignmentByResolvedService = await _context.HealthCampServiceAssignments
+                .AsNoTracking()
+                .Where(a => a.HealthCampId == campId && !a.IsDeleted)
+                .Select(a => new { a.AssignmentId, a.AssignmentType })
+                .ToListAsync(ct);
+
+            foreach (var a in assignmentByResolvedService)
+            {
+                Guid? resolvedSvcId = a.AssignmentType switch
+                {
+                    PackageItemType.Service => a.AssignmentId,
+                    PackageItemType.ServiceCategory => await _context.ServiceCategories
+                        .Where(c => c.Id == a.AssignmentId)
+                        .Select(c => (Guid?)c.ServiceId)
+                        .FirstOrDefaultAsync(ct),
+                    PackageItemType.ServiceSubcategory => await _context.ServiceSubcategories
+                        .Where(sc => sc.Id == a.AssignmentId)
+                        .Select(sc => (Guid?)sc.ServiceCategory.ServiceId)
+                        .FirstOrDefaultAsync(ct),
+                    _ => null
+                };
+                if (resolvedSvcId == serviceReferenceId)
+                {
+                    assignment = a;
+                    break;
+                }
+            }
+        }
 
         if (assignment == null)
             throw new InvalidOperationException(
@@ -724,13 +756,12 @@ public class HealthCampRepository : IHealthCampRepository
                     )
                 )
 
-            // 3.2 Has the service actually been served in THIS camp?
+            // 3.2 Has the service actually been served? (IntakeFormResponse = source of truth; include null HealthCampId for this camp's participants)
             let served =
-                isAllocated &&
                 _context.IntakeFormResponses.Any(r =>
                     r.PatientId == patientId &&
                     r.ResolvedServiceId == resolvedServiceId &&
-                    r.HealthCampId == campId)
+                    (r.HealthCampId == campId || r.HealthCampId == null))
 
             select new CampParticipantListDto
             {

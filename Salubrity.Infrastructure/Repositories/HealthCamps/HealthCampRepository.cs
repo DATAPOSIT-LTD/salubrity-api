@@ -906,15 +906,27 @@ public class HealthCampRepository : IHealthCampRepository
 
         var campServiceIds = campServices.Select(s => s.ServiceId).Distinct().ToList();
 
+        // Participant patient IDs for this camp (used to include responses with null HealthCampId)
+        var participantPatientIds = await _context.HealthCampParticipants
+            .AsNoTracking()
+            .Where(p => p.HealthCampId == campId)
+            .Select(p => _context.Patients
+                .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
+                .Select(pa => pa.Id)
+                .FirstOrDefault())
+            .Where(pid => pid != Guid.Empty)
+            .Distinct()
+            .ToListAsync(ct);
+        var participantPatientIdSet = participantPatientIds.ToHashSet();
+
         // ==================================================
-        // 2. Load IntakeFormResponses (STRICTLY camp-scoped)
+        // 2. Load IntakeFormResponses (camp-scoped; include null HealthCampId for this camp's participants)
         // ==================================================
         var responseRows = await _context.IntakeFormResponses
             .AsNoTracking()
             .Where(r =>
-                r.PatientId != null &&
-                r.HealthCampId == campId &&
-                campServiceIds.Contains(r.ResolvedServiceId))
+                campServiceIds.Contains(r.ResolvedServiceId) &&
+                (r.HealthCampId == campId || (r.HealthCampId == null && participantPatientIdSet.Contains(r.PatientId))))
             .GroupBy(r => new { r.PatientId, r.ResolvedServiceId })
             .Select(g => new
             {
@@ -1064,10 +1076,8 @@ public class HealthCampRepository : IHealthCampRepository
                     if (!allowedServices.Contains(cs.ServiceId))
                         return null;
 
-                    responseLookup.TryGetValue(
-                        (x.PatientId, cs.ServiceId),
-                        out var servedAt
-                    );
+                    // Only set ServedAt when we have a matching intake form response; otherwise null (not default DateTime).
+                    var servedAt = responseLookup.TryGetValue((x.PatientId, cs.ServiceId), out var at) ? at : (DateTime?)null;
 
                     return new ServiceCompletionDto
                     {

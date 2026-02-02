@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Subcontractor;
 using Salubrity.Application.Interfaces.Repositories.Subcontactors;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -25,14 +25,18 @@ namespace Salubrity.Infrastructure.Repositories.Subcontactors
                 .Where(s => s.Status != null && s.Status.Name == "Active")
                 .CountAsync();
 
+            // Align with health-camp-overview and camp list: date-based, exclude deleted, require IsLaunched
             var today = DateTime.UtcNow.Date;
-            var upcomingCamps = await _context.Set<HealthCamp>()
-                .Where(hc => hc.StartDate > today)
+            var completedCamps = await _context.Set<HealthCamp>()
+                .Where(hc => !hc.IsDeleted
+                    && hc.IsLaunched
+                    && (hc.EndDate ?? hc.StartDate) < today)
                 .CountAsync();
 
-            var completedCamps = await _context.Set<HealthCamp>()
-                .Include(hc => hc.HealthCampStatus)
-                .Where(hc => (hc.HealthCampStatus != null && hc.HealthCampStatus.Name == "Completed") || hc.EndDate < today)
+            var upcomingCamps = await _context.Set<HealthCamp>()
+                .Where(hc => !hc.IsDeleted
+                    && hc.IsLaunched
+                    && (hc.EndDate ?? hc.StartDate) >= today)
                 .CountAsync();
 
             return new SubcontractorOverviewDto

@@ -53,5 +53,32 @@ namespace Salubrity.Infrastructure.Repositories.HealthCamps
                 TotalPatients = totalPatients
             };
         }
+
+        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid patientId, CancellationToken ct = default)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            // Camps attended = completed camps this patient participated in (same date logic as camp list)
+            var campsAttended = await _context.Set<HealthCampParticipant>()
+                .Where(p => p.PatientId == patientId
+                    && !p.HealthCamp.IsDeleted
+                    && p.HealthCamp.IsLaunched
+                    && (p.HealthCamp.EndDate ?? p.HealthCamp.StartDate) < today)
+                .CountAsync(ct);
+
+            // Upcoming camps = camps this patient is registered for that have not ended yet
+            var upcomingCamps = await _context.Set<HealthCampParticipant>()
+                .Where(p => p.PatientId == patientId
+                    && !p.HealthCamp.IsDeleted
+                    && p.HealthCamp.IsLaunched
+                    && (p.HealthCamp.EndDate ?? p.HealthCamp.StartDate) >= today)
+                .CountAsync(ct);
+
+            return new PatientCampOverviewDto
+            {
+                CampsAttended = campsAttended,
+                UpcomingCamps = upcomingCamps
+            };
+        }
     }
 }

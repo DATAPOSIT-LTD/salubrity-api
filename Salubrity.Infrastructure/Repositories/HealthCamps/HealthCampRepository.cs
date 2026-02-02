@@ -756,12 +756,12 @@ public class HealthCampRepository : IHealthCampRepository
                     )
                 )
 
-            // 3.2 Has the service actually been served? (IntakeFormResponse = source of truth; include null HealthCampId for this camp's participants)
+            // 3.2 Has the service actually been served? (IntakeFormResponse = source of truth; this camp only to avoid cross-camp leakage)
             let served =
                 _context.IntakeFormResponses.Any(r =>
                     r.PatientId == patientId &&
                     r.ResolvedServiceId == resolvedServiceId &&
-                    (r.HealthCampId == campId || r.HealthCampId == null))
+                    r.HealthCampId == campId)
 
             select new CampParticipantListDto
             {
@@ -937,27 +937,14 @@ public class HealthCampRepository : IHealthCampRepository
 
         var campServiceIds = campServices.Select(s => s.ServiceId).Distinct().ToList();
 
-        // Participant patient IDs for this camp (used to include responses with null HealthCampId)
-        var participantPatientIds = await _context.HealthCampParticipants
-            .AsNoTracking()
-            .Where(p => p.HealthCampId == campId)
-            .Select(p => _context.Patients
-                .Where(pa => pa.UserId == p.UserId && !pa.IsDeleted)
-                .Select(pa => pa.Id)
-                .FirstOrDefault())
-            .Where(pid => pid != Guid.Empty)
-            .Distinct()
-            .ToListAsync(ct);
-        var participantPatientIdSet = participantPatientIds.ToHashSet();
-
         // ==================================================
-        // 2. Load IntakeFormResponses (camp-scoped; include null HealthCampId for this camp's participants)
+        // 2. Load IntakeFormResponses (STRICTLY this camp only — avoid cross-camp leakage)
         // ==================================================
         var responseRows = await _context.IntakeFormResponses
             .AsNoTracking()
             .Where(r =>
-                campServiceIds.Contains(r.ResolvedServiceId) &&
-                (r.HealthCampId == campId || (r.HealthCampId == null && participantPatientIdSet.Contains(r.PatientId))))
+                r.HealthCampId == campId &&
+                campServiceIds.Contains(r.ResolvedServiceId))
             .GroupBy(r => new { r.PatientId, r.ResolvedServiceId })
             .Select(g => new
             {

@@ -1,10 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Infrastructure.Persistence;
-using System.Security.Claims;
 
 namespace Salubrity.Infrastructure.Repositories.Organizations
 {
@@ -19,14 +19,13 @@ namespace Salubrity.Infrastructure.Repositories.Organizations
 
         public async Task<OrganizationOverviewDto> GetOrganizationOverviewAsync()
         {
-            // Onboarded Organizations
-            var onboardedOrganizations = await _context.Set<Organization>().CountAsync();
+            // Onboarded Organizations (non-deleted)
+            var onboardedOrganizations = await _context.Set<Organization>()
+                .CountAsync(o => !o.IsDeleted);
 
-            // Total patients onboarded (patients tied to organizations)
-            var totalPatientsOnboarded = await _context.Set<HealthCampParticipant>()
-                .Where(p => p.PatientId != null && p.HealthCamp.OrganizationId != null)
-                .Select(p => p.PatientId)
-                .Distinct()
+            // Total patients onboarded = total employees across onboarded organizations (employees in orgs)
+            var totalPatientsOnboarded = await _context.Set<Employee>()
+                .Where(e => !e.Organization.IsDeleted)
                 .CountAsync();
 
             // Total Patients Checked (patients who have completed a camp)

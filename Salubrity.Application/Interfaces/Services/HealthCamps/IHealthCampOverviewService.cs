@@ -7,8 +7,8 @@ namespace Salubrity.Application.Interfaces.Services.HealthCamps
         Task<HealthCampOverviewDto> GetHealthCampOverviewAsync();
 
         /// <summary>
-        /// Get camp overview for a patient: camps attended and upcoming camps (by patientId from /me).
+        /// Get camp overview for a user (participant): camps attended and upcoming camps (by userId from /me).
         /// </summary>
-        Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid patientId, CancellationToken ct = default);
+        Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid userId, CancellationToken ct = default);
     }
 }

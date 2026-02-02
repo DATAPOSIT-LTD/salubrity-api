@@ -16,13 +16,14 @@ namespace Salubrity.Infrastructure.Repositories.HealthCamps
             _context = context;
         }
 
-        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid patientId, CancellationToken ct = default)
+        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid userId, CancellationToken ct = default)
         {
             var today = DateTime.UtcNow.Date;
 
+            // Match by UserId (always set on participant); PatientId is optional and may be unset on older records
             // Camps attended = participations where camp is completed (IsLaunched and (EndDate ?? StartDate) < today)
             var campsAttended = await _context.Set<HealthCampParticipant>()
-                .Where(p => p.PatientId == patientId
+                .Where(p => p.UserId == userId
                     && p.HealthCamp != null
                     && !p.HealthCamp.IsDeleted
                     && p.HealthCamp.IsLaunched
@@ -31,7 +32,7 @@ namespace Salubrity.Infrastructure.Repositories.HealthCamps
 
             // Upcoming camps = participations where camp is not yet ended ((EndDate ?? StartDate) >= today)
             var upcomingCamps = await _context.Set<HealthCampParticipant>()
-                .Where(p => p.PatientId == patientId
+                .Where(p => p.UserId == userId
                     && p.HealthCamp != null
                     && !p.HealthCamp.IsDeleted
                     && p.HealthCamp.IsLaunched

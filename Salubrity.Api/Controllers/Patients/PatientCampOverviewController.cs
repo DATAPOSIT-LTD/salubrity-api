@@ -8,7 +8,7 @@ using Salubrity.Shared.Responses;
 namespace Salubrity.Api.Controllers.Patients
 {
     /// <summary>
-    /// Camp overview for a specific patient (participant). Use patientId from GET /api/v1/auth/me (relatedEntityId when relatedEntityType is "Patient").
+    /// Camp overview for the current user (participant). Use the authenticated user's id from GET /api/v1/auth/me (e.g. id or sub claim).
     /// </summary>
     [ApiController]
     [ApiVersion("1.0")]
@@ -26,15 +26,15 @@ namespace Salubrity.Api.Controllers.Patients
         }
 
         /// <summary>
-        /// Get camp overview for a patient: camps attended (completed) and upcoming camps they are registered for.
+        /// Get camp overview for a user (participant): camps attended (completed) and upcoming camps they are registered for.
         /// </summary>
-        /// <param name="patientId">Patient ID (e.g. from /auth/me as relatedEntityId when relatedEntityType is "Patient").</param>
+        /// <param name="userId">User ID (e.g. from /auth/me — the authenticated user's id). Participations are matched by UserId.</param>
         /// <param name="ct">Cancellation token.</param>
-        [HttpGet("{patientId:guid}/camp-overview")]
+        [HttpGet("{userId:guid}/camp-overview")]
         [ProducesResponseType(typeof(ApiResponse<PatientCampOverviewDto>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetPatientCampOverview(Guid patientId, CancellationToken ct = default)
+        public async Task<IActionResult> GetPatientCampOverview(Guid userId, CancellationToken ct = default)
         {
-            var result = await _service.GetPatientCampOverviewAsync(patientId, ct);
+            var result = await _service.GetPatientCampOverviewAsync(userId, ct);
             return Success(result);
         }
     }

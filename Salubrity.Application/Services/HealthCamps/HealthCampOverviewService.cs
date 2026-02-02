@@ -18,9 +18,9 @@ namespace Salubrity.Application.Services.HealthCamps
             return await _repo.GetHealthCampOverviewAsync();
         }
 
-        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid patientId, CancellationToken ct = default)
+        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid userId, CancellationToken ct = default)
         {
-            return await _repo.GetPatientCampOverviewAsync(patientId, ct);
+            return await _repo.GetPatientCampOverviewAsync(userId, ct);
         }
     }
 }

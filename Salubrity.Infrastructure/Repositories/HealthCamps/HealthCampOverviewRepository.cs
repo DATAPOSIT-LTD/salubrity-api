@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -19,18 +19,24 @@ namespace Salubrity.Infrastructure.Repositories.HealthCamps
         public async Task<HealthCampOverviewDto> GetHealthCampOverviewAsync()
         {
             var onboardedOrganizations = await _context.Set<HealthCamp>()
+                .Where(hc => !hc.IsDeleted)
                 .Select(hc => hc.OrganizationId)
                 .Distinct()
                 .CountAsync();
 
+            // Align with camp list "Complete" tab: IsLaunched and (EndDate ?? StartDate) < today
+            var today = DateTime.UtcNow.Date;
             var completedCamps = await _context.Set<HealthCamp>()
-                .Include(hc => hc.HealthCampStatus)
-                .Where(hc => hc.HealthCampStatus != null && hc.HealthCampStatus.Name == "Completed")
+                .Where(hc => !hc.IsDeleted
+                    && hc.IsLaunched
+                    && (hc.EndDate ?? hc.StartDate) < today)
                 .CountAsync();
 
-            var today = DateTime.UtcNow.Date;
+            // Align with camp list "Upcoming" tab: IsLaunched and (EndDate ?? StartDate) >= today
             var upcomingCamps = await _context.Set<HealthCamp>()
-                .Where(hc => hc.StartDate > today)
+                .Where(hc => !hc.IsDeleted
+                    && hc.IsLaunched
+                    && (hc.EndDate ?? hc.StartDate) >= today)
                 .CountAsync();
 
             var totalPatients = await _context.Set<HealthCampParticipant>()

@@ -23,6 +23,12 @@ public interface IIntakeFormRepository
     Task<IntakeFormVersion?> GetActiveVersionWithFieldsByServiceNameAsync(string serviceName, CancellationToken ct);
 
     /// <summary>
+    /// Get an intake form version with sections + fields (by version id).
+    /// Useful for evaluating dynamic responses against their version schema.
+    /// </summary>
+    Task<IntakeFormVersion?> GetVersionWithFieldsAsync(Guid versionId, CancellationToken ct = default);
+
+    /// <summary>
     /// Checks if an intake form is assigned to any service, category, or subcategory
     /// </summary>
     Task<bool> IsFormAssignedAnywhereAsync(Guid formId);

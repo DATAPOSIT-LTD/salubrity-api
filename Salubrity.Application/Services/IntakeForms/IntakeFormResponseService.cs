@@ -22,6 +22,8 @@ using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Shared.Exceptions;
 using System.Diagnostics;
+using Salubrity.Application.Interfaces.Services.Notifications;
+using Salubrity.Application.Interfaces.Repositories.Rbac;
 
 namespace Salubrity.Application.Services.Forms;
 
@@ -70,6 +72,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IHealthCampParticipantServiceStatusRepository participantServiceStatusRepository,
         IDoctorRecommendationService doctorRecommendationService,
         ILoggerFactory loggerFactory,
+        INotificationService notificationService,
         IRoleRepository roleRepository
     )
     {
@@ -89,6 +92,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _participantServiceStatusRepository = participantServiceStatusRepository;
         _doctorRecommendationService = doctorRecommendationService;
         _loggerFactory = loggerFactory;
+        _notificationService = notificationService;
         _roleRepository = roleRepository;
     }
 
@@ -708,5 +712,205 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         return (excelData, exportTimestamp);
     }
 
+
+    //    return (excelData, exportTimestamp);
+    //}
+
+    // ================================================================
+    // Triage Alert Generation
+    // ================================================================
+
+    private async Task TryGenerateTriageAlertsAsync(
+        IntakeFormResponse response,
+        CreateIntakeFormResponseDto dto,
+        Guid resolvedServiceId,
+        CancellationToken ct)
+    {
+        try
+        {
+            // Check if this is a triage service (by service name OR intake form name)
+            var service = await _serviceRepository.GetByIdAsync(resolvedServiceId, ct);
+            bool isTriage = service != null &&
+                service.Name.Contains("Triage", StringComparison.OrdinalIgnoreCase);
+
+            // Also check the intake form name (covers cases where "Triage" is in form name, not service name)
+            IntakeFormVersion? formVersion = null;
+            if (!isTriage)
+            {
+                formVersion = await _intakeFormRepository.GetVersionWithFieldsAsync(dto.IntakeFormVersionId, ct);
+                if (formVersion?.IntakeForm != null &&
+                    formVersion.IntakeForm.Name.Contains("Triage", StringComparison.OrdinalIgnoreCase))
+                {
+                    isTriage = true;
+                }
+            }
+
+            if (!isTriage)
+                return;
+
+            // Load schema for this version so alerts work across all triage versions
+            formVersion ??= await _intakeFormRepository.GetVersionWithFieldsAsync(dto.IntakeFormVersionId, ct);
+            if (formVersion == null)
+                return;
+
+            var fieldMeta = formVersion.Sections
+                .SelectMany(s => s.Fields)
+                .GroupBy(f => f.Id)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            // Map field values by fieldId from the incoming DTO
+            var valueByFieldId = dto.FieldResponses
+                .GroupBy(fr => fr.FieldId)
+                .ToDictionary(g => g.Key, g => g.Last().Value?.Trim() ?? string.Empty);
+
+            var issues = EvaluateTriageAbnormalities(valueByFieldId, fieldMeta);
+            if (issues.Count == 0)
+                return;
+
+            // Build context
+            string patientLabel = response.PatientId.ToString();
+            try
+            {
+                var participant = await _participantRepository.GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
+                if (participant?.User != null)
+                    patientLabel = $"{participant.User.FirstName} {participant.User.LastName}".Trim();
+                if (string.IsNullOrWhiteSpace(patientLabel))
+                    patientLabel = response.PatientId.ToString();
+            }
+            catch { /* best-effort only; do not fail submission on alert enrichment */ }
+
+            string campName = "Unknown camp";
+            try
+            {
+                var participantForCamp = await _participantRepository.GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
+                if (participantForCamp != null)
+                {
+                    var camp = await _healthCampRepository.GetByIdWithPackagesAsync(participantForCamp.HealthCampId, ct);
+                    if (camp != null)
+                        campName = camp.Name ?? campName;
+                }
+            }
+            catch { /* ignore enrichment failures */ }
+
+            var message =
+                $"Triage alert for patient {patientLabel} at camp '{campName}': " +
+                string.Join("; ", issues);
+
+            // Notify Doctor and Concierge roles only
+            var doctorRole = await SafeFindRoleByNameAsync("Doctor", ct);
+            var conciergeRole = await SafeFindRoleByNameAsync("Concierge", ct);
+
+            if (doctorRole != null)
+            {
+                await _notificationService.TriggerNotificationAsync(
+                    title: "Triage Alert",
+                    message: message,
+                    type: "TriageAlert",
+                    entityId: doctorRole.Id,
+                    entityType: "Role",
+                    ct: ct);
+            }
+
+            if (conciergeRole != null)
+            {
+                await _notificationService.TriggerNotificationAsync(
+                    title: "Triage Alert",
+                    message: message,
+                    type: "TriageAlert",
+                    entityId: conciergeRole.Id,
+                    entityType: "Role",
+                    ct: ct);
+            }
+
+            _logger.LogInformation(
+                "Triage alert sent for patient {PatientId}: {IssueCount} abnormalities detected",
+                response.PatientId, issues.Count);
+        }
+        catch (Exception ex)
+        {
+            // Never fail the form submission due to alert generation
+            _logger.LogWarning(ex, "Failed to generate triage alerts for response {ResponseId}", response.Id);
+        }
+    }
+
+    private async Task<Domain.Entities.Rbac.Role?> SafeFindRoleByNameAsync(string roleName, CancellationToken ct)
+    {
+        try
+        {
+            return await _roleRepository.FindByNameAsync(roleName);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static List<string> EvaluateTriageAbnormalities(
+        IReadOnlyDictionary<Guid, string> values,
+        IReadOnlyDictionary<Guid, IntakeFormField> fieldMeta)
+    {
+        var issues = new List<string>();
+
+        foreach (var (fieldId, raw) in values)
+        {
+            if (!fieldMeta.TryGetValue(fieldId, out var field))
+                continue;
+
+            var fieldType = field.FieldType?.Trim().ToLowerInvariant();
+            var label = field.Label?.Trim() ?? "Field";
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            // Blood pressure: "systolic/diastolic" stored as string (e.g. "110/90")
+            if (fieldType == "blood-pressure")
+            {
+                if (!raw.Contains('/'))
+                    continue;
+
+                var parts = raw.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 2 ||
+                    !int.TryParse(parts[0], out var systolic) ||
+                    !int.TryParse(parts[1], out var diastolic))
+                    continue;
+
+                if (systolic <= diastolic)
+                    issues.Add($"{label} pattern unusual: systolic ({systolic}) <= diastolic ({diastolic})");
+
+                if (systolic > 140 || diastolic > 90)
+                    issues.Add($"{label} high: {systolic}/{diastolic} mmHg");
+                else if (systolic < 90 || diastolic < 60)
+                    issues.Add($"{label} low: {systolic}/{diastolic} mmHg");
+
+                continue;
+            }
+
+            // Numeric fields: use schema min/max if defined, plus clinical heuristics by label
+            if (fieldType == "number")
+            {
+                if (!decimal.TryParse(raw, out var num))
+                    continue;
+
+                if (field.MinValue.HasValue && num < field.MinValue.Value)
+                    issues.Add($"{label} below minimum ({field.MinValue.Value}): {raw}");
+                else if (field.MaxValue.HasValue && num > field.MaxValue.Value)
+                    issues.Add($"{label} above maximum ({field.MaxValue.Value}): {raw}");
+
+                // Common clinical heuristics by label (work across versions)
+                if (label.Contains("oxygen", StringComparison.OrdinalIgnoreCase) && num < 90)
+                    issues.Add($"{label} low: {raw}%");
+
+                if (label.Contains("temperature", StringComparison.OrdinalIgnoreCase) && (num < 35 || num > 38))
+                    issues.Add($"{label} abnormal: {raw} C");
+
+                if (label.Contains("heart rate", StringComparison.OrdinalIgnoreCase) && (num < 50 || num > 120))
+                    issues.Add($"{label} abnormal: {raw} bpm");
+
+                if (label.Contains("bmi", StringComparison.OrdinalIgnoreCase) && (num < 18.5m || num > 30m))
+                    issues.Add($"{label} abnormal: {raw}");
+            }
+        }
+
+        return issues;
+    }
 
 }

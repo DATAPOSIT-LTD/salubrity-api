@@ -63,7 +63,7 @@ public class IntakeFormRepository : IIntakeFormRepository
         return await _context.IntakeForms.CountAsync();
     }
 
-    //  Implements: GetWithSectionsAsync — full tree: Sections -> Fields -> Options
+    //  Implements: GetWithSectionsAsync â€” full tree: Sections -> Fields -> Options
     public async Task<IntakeForm?> GetWithSectionsAsync(Guid formId)
     {
         return await _context.IntakeForms
@@ -73,7 +73,7 @@ public class IntakeFormRepository : IIntakeFormRepository
             .FirstOrDefaultAsync(f => f.Id == formId);
     }
 
-    //  Implements: GetWithFieldsAsync — direct fields on form (no sections)
+    //  Implements: GetWithFieldsAsync â€” direct fields on form (no sections)
     public async Task<IntakeForm?> GetWithFieldsAsync(Guid formId)
     {
         return await _context.IntakeForms
@@ -106,7 +106,7 @@ public class IntakeFormRepository : IIntakeFormRepository
         string serviceName,
         CancellationToken ct)
     {
-        // 1. Try Service → IntakeForm
+        // 1. Try Service â†’ IntakeForm
         var serviceFormId = await _context.Services
             .Where(s => !s.IsDeleted && s.Name == serviceName && s.IntakeFormId != null)
             .Select(s => s.IntakeFormId.Value)
@@ -122,7 +122,7 @@ public class IntakeFormRepository : IIntakeFormRepository
                 .FirstOrDefaultAsync(ct);
         }
 
-        // 2. Try ServiceCategory → IntakeForm
+        // 2. Try ServiceCategory â†’ IntakeForm
         var categoryFormId = await _context.ServiceCategories
             .Where(c => !c.IsDeleted && c.Name == serviceName && c.IntakeFormId != null)
             .Select(c => c.IntakeFormId.Value)
@@ -138,7 +138,7 @@ public class IntakeFormRepository : IIntakeFormRepository
                 .FirstOrDefaultAsync(ct);
         }
 
-        // 3. Try ServiceSubcategory → IntakeForm
+        // 3. Try ServiceSubcategory â†’ IntakeForm
         var subcategoryFormId = await _context.ServiceSubcategories
             .Where(sc => !sc.IsDeleted && sc.Name == serviceName && sc.IntakeFormId != null)
             .Select(sc => sc.IntakeFormId.Value)
@@ -210,6 +210,16 @@ public class IntakeFormRepository : IIntakeFormRepository
             .Where(v => v.IntakeFormId == form.Id && v.IsActive && !v.IsDeleted)
             .OrderByDescending(v => v.VersionNumber)
             .FirstOrDefaultAsync(ct);
+    }
+
+
+    public async Task<IntakeFormVersion?> GetVersionWithFieldsAsync(Guid versionId, CancellationToken ct = default)
+    {
+        return await _context.IntakeFormVersions
+            .Include(v => v.IntakeForm)
+            .Include(v => v.Sections)
+                .ThenInclude(s => s.Fields)
+            .FirstOrDefaultAsync(v => v.Id == versionId && !v.IsDeleted, ct);
     }
 
 }

@@ -10,6 +10,7 @@ namespace Salubrity.Application.DTOs.Forms.IntakeFormResponses
         public Guid SubmittedByUserId { get; set; }
         public Guid PatientId { get; set; }
         public Guid? ServiceId { get; set; }
+        public Guid? HealthCampId { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public ResponseStatusDto Status { get; set; } = default!;

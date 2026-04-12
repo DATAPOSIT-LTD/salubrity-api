@@ -5,19 +5,43 @@ namespace Salubrity.Application.Interfaces.Security
 {
     public interface IJwtService
     {
-        // Existing: token based on user ID + email + roles
+        // ============================================================
+        // SIGNING
+        // ============================================================
+
         string GenerateAccessToken(Guid userId, string email, string[] roles);
 
-        //  New: flexible token based on claims + expiry + roles
-        string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string[] roles);
+        string GenerateAccessToken(
+            IEnumerable<Claim> claims,
+            DateTimeOffset expiresUtc,
+            string[] roles
+        );
 
-        //  Optional: most flexible if you want to control issuer/audience
-        string GenerateAccessToken(IEnumerable<Claim> claims, DateTimeOffset expiresUtc, string issuer, string audience);
+        string GenerateAccessToken(
+            IEnumerable<Claim> claims,
+            DateTimeOffset expiresUtc,
+            string issuer,
+            string audience
+        );
+
+        // ============================================================
+        // REFRESH
+        // ============================================================
 
         string GenerateRefreshToken();
 
-        ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
-        ClaimsPrincipal ValidateToken(string token, string expectedAudience, string expectedIssuer);
+        // ============================================================
+        // VALIDATION
+        // ============================================================
 
+        ClaimsPrincipal ValidateToken(string token);
+
+        ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
+
+        // ============================================================
+        // DECODE ONLY (NO CRYPTO)
+        // ============================================================
+
+        ClaimsPrincipal DecodeTokenWithoutValidation(string token);
     }
 }

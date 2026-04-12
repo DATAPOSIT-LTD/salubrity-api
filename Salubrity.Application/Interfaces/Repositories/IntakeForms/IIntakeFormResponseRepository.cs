@@ -11,6 +11,12 @@ public interface IIntakeFormResponseRepository
     /// </summary>
     Task<IntakeFormResponse> AddAsync(IntakeFormResponse response, CancellationToken ct = default);
 
+    Task SaveChangesAsync(CancellationToken ct);
+    Task<IntakeFormResponse?> GetWithFieldResponsesAsync(
+      Guid responseId,
+      CancellationToken ct);
+
+
     /// <summary>
     /// Fetches an intake form response including its field responses.
     /// </summary>
@@ -36,7 +42,10 @@ public interface IIntakeFormResponseRepository
     CancellationToken ct = default);
 
     // Download Findings Implementation
-    Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default);
+    Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(
+         Guid campId,
+         Guid? branchId = null,
+         CancellationToken ct = default);
 
     // Batch Processing Implementation
     Task<Dictionary<Guid, List<IntakeFormResponse>>> GetResponsesForMultipleCampsAsync(

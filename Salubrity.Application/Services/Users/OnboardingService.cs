@@ -1,4 +1,4 @@
-﻿using Salubrity.Application.Interfaces.Repositories;
+using Salubrity.Application.Interfaces.Repositories;
 using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Application.Interfaces.Services.Notifications;
 using Salubrity.Application.Interfaces.Services.Users;
@@ -132,15 +132,26 @@ namespace Salubrity.Application.Services.Users
 
         private static bool CheckProfileCompletion(User user)
         {
-            if (string.IsNullOrWhiteSpace(user.FirstName)) Console.WriteLine("FirstName missing");
-            if (string.IsNullOrWhiteSpace(user.Email)) Console.WriteLine("Email missing");
-            if (string.IsNullOrWhiteSpace(user.Phone)) Console.WriteLine("Phone missing");
-            if (string.IsNullOrWhiteSpace(user.NationalId)) Console.WriteLine("NationalId missing");
-            if (!user.DateOfBirth.HasValue) Console.WriteLine("DateOfBirth missing");
-            if (!user.GenderId.HasValue || user.GenderId.Value == Guid.Empty) Console.WriteLine("GenderId missing");
-            if (!user.OrganizationId.HasValue || user.OrganizationId.Value == Guid.Empty) Console.WriteLine("OrganizationId missing");
+            var roleNames = user.UserRoles?
+                .Select(ur => ur.Role?.Name)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .Cast<string>()
+                .ToHashSet() ?? new HashSet<string>();
 
+            // Patient & Subcontractor: same relaxed profile (no OrganizationId; location not required)
+            // Core fields from Personal Details / onboarding form for both roles
+            var isPatientOrSubcontractor = roleNames.Contains("Patient") || roleNames.Contains("Subcontractor");
+            if (isPatientOrSubcontractor)
+            {
+                return !string.IsNullOrWhiteSpace(user.FirstName) &&
+                       !string.IsNullOrWhiteSpace(user.LastName) &&
+                       !string.IsNullOrWhiteSpace(user.Email) &&
+                       user.GenderId.HasValue && user.GenderId.Value != Guid.Empty;
+            }
+
+            // Other roles (e.g. Employee): require OrganizationId and full profile
             return !string.IsNullOrWhiteSpace(user.FirstName) &&
+                   !string.IsNullOrWhiteSpace(user.LastName) &&
                    !string.IsNullOrWhiteSpace(user.Email) &&
                    !string.IsNullOrWhiteSpace(user.Phone) &&
                    !string.IsNullOrWhiteSpace(user.NationalId) &&

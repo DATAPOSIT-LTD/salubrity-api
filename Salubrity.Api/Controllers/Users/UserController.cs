@@ -26,13 +26,13 @@ public class UsersController : BaseController
     /// Get all users in the system.
     /// </summary>
     [HttpGet]
-    // [Authorize(Roles = "Admin,UserManager")]
-    [ProducesResponseType(typeof(ApiResponse<List<UserResponse>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAll()
+    [ProducesResponseType(typeof(ApiResponse<List<UserListItemResponse>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var result = await _userService.GetAllAsync();
-        return Success(result);
+        var result = await _userService.GetAllAsync(ct);
+        return Ok(result);
     }
+
 
     /// <summary>
     /// Get a user by ID.

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Domain.Entities.HealthCamps;
@@ -16,21 +16,57 @@ namespace Salubrity.Infrastructure.Repositories.HealthCamps
             _context = context;
         }
 
+        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid userId, CancellationToken ct = default)
+        {
+            var today = DateTime.UtcNow.Date;
+
+            // Match by UserId (always set on participant); PatientId is optional and may be unset on older records
+            // Camps attended = participations where camp is completed (IsLaunched and (EndDate ?? StartDate) < today)
+            var campsAttended = await _context.Set<HealthCampParticipant>()
+                .Where(p => p.UserId == userId
+                    && p.HealthCamp != null
+                    && !p.HealthCamp.IsDeleted
+                    && p.HealthCamp.IsLaunched
+                    && (p.HealthCamp.EndDate ?? p.HealthCamp.StartDate) < today)
+                .CountAsync(ct);
+
+            // Upcoming camps = participations where camp is not yet ended ((EndDate ?? StartDate) >= today)
+            var upcomingCamps = await _context.Set<HealthCampParticipant>()
+                .Where(p => p.UserId == userId
+                    && p.HealthCamp != null
+                    && !p.HealthCamp.IsDeleted
+                    && p.HealthCamp.IsLaunched
+                    && (p.HealthCamp.EndDate ?? p.HealthCamp.StartDate) >= today)
+                .CountAsync(ct);
+
+            return new PatientCampOverviewDto
+            {
+                CampsAttended = campsAttended,
+                UpcomingCamps = upcomingCamps
+            };
+        }
+
         public async Task<HealthCampOverviewDto> GetHealthCampOverviewAsync()
         {
             var onboardedOrganizations = await _context.Set<HealthCamp>()
+                .Where(hc => !hc.IsDeleted)
                 .Select(hc => hc.OrganizationId)
                 .Distinct()
                 .CountAsync();
 
+            // Align with camp list "Complete" tab: IsLaunched and (EndDate ?? StartDate) < today
+            var today = DateTime.UtcNow.Date;
             var completedCamps = await _context.Set<HealthCamp>()
-                .Include(hc => hc.HealthCampStatus)
-                .Where(hc => hc.HealthCampStatus != null && hc.HealthCampStatus.Name == "Completed")
+                .Where(hc => !hc.IsDeleted
+                    && hc.IsLaunched
+                    && (hc.EndDate ?? hc.StartDate) < today)
                 .CountAsync();
 
-            var today = DateTime.UtcNow.Date;
+            // Align with camp list "Upcoming" tab: IsLaunched and (EndDate ?? StartDate) >= today
             var upcomingCamps = await _context.Set<HealthCamp>()
-                .Where(hc => hc.StartDate > today)
+                .Where(hc => !hc.IsDeleted
+                    && hc.IsLaunched
+                    && (hc.EndDate ?? hc.StartDate) >= today)
                 .CountAsync();
 
             var totalPatients = await _context.Set<HealthCampParticipant>()

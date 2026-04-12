@@ -2,34 +2,66 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using Salubrity.Application.Interfaces.Security;
+using System.Text;
 
-namespace Salubrity.Shared.Extensions;
-
-public static class JwtAuthSetup
+namespace Salubrity.Shared.Extensions
 {
-    public static IServiceCollection AddJwtAuth(this IServiceCollection services, IConfiguration config)
+    public static class JwtAuthSetup
     {
-        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer();
-
-        services.PostConfigure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+        public static IServiceCollection AddJwtAuth(
+            this IServiceCollection services,
+            IConfiguration config)
         {
-            using var scope = services.BuildServiceProvider().CreateScope();
-            var keyProvider = scope.ServiceProvider.GetRequiredService<IKeyProvider>();
+            var jwtSection = config.GetSection("Jwt");
 
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuer = true,
-                ValidateAudience = true,
-                ValidateLifetime = true,
-                ValidateIssuerSigningKey = true,
-                ValidIssuer = config["JwtSettings:Issuer"],
-                ValidAudience = config["JwtSettings:Audience"],
-                IssuerSigningKey = keyProvider.GetPublicKey()
-            };
-        });
+            var issuer = jwtSection["Issuer"];
+            var audience = jwtSection["Audience"];
+            var secret = jwtSection["Secret"];
 
-        return services;
+            if (string.IsNullOrWhiteSpace(secret))
+                throw new InvalidOperationException("JWT Secret is missing.");
+
+            if (string.IsNullOrWhiteSpace(issuer))
+                throw new InvalidOperationException("JWT Issuer is missing.");
+
+            if (string.IsNullOrWhiteSpace(audience))
+                throw new InvalidOperationException("JWT Audience is missing.");
+
+            var signingKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(secret)
+            );
+
+            services
+                .AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                })
+                .AddJwtBearer(options =>
+                {
+                    options.RequireHttpsMetadata = true;
+                    options.SaveToken = true;
+
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        // Core validation
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        RequireExpirationTime = true,
+
+                        // Values
+                        ValidIssuer = issuer,
+                        ValidAudience = audience,
+                        IssuerSigningKey = signingKey,
+
+                        // No grace period
+                        ClockSkew = TimeSpan.Zero
+                    };
+                });
+
+            return services;
+        }
     }
 }

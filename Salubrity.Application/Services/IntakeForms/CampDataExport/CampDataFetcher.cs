@@ -31,14 +31,22 @@ namespace Salubrity.Application.Services.IntakeForms.CampDataExport
             _doctorRecommendationService = doctorRecommendationService;
         }
 
-        public async Task<CampData> FetchDataAsync(Guid campId, CancellationToken ct)
+
+        public async Task<CampData> FetchDataAsync(
+            Guid campId,
+            Guid? branchId = null,
+            CancellationToken ct = default)
         {
             var camp = await _healthCampRepository.GetByIdAsync(campId)
                 ?? throw new NotFoundException($"Health camp with ID {campId} not found.");
 
             var organizationName = await GetOrganizationNameAsync(camp, ct);
 
-            var entityResponses = await _intakeFormResponseRepository.GetResponsesByCampIdWithDetailAsync(campId, ct);
+            var entityResponses =
+                await _intakeFormResponseRepository
+                    .GetResponsesByCampIdWithDetailAsync(campId, branchId, ct);
+
+
             if (!entityResponses.Any())
             {
                 throw new NotFoundException("No intake form responses found for this camp.");

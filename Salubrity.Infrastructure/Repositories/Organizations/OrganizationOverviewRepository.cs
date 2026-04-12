@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.DTOs.Organizations;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
 using Salubrity.Domain.Entities.Join;

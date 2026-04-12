@@ -3,6 +3,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Common.Interfaces.Repositories;
+using Salubrity.Domain.Entities.HealthcareServices;
+using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using Salubrity.Infrastructure.Persistence;
 
@@ -89,6 +91,53 @@ namespace Salubrity.Infrastructure.Repositories
             return await _context.HealthCampParticipants
                 .Include(p => p.BillingStatus)
                 .FirstOrDefaultAsync(p => p.Id == participantId, ct);
+        }
+
+
+
+        // ----------------------------------------------------
+        // Resolve services assigned to a camp
+        // ----------------------------------------------------
+        public async Task<List<Guid>> GetServiceIdsForCampAsync(
+            Guid campId,
+            CancellationToken ct)
+        {
+            return await _context.HealthCampServiceAssignments
+                .Where(a =>
+                    a.HealthCampId == campId &&
+                    !a.IsDeleted &&
+                    a.AssignmentType == PackageItemType.Service)
+                .Select(a => a.AssignmentId)
+                .Distinct()
+                .ToListAsync(ct);
+        }
+
+        // ----------------------------------------------------
+        // Get form responses tied to patient + camp services
+        // ----------------------------------------------------
+        public async Task<List<IntakeFormResponse>> GetFormResponsesForPatientAndServicesAsync(
+            Guid patientId,
+            List<Guid> serviceIds,
+            CancellationToken ct)
+        {
+            if (serviceIds.Count == 0)
+                return new List<IntakeFormResponse>();
+
+            return await _context.IntakeFormResponses
+                .Include(r => r.FieldResponses)
+                .Where(r =>
+                    r.PatientId == patientId &&
+                    serviceIds.Contains(r.ResolvedServiceId) &&
+                    !r.IsDeleted)
+                .ToListAsync(ct);
+        }
+
+        // ----------------------------------------------------
+        // Unit-of-work commit
+        // ----------------------------------------------------
+        public async Task SaveChangesAsync(CancellationToken ct)
+        {
+            await _context.SaveChangesAsync(ct);
         }
     }
 

@@ -1,4 +1,5 @@
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.Enums;
 using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.Join;
 
@@ -17,9 +18,11 @@ public interface IHealthCampRepository
     Task UpsertTempCredentialAsync(HealthCampTempCredentialUpsert upsert);
 
     // Subcontractor-scoped
-    Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid? subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default);
+    Task<HealthCamp?> GetBySlugAsync(string slug, CancellationToken ct = default);
+
 
     // Admin-wide
     Task<List<HealthCamp>> GetAllUpcomingCampsAsync(CancellationToken ct = default);
@@ -27,16 +30,36 @@ public interface IHealthCampRepository
     Task<List<HealthCamp>> GetAllCompleteCampsAsync(CancellationToken ct = default);
     Task<List<HealthCamp>> GetAllCanceledCampsAsync(CancellationToken ct = default);
 
-    // Participants
-    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    // =====================================================
+    // Participants — PUBLIC CONTRACT
+    // =====================================================
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    // Station / service-scoped view
+    Task<PagedResult<CampParticipantListDto>> GetCampParticipantsByServiceAsync(
+        Guid campId,
+        Guid serviceId,
+        Guid? participantId, // Filter by participant
+        CampParticipantServeStatus status,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
-    Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid subcontractorId, string status, CancellationToken ct = default);
+    // Camp-wide admin view
+
+
+    Task<PagedResult<CampParticipantListDto>> GetCampParticipantsCampWideAsync(
+        Guid campId,
+        Guid? participantId, // Filter by participant
+        CampParticipantServeStatus status,
+        string? q,
+        string? sort,
+        int page,
+        int pageSize,
+        CancellationToken ct = default);
+
+    Task<List<HealthCampWithRolesDto>> GetMyCampsWithRolesByStatusAsync(Guid? subcontractorId, string status, CancellationToken ct = default);
     Task<List<HealthCampPatientDto>> GetCampPatientsByStatusAsync(
            Guid campId,
            string filter,
@@ -63,7 +86,7 @@ public interface IHealthCampRepository
 
     // Add these method signatures
     Task<List<HealthCamp>> GetAllWithDetailsAsync(CancellationToken ct = default);
-    Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync( List<Guid> campIds, CancellationToken ct = default);
+    Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync(List<Guid> campIds, CancellationToken ct = default);
 
 }
 

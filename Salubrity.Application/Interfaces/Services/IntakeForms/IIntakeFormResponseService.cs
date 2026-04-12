@@ -11,6 +11,13 @@ public interface IIntakeFormResponseService
     Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(Guid patientId, Guid healthCampId, CancellationToken ct = default);
 
     // Download Findings Implementation
-    Task<(byte[] ExcelData, string CampName, string OrganizationName, DateTime ExportTimestamp)> ExportCampDataToExcelAsync(Guid campId, CancellationToken ct = default);
+    Task<(byte[] ExcelData, string CampName, string OrganizationName, DateTime ExportTimestamp)> ExportCampDataToExcelAsync(Guid campId, Guid? branchId = null, CancellationToken ct = default);
+
+
     Task<(byte[] ExcelData, DateTime ExportTimestamp)> ExportAllCampsDataToExcelAsync(CancellationToken ct = default);
+
+    Task PatchResponseAsync(
+       PatchIntakeFormResponseDto dto,
+       Guid actingUserId,
+       CancellationToken ct);
 }

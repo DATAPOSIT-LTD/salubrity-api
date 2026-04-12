@@ -1,4 +1,5 @@
 using Salubrity.Domain.Common;
+using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Domain.Entities.Lookup;
@@ -41,6 +42,13 @@ public class IntakeFormResponse : BaseAuditableEntity
 
     [Required]
     public Guid ResponseStatusId { get; set; }
+
+    public Guid? HealthCampId { get; set; }
+
+    [ForeignKey(nameof(HealthCampId))]
+    public HealthCamp? HealthCamp { get; set; }
+
+
 
     [ForeignKey(nameof(ResponseStatusId))]
     public IntakeFormResponseStatus Status { get; set; } = default!;

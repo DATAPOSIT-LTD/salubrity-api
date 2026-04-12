@@ -1,4 +1,4 @@
-﻿using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.HealthCamps;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 
@@ -16,6 +16,11 @@ namespace Salubrity.Application.Services.HealthCamps
         public async Task<HealthCampOverviewDto> GetHealthCampOverviewAsync()
         {
             return await _repo.GetHealthCampOverviewAsync();
+        }
+
+        public async Task<PatientCampOverviewDto> GetPatientCampOverviewAsync(Guid userId, CancellationToken ct = default)
+        {
+            return await _repo.GetPatientCampOverviewAsync(userId, ct);
         }
     }
 }

@@ -49,7 +49,7 @@ namespace Salubrity.Application.Services.Notifications
 
         private async Task<IEnumerable<User>> GetUsersByEntityTypeAsync(Guid entityId, string entityType, CancellationToken ct)
         {
-            var users = await _userRepository.GetAllAsync(ct);
+            var users = await _userRepository.GetAllActiveUsersAsync(ct);
 
             return entityType switch
             {

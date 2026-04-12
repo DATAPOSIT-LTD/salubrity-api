@@ -3,6 +3,8 @@ using Salubrity.Application.Interfaces.Repositories.Users;
 using Salubrity.Infrastructure.Security;
 using Salubrity.Domain.Entities.Identity;
 using Salubrity.Infrastructure.Persistence;
+using Salubrity.Application.DTOs.Users;
+using Salubrity.Application.DTOs.Organizations;
 
 namespace Salubrity.Infrastructure.Repositories.Users
 {
@@ -16,6 +18,45 @@ namespace Salubrity.Infrastructure.Repositories.Users
         {
             _context = context;
             _passwordHasher = new PasswordHasher(); // Initialize the PasswordHasher instance
+        }
+
+        public async Task<List<UserListItemResponse>> GetAllUsersAsync(
+    CancellationToken ct = default)
+        {
+            return await _context.Users
+                .AsNoTracking()
+                .Where(u => !u.IsDeleted)
+                .Select(u => new UserListItemResponse
+                {
+                    Id = u.Id,
+
+                    FirstName = u.FirstName,
+                    MiddleName = u.MiddleName,
+                    LastName = u.LastName,
+
+                    Email = u.Email,
+                    Phone = u.Phone,
+
+                    Roles = u.UserRoles
+                        .Where(ur => !ur.IsDeleted)
+                        .Select(ur => new UserRoleSummary
+                        {
+                            Id = ur.Role.Id,
+                            Name = ur.Role.Name
+                        })
+                        .ToList(),
+
+                    Organization = u.Organization != null
+                        ? new OrganizationSummary
+                        {
+                            Id = u.Organization.Id,
+                            Name = u.Organization.BusinessName
+                        }
+                        : null
+                })
+                .OrderBy(u => u.FirstName)
+                .ThenBy(u => u.LastName)
+                .ToListAsync(ct);
         }
 
         public async Task<User?> FindUserByEmailAsync(string email)
@@ -110,5 +151,15 @@ namespace Salubrity.Infrastructure.Repositories.Users
                   AND (u.""RelatedEntityId"" IS NULL OR u.""RelatedEntityType"" IS NULL);
             ", ct);
         }
+        public async Task<List<User>> GetAllActiveUsersAsync(
+    CancellationToken ct = default)
+        {
+            return await _context.Users
+                .Include(u => u.UserRoles)
+                    .ThenInclude(ur => ur.Role)
+                .Where(u => !u.IsDeleted && u.IsActive)
+                .ToListAsync(ct);
+        }
+
     }
 }

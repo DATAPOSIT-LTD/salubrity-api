@@ -38,9 +38,14 @@ public class UserService : IUserService
         return ApiResponse<UserResponse>.CreateSuccess(dto);
     }
 
-    public async Task<ApiResponse<List<UserResponse>>> GetAllAsync()
+    public async Task<ApiResponse<List<UserListItemResponse>>> GetAllAsync(
+          CancellationToken ct = default)
     {
-        return ApiResponse<List<UserResponse>>.CreateFailure("Bulk retrieval not implemented.");
+        var users = await _userRepository.GetAllUsersAsync(ct);
+
+        return ApiResponse<List<UserListItemResponse>>.CreateSuccess(
+            users,
+            "Users retrieved successfully");
     }
 
     public async Task<ApiResponse<Guid>> CreateAsync(UserCreateRequest request)

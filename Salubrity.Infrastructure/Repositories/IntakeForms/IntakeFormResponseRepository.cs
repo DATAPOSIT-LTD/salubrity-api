@@ -24,7 +24,19 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
         await _db.SaveChangesAsync(ct);
         return response;
     }
+    public async Task SaveChangesAsync(CancellationToken ct)
+    {
+        await _db.SaveChangesAsync(ct);
+    }
 
+    public async Task<IntakeFormResponse?> GetWithFieldResponsesAsync(
+     Guid responseId,
+     CancellationToken ct)
+    {
+        return await _db.IntakeFormResponses
+            .Include(r => r.FieldResponses)
+            .FirstOrDefaultAsync(r => r.Id == responseId, ct);
+    }
     public Task<IntakeFormResponse?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         return _db.IntakeFormResponses
@@ -85,6 +97,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 SubmittedByUserId = r.SubmittedByUserId,
                 PatientId = r.PatientId,
                 ServiceId = r.ResolvedServiceId,
+                HealthCampId = a.HealthCampId,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,
                 Status = new ResponseStatusDto
@@ -187,23 +200,70 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     //        .ToListAsync(ct);
     //}
 
-    public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
+    // public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(Guid campId, CancellationToken ct = default)
+    // {
+    //     return await (from r in _db.IntakeFormResponses
+    //                       .Include(r => r.Patient)
+    //                           .ThenInclude(p => p.User)
+    //                             .ThenInclude(u => u.Gender)
+    //                       .Include(r => r.FieldResponses)
+    //                           .ThenInclude(fr => fr.Field)
+    //                   join a in _db.HealthCampServiceAssignments
+    //                       on r.SubmittedServiceId equals a.AssignmentId
+    //                   where r.PatientId != null
+    //                         && a.HealthCampId == campId
+    //                         && !r.IsDeleted
+    //                   orderby r.Patient.User.FirstName, r.Patient.User.LastName
+    //                   select r)
+    //         .ToListAsync(ct);
+    // }
+
+    public async Task<List<IntakeFormResponse>> GetResponsesByCampIdWithDetailAsync(
+      Guid campId,
+      Guid? branchId = null,
+      CancellationToken ct = default)
     {
-        return await (from r in _db.IntakeFormResponses
-                          .Include(r => r.Patient)
-                              .ThenInclude(p => p.User)
-                                .ThenInclude(u => u.Gender)
-                          .Include(r => r.FieldResponses)
-                              .ThenInclude(fr => fr.Field)
-                      join a in _db.HealthCampServiceAssignments
-                          on r.SubmittedServiceId equals a.AssignmentId
-                      where r.PatientId != null
-                            && a.HealthCampId == campId
-                            && !r.IsDeleted
-                      orderby r.Patient.User.FirstName, r.Patient.User.LastName
-                      select r)
-            .ToListAsync(ct);
+        var query =
+            from r in _db.IntakeFormResponses
+                .Include(r => r.Patient)
+                    .ThenInclude(p => p.User)
+                        .ThenInclude(u => u.Gender)
+                .Include(r => r.FieldResponses)
+                    .ThenInclude(fr => fr.Field)
+
+            join a in _db.HealthCampServiceAssignments
+                on r.SubmittedServiceId equals a.AssignmentId
+
+            where r.PatientId != null
+                  && a.HealthCampId == campId
+                  && !r.IsDeleted
+
+            orderby r.Patient.User.FirstName,
+                    r.Patient.User.LastName
+
+            select r;
+
+        // ─────────────────────────────────────────────
+        // BRANCH VISIBILITY FILTER (EMPLOYEE-BASED ONLY)
+        // ─────────────────────────────────────────────
+        if (branchId != null)
+        {
+            query = query.Where(r =>
+                _db.Employees.Any(e =>
+                    e.BranchId == branchId &&
+                    (
+                        e.UserId == r.CreatedBy
+                        || e.UserId == r.Patient.UserId
+                    )
+                )
+            );
+        }
+
+        return await query.ToListAsync(ct);
     }
+
+
+
 
     // Batch Fetching Implementation
 

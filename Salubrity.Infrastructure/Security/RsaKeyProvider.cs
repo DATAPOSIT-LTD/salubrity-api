@@ -1,7 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.IdentityModel.Tokens;
-using Salubrity.Application.Interfaces.Security;
 using Microsoft.Extensions.Logging;
+using Salubrity.Application.Interfaces.Security;
 
 namespace Salubrity.Infrastructure.Security
 {
@@ -9,20 +9,15 @@ namespace Salubrity.Infrastructure.Security
     {
         private const string KeyDir = "/var/lib/salubrity/keys";
 
-        private const string PrivatePrimary = $"{KeyDir}/private.key";
-        private const string PublicPrimary = $"{KeyDir}/public.key";
+        private const string PrivateKeyPath = $"{KeyDir}/private.key";
+        private const string PublicKeyPath = $"{KeyDir}/public.key";
 
-        private const string PrivateFallback = $"{KeyDir}/private.key-2";
-        private const string PublicFallback = $"{KeyDir}/public.key-2";
+        private const string KeyId = "salubrity-rsa-1";
 
         private readonly ILogger<RsaKeyProvider> _logger;
 
-        // Cached, paired keys (IMPORTANT)
         private RsaSecurityKey? _privateKey;
         private RsaSecurityKey? _publicKey;
-
-        private const string KeyIdPrimary = "salubrity-rsa-1";
-        private const string KeyIdFallback = "salubrity-rsa-2";
 
         public RsaKeyProvider(ILogger<RsaKeyProvider> logger)
         {
@@ -32,6 +27,7 @@ namespace Salubrity.Infrastructure.Security
         // ============================================================
         // PUBLIC API
         // ============================================================
+
         public RsaSecurityKey GetPrivateKey()
         {
             EnsureKeyPairLoaded();
@@ -45,64 +41,25 @@ namespace Salubrity.Infrastructure.Security
         }
 
         // ============================================================
-        // CORE LOGIC — LOAD ONE PAIR ONLY
+        // CORE LOGIC — LOAD SINGLE PAIR
         // ============================================================
+
         private void EnsureKeyPairLoaded()
         {
             if (_privateKey != null && _publicKey != null)
                 return;
 
-            EnsurePrimaryKeysExist();
-
-            // 1️⃣ Try primary pair
-            if (TryLoadPair(
-                    PrivatePrimary,
-                    PublicPrimary,
-                    KeyIdPrimary,
-                    out _privateKey,
-                    out _publicKey))
-            {
-                _logger.LogInformation("JWT key pair loaded: PRIMARY");
-                return;
-            }
-
-            // 2️⃣ Try fallback pair
-            if (TryLoadPair(
-                    PrivateFallback,
-                    PublicFallback,
-                    KeyIdFallback,
-                    out _privateKey,
-                    out _publicKey))
-            {
-                _logger.LogWarning("JWT key pair loaded: FALLBACK");
-                return;
-            }
-
-            throw new CryptographicException(
-                "Failed to load any valid RSA key pair for JWT signing/validation."
-            );
-        }
-
-        // ============================================================
-        // PAIR LOADER (ATOMIC)
-        // ============================================================
-        private static bool TryLoadPair(
-            string privatePath,
-            string publicPath,
-            string keyId,
-            out RsaSecurityKey privateKey,
-            out RsaSecurityKey publicKey)
-        {
-            privateKey = null!;
-            publicKey = null!;
+            EnsureKeysExist();
 
             try
             {
-                if (!File.Exists(privatePath) || !File.Exists(publicPath))
-                    return false;
+                var privateBytes = Convert.FromBase64String(
+                    File.ReadAllText(PrivateKeyPath).Trim()
+                );
 
-                var privateBytes = Convert.FromBase64String(File.ReadAllText(privatePath).Trim());
-                var publicBytes = Convert.FromBase64String(File.ReadAllText(publicPath).Trim());
+                var publicBytes = Convert.FromBase64String(
+                    File.ReadAllText(PublicKeyPath).Trim()
+                );
 
                 var rsaPrivate = RSA.Create();
                 rsaPrivate.ImportRSAPrivateKey(privateBytes, out _);
@@ -110,23 +67,27 @@ namespace Salubrity.Infrastructure.Security
                 var rsaPublic = RSA.Create();
                 rsaPublic.ImportSubjectPublicKeyInfo(publicBytes, out _);
 
-                privateKey = new RsaSecurityKey(rsaPrivate) { KeyId = keyId };
-                publicKey = new RsaSecurityKey(rsaPublic) { KeyId = keyId };
+                _privateKey = new RsaSecurityKey(rsaPrivate) { KeyId = KeyId };
+                _publicKey = new RsaSecurityKey(rsaPublic) { KeyId = KeyId };
 
-                return true;
+                _logger.LogInformation("JWT RSA key pair loaded (single-key mode)");
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                throw new CryptographicException(
+                    "Failed to load RSA key pair for JWT signing/validation.",
+                    ex
+                );
             }
         }
 
         // ============================================================
-        // KEY GENERATION (PRIMARY ONLY)
+        // KEY GENERATION (FIRST RUN ONLY)
         // ============================================================
-        private static void EnsurePrimaryKeysExist()
+
+        private static void EnsureKeysExist()
         {
-            if (File.Exists(PrivatePrimary) && File.Exists(PublicPrimary))
+            if (File.Exists(PrivateKeyPath) && File.Exists(PublicKeyPath))
                 return;
 
             Directory.CreateDirectory(KeyDir);
@@ -134,12 +95,12 @@ namespace Salubrity.Infrastructure.Security
             using var rsa = RSA.Create(2048);
 
             File.WriteAllText(
-                PrivatePrimary,
+                PrivateKeyPath,
                 Convert.ToBase64String(rsa.ExportRSAPrivateKey())
             );
 
             File.WriteAllText(
-                PublicPrimary,
+                PublicKeyPath,
                 Convert.ToBase64String(rsa.ExportSubjectPublicKeyInfo())
             );
         }

@@ -2,5 +2,5 @@
 public interface ICurrentSubcontractorService
 {
     Task<Guid?> TryGetSubcontractorIdAsync(Guid userId, CancellationToken ct = default);
-    Task<Guid> GetSubcontractorIdOrThrowAsync(Guid userId, CancellationToken ct = default);
+    Task<Guid?> GetSubcontractorIdOrThrowAsync(Guid userId, CancellationToken ct = default);
 }

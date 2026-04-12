@@ -724,6 +724,11 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<DateTimeOffset?>("PosterTokensExpireAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("date");
 
@@ -1994,6 +1999,9 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Property<Guid?>("DeletedBy")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("HealthCampId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("IntakeFormVersionId")
                         .HasColumnType("uuid");
 
@@ -2025,6 +2033,8 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("HealthCampId");
 
                     b.HasIndex("IntakeFormVersionId");
 
@@ -4621,6 +4631,10 @@ namespace Salubrity.Infrastructure.Migrations
 
             modelBuilder.Entity("Salubrity.Domain.Entities.IntakeForms.IntakeFormResponse", b =>
                 {
+                    b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCamp", "HealthCamp")
+                        .WithMany()
+                        .HasForeignKey("HealthCampId");
+
                     b.HasOne("Salubrity.Domain.Entities.IntakeForms.IntakeFormVersion", "Version")
                         .WithMany()
                         .HasForeignKey("IntakeFormVersionId")
@@ -4644,6 +4658,8 @@ namespace Salubrity.Infrastructure.Migrations
                         .HasForeignKey("ResponseStatusId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("HealthCamp");
 
                     b.Navigation("Patient");
 
@@ -4949,7 +4965,7 @@ namespace Salubrity.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCamp", "HealthCamp")
-                        .WithMany()
+                        .WithMany("SubcontractorAssignments")
                         .HasForeignKey("HealthCampId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -5033,6 +5049,8 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("Participants");
 
                     b.Navigation("ServiceAssignments");
+
+                    b.Navigation("SubcontractorAssignments");
 
                     b.Navigation("TempCredentials");
                 });

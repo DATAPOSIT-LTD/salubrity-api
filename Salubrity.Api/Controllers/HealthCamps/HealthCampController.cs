@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.DTOs.HealthCamps.Participants;
+using Salubrity.Application.Enums;
 using Salubrity.Application.Interfaces.Services.HealthCamps;
 using Salubrity.Application.Interfaces.Services.Users;
 using Salubrity.Shared.Responses;
@@ -19,12 +21,14 @@ public class CampController : BaseController
     private readonly IHealthCampService _service;
     private readonly IUserService _userService;
     private readonly ILogger<CampController> _logger;
+    private readonly IHealthCampParticipantService _healthCampParticipantService;
 
-    public CampController(IHealthCampService service, IUserService userService, ILogger<CampController> logger)
+    public CampController(IHealthCampService service, IUserService userService, ILogger<CampController> logger, IHealthCampParticipantService healthCampParticipantService)
     {
         _service = service;
         _userService = userService;
         _logger = logger;
+        _healthCampParticipantService = healthCampParticipantService;
     }
 
     [HttpGet]
@@ -84,7 +88,7 @@ public class CampController : BaseController
         // Admins have no subcontractorId → pass null to service
         var subcontractorId = (isAdmin || isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId, ct);
         return Success(result);
     }
 
@@ -182,7 +186,7 @@ public class CampController : BaseController
             ? (Guid?)null
             : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
-        var result = await _service.GetMyOngoingCampsAsync(subcontractorId);
+        var result = await _service.GetMyOngoingCampsAsync(subcontractorId, ct);
         return Success(result);
     }
 
@@ -197,51 +201,35 @@ public class CampController : BaseController
     }
 
 
-
     [HttpGet("{campId:guid}/participants")]
-    [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampParticipantsAll(
-     Guid campId,
-     [FromQuery] Guid? serviceAssignmentId,
-     [FromQuery] string? q,
-     [FromQuery] string? sort,
-     [FromQuery] int page = 1,
-     [FromQuery] int pageSize = 20,
-     CancellationToken ct = default)
+    [ProducesResponseType(typeof(PagedResult<CampParticipantListDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampParticipants(
+      Guid campId,
+      [FromQuery] Guid? serviceId,
+      [FromQuery] Guid? participantId,
+      [FromQuery] CampParticipantServeStatus status = CampParticipantServeStatus.All,
+      [FromQuery] string? q = null,
+      [FromQuery] string? sort = null,
+      [FromQuery] int page = 1,
+      [FromQuery] int pageSize = 20,
+      CancellationToken ct = default)
     {
-        var result = await _service.GetCampParticipantsAllAsync(campId, serviceAssignmentId, q, sort, page, pageSize, ct);
+        var result = await _service.GetCampParticipantsPagedAsync(
+            campId,
+            serviceId,
+            participantId,
+            status,
+            q,
+            sort,
+            page,
+            pageSize,
+            ct);
+
         return Success(result);
     }
 
-    [HttpGet("{campId:guid}/participants/served")]
-    [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampParticipantsServed(
-        Guid campId,
-        [FromQuery] Guid? serviceAssignmentId,
-        [FromQuery] string? q,
-        [FromQuery] string? sort,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        CancellationToken ct = default)
-    {
-        var result = await _service.GetCampParticipantsServedAsync(campId, serviceAssignmentId, q, sort, page, pageSize, ct);
-        return Success(result);
-    }
 
-    [HttpGet("{campId:guid}/participants/not-seen")]
-    [ProducesResponseType(typeof(ApiResponse<List<CampParticipantListDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetCampParticipantsNotSeen(
-        Guid campId,
-        [FromQuery] Guid? serviceAssignmentId,
-        [FromQuery] string? q,
-        [FromQuery] string? sort,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        CancellationToken ct = default)
-    {
-        var result = await _service.GetCampParticipantsNotSeenAsync(campId, serviceAssignmentId, q, sort, page, pageSize, ct);
-        return Success(result);
-    }
+
 
 
 
@@ -379,7 +367,7 @@ public class CampController : BaseController
     }
 
     // ───────────────────────────────────────────────
-    // 🧱 Subcontractor Assignment Management
+    //  Subcontractor Assignment Management
     // ───────────────────────────────────────────────
     [Authorize(Roles = "Admin,Concierge")]
     [HttpPost("{campId:guid}/subcontractors/add")]
@@ -423,6 +411,20 @@ public class CampController : BaseController
     {
         var result = await _service.GetAllPackagesByCampAsync(campId, ct);
         return Success(result);
+    }
+
+    [HttpPost("participants/remove")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveParticipant(
+        [FromBody] RemoveCampParticipantDto dto,
+        CancellationToken ct)
+    {
+        var userId = GetCurrentUserId();
+
+        await _healthCampParticipantService
+            .RemovePatientFromCampAsync(dto, userId, ct);
+
+        return Success("Patient removed from camp successfully.");
     }
 
 

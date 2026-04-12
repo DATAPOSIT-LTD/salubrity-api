@@ -1,4 +1,5 @@
 using Salubrity.Application.DTOs.HealthCamps;
+using Salubrity.Application.Enums;
 
 namespace Salubrity.Application.Interfaces.Services.HealthCamps;
 
@@ -13,18 +14,23 @@ public interface IHealthCampService
     Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto);
 
     // These now accept nullable Guid?
-    Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId);
+    Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId, CancellationToken ct);
     Task<List<HealthCampListDto>> GetMyCompleteCampsAsync(Guid? subcontractorId);
     Task<List<HealthCampListDto>> GetMyCanceledCampsAsync(Guid? subcontractorId);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsAllAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
+    public Task<PagedResult<CampParticipantListDto>> GetCampParticipantsPagedAsync(
+         Guid campId,
+         Guid? serviceId,          // REQUIRED: station / service context
+         Guid? participantId,    // Filter by participant
+         CampParticipantServeStatus status, // All | Served | NotSeen
+         string? q,
+         string? sort,
+         int page,
+         int pageSize,
+         CancellationToken ct = default
+     );
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsServedAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 
-    Task<List<CampParticipantListDto>> GetCampParticipantsNotSeenAsync(
-        Guid campId, Guid? serviceAssignmentId, string? q, string? sort, int page, int pageSize, CancellationToken ct = default);
 
     Task<QrEncodingDetailDto> DecodePosterTokenAsync(string token, CancellationToken ct);
 
@@ -49,12 +55,13 @@ public interface IHealthCampService
     Task<List<OrganizationCampListDto>> GetCampsByOrganizationAsync(Guid organizationId, CancellationToken ct = default);
     Task<OrganizationStatsDto> GetOrganizationStatsAsync(Guid organizationId, CancellationToken ct = default);
     Task<List<DateTime>> GetUpcomingCampDatesAsync(CancellationToken ct = default);
-    Task<CampLinkResultDto> TryLinkUserToCampAsync(Guid userId, string campToken, CancellationToken ct = default);
+    Task<CampLinkResultDto> LinkUserToCampAsync(Guid userId, Guid campId, CancellationToken ct = default);
+
     // IHealthCampService.cs
     Task<CampLinkResultDto> LinkUserToCampByIdAsync(Guid userId, Guid campId, CancellationToken ct = default);
     Task UpdateParticipantBillingStatusAsync(Guid campId, Guid participantId, UpdateParticipantBillingStatusDto dto, CancellationToken ct = default);
     Task<ParticipantBillingStatusDto> GetParticipantBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default);
-    Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId);
+    Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(Guid? subcontractorId, CancellationToken ct = default);
     Task AddSubcontractorToCampAsync(Guid campId, ModifySubcontractorCampDto dto, Guid actingUserId);
     Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId);
     Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct);

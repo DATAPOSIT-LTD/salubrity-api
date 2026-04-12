@@ -1,3 +1,4 @@
+using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
 using System;
 using System.Threading;
@@ -15,5 +16,18 @@ namespace Salubrity.Application.Common.Interfaces.Repositories
         Task<Guid?> GetParticipantIdByPatientIdAsync(Guid patientId, CancellationToken ct = default);
         Task<HealthCampParticipant?> GetParticipantWithBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default);
         Task<HealthCampParticipant?> GetParticipantWithBillingStatusByIdAsync(Guid participantId, CancellationToken ct = default);
+
+        Task<List<Guid>> GetServiceIdsForCampAsync(
+            Guid campId,
+            CancellationToken ct);
+
+        Task<List<IntakeFormResponse>> GetFormResponsesForPatientAndServicesAsync(
+            Guid patientId,
+            List<Guid> serviceIds,
+            CancellationToken ct);
+
+        Task SaveChangesAsync(CancellationToken ct);
     }
+
+
 }

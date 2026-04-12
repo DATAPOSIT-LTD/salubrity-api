@@ -17,7 +17,7 @@ public interface IUserService
     /// <summary>
     /// Get all users in the system.
     /// </summary>
-    Task<ApiResponse<List<UserResponse>>> GetAllAsync();
+    Task<ApiResponse<List<UserListItemResponse>>> GetAllAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Create a new user (register).
@@ -44,5 +44,6 @@ public interface IUserService
     /// <param name="userId">User ID</param>
     /// <param name="roleName">Name of the role to check</param>
     Task<bool> IsInRoleAsync(Guid userId, string roleName);
+
 
 }

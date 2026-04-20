@@ -9,4 +9,9 @@ public interface IIndividualPreliminaryReportService
     /// Pulls demographics, classifies every vital reading, and aggregates the score + risk bars.
     /// </summary>
     Task<IndividualPreliminaryReportDto> BuildAsync(Guid participantId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the rendered PDF bytes for the Individual Preliminary Report.
+    /// </summary>
+    Task<byte[]> BuildPdfAsync(Guid participantId, CancellationToken ct = default);
 }

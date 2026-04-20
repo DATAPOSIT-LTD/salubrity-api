@@ -1,3 +1,4 @@
+using QuestPDF.Fluent;
 using Salubrity.Application.Common.Interfaces.Repositories;
 using Salubrity.Application.DTOs.Reports;
 using Salubrity.Application.Interfaces.Repositories.IntakeForms;
@@ -168,6 +169,13 @@ public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryR
             },
             RiskBars = BuildRiskBars(latestBmi, latestSystolic, latestGlucose, latestCholesterol)
         };
+    }
+
+    public async Task<byte[]> BuildPdfAsync(Guid participantId, CancellationToken ct = default)
+    {
+        var dto = await BuildAsync(participantId, ct);
+        var doc = new IndividualPreliminaryReportDocument(dto, "Individual Preliminary Report");
+        return doc.GeneratePdf();
     }
 
     private static void Tally(

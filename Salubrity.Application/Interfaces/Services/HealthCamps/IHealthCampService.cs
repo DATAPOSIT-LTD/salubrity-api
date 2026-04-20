@@ -59,6 +59,10 @@ public interface IHealthCampService
     Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId);
     Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct);
     Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct);
-
+    // Patient-scoped overloads — filter by participation
+    Task<List<HealthCampListDto>> GetPatientUpcomingCampsAsync(Guid userId);
+    Task<List<HealthCampListDto>> GetPatientOngoingCampsAsync(Guid userId);
+    Task<List<HealthCampListDto>> GetPatientCompleteCampsAsync(Guid userId);
+    Task<List<HealthCampListDto>> GetPatientCanceledCampsAsync(Guid userId);
 
 }

@@ -1243,4 +1243,87 @@ public class HealthCampRepository : IHealthCampRepository
             .ToDictionary(g => g.Key, g => g.ToList());
     }
 
+
+    // ─── Patient-scoped variants ─────────────────────────────────────────
+    // Filter camps by participation (HealthCampParticipants.UserId = userId).
+
+    private IQueryable<HealthCamp> PatientCampsBase(Guid userId)
+    {
+        return _context.HealthCamps
+            .Where(c => !c.IsDeleted && _context.HealthCampParticipants
+                .Any(p => p.HealthCampId == c.Id && p.UserId == userId));
+    }
+
+    public async Task<List<HealthCamp>> GetPatientUpcomingCampsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+
+        return await PatientCampsBase(userId)
+            .Where(c =>
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     c.StartDate <= todayLocal &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                ))
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetPatientOngoingCampsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+
+        return await PatientCampsBase(userId)
+            .Where(c =>
+                (c.CloseDate == null || c.CloseDate > nowUtc) &&
+                c.HealthCampStatus != null && c.HealthCampStatus.Name == "Ongoing" &&
+                (
+                    c.StartDate >= todayLocal ||
+                    (c.IsLaunched &&
+                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                ))
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetPatientCompleteCampsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+
+        return await PatientCampsBase(userId)
+            .Where(c => c.IsLaunched && ((c.EndDate ?? c.StartDate) < today))
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .OrderByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<HealthCamp>> GetPatientCanceledCampsAsync(Guid userId, CancellationToken ct = default)
+    {
+        return await PatientCampsBase(userId)
+            .Where(c => !c.IsLaunched ||
+                        (c.HealthCampStatus != null &&
+                         EF.Functions.ILike(c.HealthCampStatus.Name.ToLowerInvariant(), "suspended")))
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .AsNoTracking()
+            .OrderByDescending(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
 }

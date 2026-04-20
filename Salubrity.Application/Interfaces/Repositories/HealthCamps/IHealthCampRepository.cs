@@ -65,6 +65,11 @@ public interface IHealthCampRepository
     Task<List<HealthCamp>> GetAllWithDetailsAsync(CancellationToken ct = default);
     Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync( List<Guid> campIds, CancellationToken ct = default);
 
+    // Patient-scoped variants: filter camps by participation (User is a HealthCampParticipant).
+    Task<List<HealthCamp>> GetPatientUpcomingCampsAsync(Guid userId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetPatientOngoingCampsAsync(Guid userId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetPatientCompleteCampsAsync(Guid userId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetPatientCanceledCampsAsync(Guid userId, CancellationToken ct = default);
 }
 
 

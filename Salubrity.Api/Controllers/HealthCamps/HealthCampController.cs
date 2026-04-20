@@ -69,7 +69,7 @@ public class CampController : BaseController
     }
 
     // === SUBCONTRACTOR ASSIGNMENTS ===
-    [Authorize(Roles = "Subcontractor,Doctor,Concierge,Admin")]
+    [Authorize(Roles = "Patient,Subcontractor,Doctor,Concierge,Admin")]
     [HttpGet("my/upcoming")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyUpcomingCampsAsync(
@@ -80,16 +80,23 @@ public class CampController : BaseController
         var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
         var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
+        var isPatient = await _userService.IsInRoleAsync(userId, "Patient");
 
-        // Admins have no subcontractorId → pass null to service
-        var subcontractorId = (isAdmin || isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
-
-        var result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        List<HealthCampListDto> result;
+        if (isPatient && !(isAdmin || isConcierge || isDoctor))
+        {
+            result = await _service.GetPatientUpcomingCampsAsync(userId);
+        }
+        else
+        {
+            var subcontractorId = (isAdmin || isConcierge || isDoctor) ? (Guid?)null : await current.GetSubcontractorIdOrThrowAsync(userId, ct);
+            result = await _service.GetMyUpcomingCampsAsync(subcontractorId);
+        }
         return Success(result);
     }
 
 
-    [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
+    [Authorize(Roles = "Patient,Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCompleteCampsAsync(
@@ -123,6 +130,18 @@ public class CampController : BaseController
         }
         else
         {
+            // Patient path: filter by participation, not by subcontractor record
+            var isPatient = await _userService.IsInRoleAsync(userId, "Patient");
+            if (isPatient)
+            {
+                _logger.LogInformation(
+                    "[HealthCamps:Complete] User {UserId} is Patient → using participation filter",
+                    userId
+                );
+                var patientResult = await _service.GetPatientCompleteCampsAsync(userId);
+                return Success(patientResult);
+            }
+
             subcontractorId = await current.GetSubcontractorIdOrThrowAsync(userId, ct);
 
             _logger.LogInformation(
@@ -151,7 +170,7 @@ public class CampController : BaseController
 
 
 
-    [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
+    [Authorize(Roles = "Patient,Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/canceled")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyCanceledCampsAsync(
@@ -166,7 +185,7 @@ public class CampController : BaseController
         return Success(result);
     }
 
-    [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
+    [Authorize(Roles = "Patient,Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/ongoing")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyOgoingCampsAsync(
@@ -177,6 +196,13 @@ public class CampController : BaseController
         var isConcierge = await _userService.IsInRoleAsync(userId, "Concierge");
         var isDoctor = await _userService.IsInRoleAsync(userId, "Doctor");
         var isAdmin = await _userService.IsInRoleAsync(userId, "Admin");
+
+        var isPatient = await _userService.IsInRoleAsync(userId, "Patient");
+        if (isPatient)
+        {
+            var patientResult = await _service.GetPatientOngoingCampsAsync(userId);
+            return Success(patientResult);
+        }
 
         var subcontractorId = (isConcierge || isDoctor || isAdmin)
             ? (Guid?)null

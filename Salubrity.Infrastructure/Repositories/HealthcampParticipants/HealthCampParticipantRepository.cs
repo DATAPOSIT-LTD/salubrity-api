@@ -90,6 +90,36 @@ namespace Salubrity.Infrastructure.Repositories
                 .Include(p => p.BillingStatus)
                 .FirstOrDefaultAsync(p => p.Id == participantId, ct);
         }
+
+        public async Task<HealthCampParticipant?> GetParticipantWithDemographicsAsync(Guid participantId, CancellationToken ct = default)
+        {
+            // Note: HealthCampParticipants.PatientId may be null in legacy data.
+            // The patient profile is reliably found via User → Patients (Patients.UserId = User.Id).
+            var participant = await _context.HealthCampParticipants
+                .AsNoTracking()
+                .Include(p => p.HealthCamp)
+                .Include(p => p.User).ThenInclude(u => u.Gender)
+                .Include(p => p.Patient!).ThenInclude(pa => pa.PrimaryOrganization)
+                .FirstOrDefaultAsync(p => p.Id == participantId, ct);
+
+            if (participant is null) return null;
+
+            // Fallback: load Patient via UserId if not directly linked
+            if (participant.Patient is null && participant.User is not null)
+            {
+                var patient = await _context.Patients
+                    .AsNoTracking()
+                    .Include(pa => pa.PrimaryOrganization)
+                    .FirstOrDefaultAsync(pa => pa.UserId == participant.UserId, ct);
+                if (patient is not null)
+                {
+                    participant.Patient = patient;
+                    participant.PatientId = patient.Id;
+                }
+            }
+
+            return participant;
+        }
     }
 
 

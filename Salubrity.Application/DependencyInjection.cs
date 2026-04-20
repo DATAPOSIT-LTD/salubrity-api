@@ -131,6 +131,7 @@ namespace Salubrity.Application
             services.AddScoped<IHealthAssessmentFormService, HealthAssessmentFormService>();
             services.AddScoped<IOnboardingService, OnboardingService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IIndividualPreliminaryReportService, Salubrity.Application.Services.Reporting.Reports.IndividualPreliminaryReportService>();
             services.AddScoped<IConciergeService, ConciergeService>();
             services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
             services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();

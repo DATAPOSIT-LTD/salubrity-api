@@ -15,5 +15,10 @@ namespace Salubrity.Application.Common.Interfaces.Repositories
         Task<Guid?> GetParticipantIdByPatientIdAsync(Guid patientId, CancellationToken ct = default);
         Task<HealthCampParticipant?> GetParticipantWithBillingStatusAsync(Guid campId, Guid participantId, CancellationToken ct = default);
         Task<HealthCampParticipant?> GetParticipantWithBillingStatusByIdAsync(Guid participantId, CancellationToken ct = default);
+        /// <summary>
+        /// Loads a participant with all navigation properties needed for the report demographics
+        /// (User + Gender, Patient + PrimaryOrganization, HealthCamp).
+        /// </summary>
+        Task<HealthCampParticipant?> GetParticipantWithDemographicsAsync(Guid participantId, CancellationToken ct = default);
     }
 }

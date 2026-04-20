@@ -788,9 +788,10 @@ public class HealthCampRepository : IHealthCampRepository
             normalized.Add((a.AssignmentId, a.AssignmentType, a));
         }
 
-        // Deduplicate: prefer category over subcategory
+        // Deduplicate within each camp: prefer category over subcategory.
+        // Group by (camp + service ref) so the same subcontractor + service across multiple camps is preserved.
         var finalAssignments = normalized
-            .GroupBy(x => x.RefId)
+            .GroupBy(x => new { CampId = x.Source.HealthCampId, x.RefId })
             .Select(g =>
             {
                 var category = g.FirstOrDefault(x => x.Type == PackageItemType.ServiceCategory);

@@ -128,10 +128,10 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
         col.Item().Row(row =>
         {
             row.Spacing(8);
-            StatCard(row, _r.ResultsAtGlance.ParametersTested, "Parameters Tested", RedSoft, "#7F1D1D");
-            StatCard(row, _r.ResultsAtGlance.NormalCount, "Normal Findings", AmberSoft, "#78350F");
-            StatCard(row, _r.ResultsAtGlance.BorderlineCount, "Borderline", "#E5E7EB", "#374151");
-            StatCard(row, _r.ResultsAtGlance.AbnormalCount, "Abnormal Findings", GreenSoft, "#14532D");
+            StatCard(row, _r.ResultsAtGlance.ParametersTested, "Parameters Tested", "#E5E7EB", "#374151");
+            StatCard(row, _r.ResultsAtGlance.NormalCount, "Normal Findings", GreenSoft, "#14532D");
+            StatCard(row, _r.ResultsAtGlance.BorderlineCount, "Borderline", AmberSoft, "#78350F");
+            StatCard(row, _r.ResultsAtGlance.AbnormalCount, "Abnormal Findings", RedSoft, "#7F1D1D");
         });
     }
 

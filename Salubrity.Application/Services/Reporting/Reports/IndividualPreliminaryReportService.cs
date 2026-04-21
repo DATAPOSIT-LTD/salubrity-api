@@ -132,13 +132,15 @@ public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryR
                     continue;
                 }
 
-                // Non-numeric fields: show but don't score
+                // Non-numeric fields (e.g. checklist findings like "CVS: Normal").
+                // Show them and count as Normal so the KPI cards reflect actual data.
                 section.Metrics.Add(new MetricDto
                 {
                     Label = label,
                     Value = value,
                     Status = "Normal"
                 });
+                normalCount++;
             }
 
             serviceSections.Add(section);

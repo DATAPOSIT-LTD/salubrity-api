@@ -25,6 +25,10 @@ public class IntakeFormResponse : BaseAuditableEntity
     [ForeignKey(nameof(PatientId))]
     public Patient Patient { get; set; } = default!;
 
+    // Optional link to the camp this response was submitted in.
+    // Populated for new submissions; nullable for legacy data.
+    public Guid? HealthCampId { get; set; }
+
     // WHAT USER ACTUALLY SELECTED
     [Required]
     public Guid SubmittedServiceId { get; set; }

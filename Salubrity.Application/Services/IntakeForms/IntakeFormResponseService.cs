@@ -189,6 +189,22 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         var statusId = dto.ResponseStatusId
             ?? await _intakeFormResponseRepository.GetStatusIdByNameAsync("Submitted", ct);
 
+        // Resolve HealthCampId from the participant so the response is scoped to a single camp.
+        // This prevents cross-camp data leakage in reports when the same service is assigned
+        // to multiple camps.
+        Guid? resolvedHealthCampId = null;
+        try
+        {
+            var participantForCamp = await _participantRepository
+                .GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
+            resolvedHealthCampId = participantForCamp?.HealthCampId;
+        }
+        catch
+        {
+            // Best-effort: if participant lookup fails, leave HealthCampId null
+            // (legacy behavior). Do not fail submission.
+        }
+
         var responseId = Guid.NewGuid();
         var response = new IntakeFormResponse
         {
@@ -196,6 +212,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             IntakeFormVersionId = dto.IntakeFormVersionId,
             SubmittedByUserId = submittedByUserId,
             PatientId = patientId.Value,
+            HealthCampId = resolvedHealthCampId,
             SubmittedServiceId = submittedServiceId,     // raw thing client sent (service/category/subcategory)
             SubmittedServiceType = submittedServiceType, // detected type of that raw thing
             ResolvedServiceId = resolvedServiceId,       // top-level ServiceId (FK-safe)

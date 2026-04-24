@@ -1,3 +1,4 @@
+using QuestPDF.Fluent;
 // File: Application/Services/Reporting/Reports/CorporateReportService.cs
 using System.Text;
 using System.Text.Json;
@@ -186,4 +187,11 @@ public sealed class CorporateReportService : ICorporateReportService
         if (start < 0 || end <= start) return t;
         return t.Substring(start, end - start + 1);
     }
+    public async Task<byte[]> BuildPdfAsync(Guid campId, Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters? filters = null, CancellationToken ct = default)
+    {
+        var dto = await BuildAsync(campId, filters, ct);
+        var doc = new CorporateReportDocument(dto);
+        return doc.GeneratePdf();
+    }
+
 }

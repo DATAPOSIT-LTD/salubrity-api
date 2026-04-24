@@ -23,6 +23,23 @@ public class DoctorRecommendationsController : BaseController
         _service = service;
     }
 
+    /// <summary>
+    /// AI-assisted draft of the "Recommendation (Specific Instructions)" paragraph.
+    /// Grounded in (a) the patient's abnormal + borderline findings, and
+    /// (b) whatever the doctor has already typed into their review form.
+    /// Doctor must review and edit the returned text.
+    /// </summary>
+    [HttpPost("draft")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PostDraft(
+        [FromBody] Salubrity.Application.DTOs.Clinical.GenerateDraftRequestDto request,
+        [FromServices] Salubrity.Application.Interfaces.Services.Clinical.IRecommendationDraftService drafts,
+        CancellationToken ct = default)
+    {
+        var draft = await drafts.GenerateAsync(request, ct);
+        return Success<object>(new { draft });
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<DoctorRecommendationResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)

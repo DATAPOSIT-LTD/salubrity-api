@@ -39,5 +39,22 @@ namespace Salubrity.Infrastructure.Repositories.Notifications
             _context.Notifications.Update(notification);
             await _context.SaveChangesAsync(ct);
         }
+
+        public async Task MarkAllAsReadForUserAsync(Guid userId, CancellationToken ct = default)
+        {
+            var now = DateTime.UtcNow;
+            await _context.NotificationRecipients
+                .Where(r => r.RecipientId == userId && !r.IsRead)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.IsRead, true)
+                    .SetProperty(r => r.ReadAt, now), ct);
+        }
+
+        public async Task ClearAllForUserAsync(Guid userId, CancellationToken ct = default)
+        {
+            await _context.NotificationRecipients
+                .Where(r => r.RecipientId == userId)
+                .ExecuteDeleteAsync(ct);
+        }
     }
 }

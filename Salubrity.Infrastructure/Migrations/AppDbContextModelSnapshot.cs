@@ -290,6 +290,64 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("DoctorRecommendations");
                 });
 
+            modelBuilder.Entity("Salubrity.Domain.Entities.Clinical.ServiceReferral", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FollowUpScheduleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("HealthCampId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceAssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ServiceProviderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UrgencyId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FollowUpScheduleId");
+
+                    b.HasIndex("UrgencyId");
+
+                    b.ToTable("ServiceReferrals");
+                });
+
             modelBuilder.Entity("Salubrity.Domain.Entities.Configurations.EmailConfiguration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -692,6 +750,12 @@ namespace Salubrity.Infrastructure.Migrations
 
                     b.Property<int?>("ExpectedParticipants")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FinalReportsPublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("FinalReportsPublishedById")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid?>("HealthCampStatusId")
                         .HasColumnType("uuid");
@@ -2527,6 +2591,47 @@ namespace Salubrity.Infrastructure.Migrations
                     b.ToTable("FollowUpRecommendation");
                 });
 
+            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.FollowUpSchedule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("FollowUpSchedules");
+                });
+
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Gender", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3067,6 +3172,47 @@ namespace Salubrity.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SubcontractorRoles");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Urgency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DeletedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Urgencies");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Menus.Menu", b =>
@@ -4136,6 +4282,25 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("RecommendationType");
                 });
 
+            modelBuilder.Entity("Salubrity.Domain.Entities.Clinical.ServiceReferral", b =>
+                {
+                    b.HasOne("Salubrity.Domain.Entities.Lookup.FollowUpSchedule", "FollowUpSchedule")
+                        .WithMany("ServiceReferrals")
+                        .HasForeignKey("FollowUpScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Salubrity.Domain.Entities.Lookup.Urgency", "Urgency")
+                        .WithMany("ServiceReferrals")
+                        .HasForeignKey("UrgencyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FollowUpSchedule");
+
+                    b.Navigation("Urgency");
+                });
+
             modelBuilder.Entity("Salubrity.Domain.Entities.HealthAssesment.HealthAssessment", b =>
                 {
                     b.HasOne("Salubrity.Domain.Entities.HealthCamps.HealthCamp", "HealthCamp")
@@ -5138,6 +5303,11 @@ namespace Salubrity.Infrastructure.Migrations
                     b.Navigation("DoctorRecommendations");
                 });
 
+            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.FollowUpSchedule", b =>
+                {
+                    b.Navigation("ServiceReferrals");
+                });
+
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Gender", b =>
                 {
                     b.Navigation("Users");
@@ -5183,6 +5353,11 @@ namespace Salubrity.Infrastructure.Migrations
             modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.SubcontractorRole", b =>
                 {
                     b.Navigation("SubcontractorAssignments");
+                });
+
+            modelBuilder.Entity("Salubrity.Domain.Entities.Lookup.Urgency", b =>
+                {
+                    b.Navigation("ServiceReferrals");
                 });
 
             modelBuilder.Entity("Salubrity.Domain.Entities.Menus.Menu", b =>

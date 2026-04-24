@@ -38,5 +38,21 @@ namespace Salubrity.Api.Controllers.Notifications
             var result = await _notificationService.MarkNotificationAsReadAsync(notificationId, ct);
             return result ? Success("Notification marked as read") : NotFound();
         }
+
+        [HttpPut("user/{userId:guid}/mark-all-read")]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> MarkAllAsRead(Guid userId, CancellationToken ct = default)
+        {
+            await _notificationService.MarkAllNotificationsAsReadAsync(userId, ct);
+            return Success("All notifications marked as read");
+        }
+
+        [HttpDelete("user/{userId:guid}/clear")]
+        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ClearAll(Guid userId, CancellationToken ct = default)
+        {
+            await _notificationService.ClearAllNotificationsAsync(userId, ct);
+            return Success("All notifications cleared");
+        }
     }
 }

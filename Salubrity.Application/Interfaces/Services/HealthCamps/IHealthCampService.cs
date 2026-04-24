@@ -12,6 +12,7 @@ public interface IHealthCampService
     Task<HealthCampDto> UpdateAsync(Guid id, UpdateHealthCampDto dto);
     Task DeleteAsync(Guid id, Guid userId);
     Task<LaunchHealthCampResponseDto> LaunchAsync(LaunchHealthCampDto dto);
+    Task CancelAsync(Guid campId);
 
     // These now accept nullable Guid?
     Task<List<HealthCampListDto>> GetMyUpcomingCampsAsync(Guid? subcontractorId, CancellationToken ct);
@@ -66,6 +67,8 @@ public interface IHealthCampService
     Task RemoveSubcontractorFromCampAsync(Guid campId, Guid subcontractorId, Guid actingUserId);
     Task AssignPackageToParticipantAsync(AssignParticipantPackageDto dto, CancellationToken ct);
     Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct);
+
+    Task<Salubrity.Application.DTOs.HealthCamps.PublishFinalReportsResultDto> PublishFinalReportsAsync(Guid campId, Guid currentUserId, CancellationToken ct = default);
 
 
 }

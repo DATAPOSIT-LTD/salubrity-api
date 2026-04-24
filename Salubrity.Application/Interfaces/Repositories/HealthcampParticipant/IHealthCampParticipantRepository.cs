@@ -27,6 +27,16 @@ namespace Salubrity.Application.Common.Interfaces.Repositories
             CancellationToken ct);
 
         Task SaveChangesAsync(CancellationToken ct);
+        /// <summary>
+        /// Loads a participant with all navigation properties needed for the report demographics
+        /// (User + Gender, Patient + PrimaryOrganization, HealthCamp).
+        /// </summary>
+        Task<HealthCampParticipant?> GetParticipantWithDemographicsAsync(Guid participantId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Returns the participantId for the given user in the given camp, or null if not enrolled.
+        /// </summary>
+        Task<Guid?> GetParticipantIdByUserAndCampAsync(Guid userId, Guid campId, CancellationToken ct = default);
     }
 
 

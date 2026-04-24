@@ -15,6 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 🔐 Set EPPlus license context to allow Excel generation
 ExcelPackage.License.SetNonCommercialOrganization("Salubrity");
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 #region Logging
 builder.Host.UseSerilog((context, services, config) =>
@@ -30,6 +31,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSharedServices(builder.Configuration);
 builder.Services.AddJwtAuth(builder.Configuration);
 builder.Services.AddHostedService<RelatedEntityBackfillJob>();
+builder.Services.AddHostedService<Salubrity.Api.HostedServices.CampStatusReconcilerService>();
 #endregion
 
 #region API & Swagger

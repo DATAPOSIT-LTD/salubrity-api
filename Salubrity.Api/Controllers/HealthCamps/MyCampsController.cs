@@ -38,6 +38,32 @@ public class MyCampsController : BaseController
         return Success(result);
     }
 
+    [HttpGet("ongoing")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<MyCampListItemDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOngoing(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _service.GetOngoingForUserAsync(userId, page, pageSize, search, ct);
+        return Success(result);
+    }
+
+    [HttpGet("complete")]
+    [ProducesResponseType(typeof(ApiResponse<PagedResult<MyCampListItemDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCompleted(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _service.GetCompletedForUserAsync(userId, page, pageSize, search, ct);
+        return Success(result);
+    }
+
     [HttpGet("{campId:guid}/service-stations")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<MyCampServiceDto>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampServices(Guid campId, [FromQuery] bool group = false, CancellationToken ct = default)

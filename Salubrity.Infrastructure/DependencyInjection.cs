@@ -127,6 +127,13 @@ public static class DependencyInjection
         services.AddScoped<IFormFieldMappingRepository, FormFieldMappingRepository>();
         services.AddScoped<IPatientNumberRepository, PatientNumberRepository>();
         services.AddScoped<IDoctorRecommendationRepository, DoctorRecommendationRepository>();
+        services.AddScoped<IServiceReferralRepository, ServiceReferralRepository>();
+
+        // Gemini (AI-assisted recommendation drafts)
+        services.Configure<Salubrity.Application.Options.GeminiOptions>(config.GetSection(Salubrity.Application.Options.GeminiOptions.SectionName));
+        services.AddScoped<Salubrity.Application.Interfaces.Repositories.Reporting.ICorporateReportRepository, Salubrity.Infrastructure.Repositories.Reporting.CorporateReportRepository>();
+        services.AddHttpClient<Salubrity.Application.Interfaces.AI.IGeminiClient, Salubrity.Infrastructure.AI.GeminiClient>();
+
         services.AddScoped<IHealthCampCheckInRepository, HealthCampCheckInRepository>();
 
 

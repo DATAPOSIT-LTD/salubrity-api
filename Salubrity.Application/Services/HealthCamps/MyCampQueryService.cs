@@ -27,4 +27,12 @@ public class MyCampQueryService : IMyCampQueryService
 
 
 
+
+    public Task<PagedResult<MyCampListItemDto>> GetOngoingForUserAsync(
+        Guid userId, int page, int pageSize, string? search, CancellationToken ct = default)
+       => _repo.GetOngoingForUserAsync(userId, page, pageSize, search, ct);
+
+    public Task<PagedResult<MyCampListItemDto>> GetCompletedForUserAsync(
+        Guid userId, int page, int pageSize, string? search, CancellationToken ct = default)
+       => _repo.GetCompletedForUserAsync(userId, page, pageSize, search, ct);
 }

@@ -201,6 +201,47 @@ public class CampController : BaseController
     }
 
 
+
+    [HttpGet("{campId:guid}/my-station-assignments")]
+    [Authorize(Roles = "Subcontractor,Doctor,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<List<Salubrity.Application.DTOs.HealthCamps.MyStationAssignmentDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyStationAssignments(
+        Guid campId,
+        [FromServices] ICurrentSubcontractorService current,
+        [FromServices] Salubrity.Application.Interfaces.Repositories.HealthCamps.IHealthCampRepository repo,
+        CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        var subId = await current.TryGetSubcontractorIdAsync(userId, ct);
+        if (subId == null || subId == Guid.Empty)
+            return Success(new List<Salubrity.Application.DTOs.HealthCamps.MyStationAssignmentDto>());
+        var result = await repo.GetMyStationAssignmentsAsync(campId, subId.Value, ct);
+        return Success(result);
+    }
+
+    [HttpGet("{campId:guid}/final-report-status")]
+    [Authorize]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetFinalReportStatus(
+        Guid campId,
+        [FromServices] Salubrity.Application.Interfaces.Repositories.HealthCamps.IHealthCampRepository campRepo,
+        CancellationToken ct = default)
+    {
+        var camp = await campRepo.GetByIdAsync(campId);
+        if (camp is null) return NotFound();
+        return Success<object>(new { publishedAt = camp.FinalReportsPublishedAt });
+    }
+
+    [HttpPost("{campId:guid}/publish-final-reports")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ApiResponse<Salubrity.Application.DTOs.HealthCamps.PublishFinalReportsResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PublishFinalReports(Guid campId, CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _service.PublishFinalReportsAsync(campId, userId, ct);
+        return Success(result, "Final reports published.");
+    }
+
     [HttpGet("{campId:guid}/participants")]
     [ProducesResponseType(typeof(PagedResult<CampParticipantListDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCampParticipants(

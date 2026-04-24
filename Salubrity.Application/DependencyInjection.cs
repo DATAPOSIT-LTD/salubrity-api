@@ -120,6 +120,12 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<BillingStatus>>();
             services.AddScoped<GenericLookupService<FollowUpRecommendation>>();
             services.AddScoped<GenericLookupService<RecommendationType>>();
+            services.AddScoped<GenericLookupService<Urgency>>();
+            services.AddScoped<GenericLookupService<FollowUpSchedule>>();
+            services.AddScoped<IServiceReferralService, ServiceReferralService>();
+            services.AddScoped<IRecommendationDraftService, Salubrity.Application.Services.Clinical.RecommendationDraftService>();
+            services.AddScoped<ICorporateReportService, Salubrity.Application.Services.Reporting.Reports.CorporateReportService>();
+            services.AddScoped<IIndividualFinalReportService, Salubrity.Application.Services.Reporting.Reports.IndividualFinalReportService>();
 
 
             // Auth services
@@ -131,6 +137,7 @@ namespace Salubrity.Application
             services.AddScoped<IHealthAssessmentFormService, HealthAssessmentFormService>();
             services.AddScoped<IOnboardingService, OnboardingService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IIndividualPreliminaryReportService, Salubrity.Application.Services.Reporting.Reports.IndividualPreliminaryReportService>();
             services.AddScoped<IConciergeService, ConciergeService>();
             services.AddScoped<IBulkLabUploadService, BulkLabUploadService>();
             services.AddScoped<IPatientNumberGeneratorService, PatientNumberGeneratorService>();

@@ -42,5 +42,4 @@ public interface IIntakeFormRepository
     /// <summary>
     /// Load a specific IntakeFormVersion by ID with sections, fields, and parent IntakeForm
     /// </summary>
-    Task<IntakeFormVersion?> GetVersionWithFieldsAsync(Guid versionId, CancellationToken ct = default);
 }

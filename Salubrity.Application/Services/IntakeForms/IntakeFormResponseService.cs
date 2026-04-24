@@ -72,7 +72,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         IHealthCampParticipantServiceStatusRepository participantServiceStatusRepository,
         IDoctorRecommendationService doctorRecommendationService,
         ILoggerFactory loggerFactory,
-        INotificationService notificationService,
         IRoleRepository roleRepository
     )
     {
@@ -92,7 +91,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         _participantServiceStatusRepository = participantServiceStatusRepository;
         _doctorRecommendationService = doctorRecommendationService;
         _loggerFactory = loggerFactory;
-        _notificationService = notificationService;
         _roleRepository = roleRepository;
     }
 
@@ -207,6 +205,22 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
         var statusId = dto.ResponseStatusId
             ?? await _intakeFormResponseRepository.GetStatusIdByNameAsync("Submitted", ct);
 
+        // Resolve HealthCampId from the participant so the response is scoped to a single camp.
+        // This prevents cross-camp data leakage in reports when the same service is assigned
+        // to multiple camps.
+        Guid? resolvedHealthCampId = null;
+        try
+        {
+            var participantForCamp = await _participantRepository
+                .GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
+            resolvedHealthCampId = participantForCamp?.HealthCampId;
+        }
+        catch
+        {
+            // Best-effort: if participant lookup fails, leave HealthCampId null
+            // (legacy behavior). Do not fail submission.
+        }
+
         var responseId = Guid.NewGuid();
         var response = new IntakeFormResponse
         {
@@ -214,11 +228,11 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
             IntakeFormVersionId = dto.IntakeFormVersionId,
             SubmittedByUserId = submittedByUserId,
             PatientId = patientId.Value,
+            HealthCampId = resolvedHealthCampId,
             SubmittedServiceId = submittedServiceId,     // raw thing client sent (service/category/subcategory)
             SubmittedServiceType = submittedServiceType, // detected type of that raw thing
             ResolvedServiceId = resolvedServiceId,       // top-level ServiceId (FK-safe)
             ResponseStatusId = statusId,
-            HealthCampId = dto.HealthCampId,
             FieldResponses = dto.FieldResponses.Select(f => new IntakeFormFieldResponse
             {
                 Id = Guid.NewGuid(),
@@ -330,185 +344,6 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
         _logger.LogInformation("Intake form submitted successfully. ResponseId={ResponseId}", responseId);
         return responseId;
-    }
-
-    // --------------------------------------------------
-    // Triage alert helpers
-    // --------------------------------------------------
-
-    private async Task TryGenerateTriageAlertsAsync(
-        IntakeFormResponse response,
-        CreateIntakeFormResponseDto dto,
-        Guid resolvedServiceId,
-        CancellationToken ct)
-    {
-        // Only triage-like services
-        var service = await _serviceRepository.GetByIdAsync(resolvedServiceId, ct);
-        if (service == null ||
-            !service.Name.Contains("Triage", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        // Load schema for this version so alerts work across multiple triage versions
-        var version = await _intakeFormRepository.GetVersionWithFieldsAsync(dto.IntakeFormVersionId, ct);
-        if (version == null)
-            return;
-
-        var fieldMeta = version.Sections
-            .SelectMany(s => s.Fields)
-            .GroupBy(f => f.Id)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        // Map field values by fieldId from the incoming DTO
-        var valueByFieldId = dto.FieldResponses
-            .GroupBy(fr => fr.FieldId)
-            .ToDictionary(g => g.Key, g => g.Last().Value?.Trim() ?? string.Empty);
-
-        var issues = EvaluateTriageAbnormalities(valueByFieldId, fieldMeta);
-        if (issues.Count == 0)
-            return;
-
-        // Build context
-        string patientLabel = response.PatientId.ToString();
-        try
-        {
-            var participant = await _participantRepository.GetParticipantWithBillingStatusByIdAsync(dto.ParticipantId, ct);
-            if (participant?.User != null)
-                patientLabel = participant.User.FullName ?? patientLabel;
-        }
-        catch
-        {
-            // best-effort only; do not fail submission on alert enrichment
-        }
-
-        string campName = response.HealthCampId?.ToString() ?? "Unknown camp";
-        try
-        {
-            if (response.HealthCampId.HasValue)
-            {
-                var camp = await _healthCampRepository.GetByIdWithPackagesAsync(response.HealthCampId.Value, ct);
-                if (camp != null)
-                    campName = camp.Name ?? campName;
-            }
-        }
-        catch
-        {
-            // ignore enrichment failures
-        }
-
-        var message =
-            $"Triage alert for patient {patientLabel} at camp '{campName}': " +
-            string.Join("; ", issues);
-
-        // Notify Doctor and Concierge roles only
-        var doctorRole = await SafeFindRoleByNameAsync("Doctor", ct);
-        var conciergeRole = await SafeFindRoleByNameAsync("Concierge", ct);
-
-        if (doctorRole != null)
-        {
-            await _notificationService.TriggerNotificationAsync(
-                title: "Triage Alert",
-                message: message,
-                type: "TriageAlert",
-                entityId: doctorRole.Id,
-                entityType: "Role",
-                ct: ct);
-        }
-
-        if (conciergeRole != null)
-        {
-            await _notificationService.TriggerNotificationAsync(
-                title: "Triage Alert",
-                message: message,
-                type: "TriageAlert",
-                entityId: conciergeRole.Id,
-                entityType: "Role",
-                ct: ct);
-        }
-    }
-
-    private async Task<Domain.Entities.Rbac.Role?> SafeFindRoleByNameAsync(string roleName, CancellationToken ct)
-    {
-        try
-        {
-            return await _roleRepository.FindByNameAsync(roleName);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static List<string> EvaluateTriageAbnormalities(
-        IReadOnlyDictionary<Guid, string> values,
-        IReadOnlyDictionary<Guid, IntakeFormField> fieldMeta)
-    {
-        var issues = new List<string>();
-
-        foreach (var (fieldId, raw) in values)
-        {
-            if (!fieldMeta.TryGetValue(fieldId, out var field))
-                continue;
-
-            var fieldType = field.FieldType?.Trim().ToLowerInvariant();
-            var label = field.Label?.Trim() ?? "Field";
-            if (string.IsNullOrWhiteSpace(raw))
-                continue;
-
-            // Blood pressure: "systolic/diastolic" stored as string (e.g. "110/90")
-            if (fieldType == "blood-pressure")
-            {
-                if (!raw.Contains('/'))
-                    continue;
-
-                var parts = raw.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length != 2 ||
-                    !int.TryParse(parts[0], out var systolic) ||
-                    !int.TryParse(parts[1], out var diastolic))
-                    continue;
-
-                var prefix = label;
-
-                if (systolic <= diastolic)
-                    issues.Add($"{prefix} pattern unusual: systolic ({systolic}) ≤ diastolic ({diastolic})");
-
-                // Default BP thresholds (can be externalized later)
-                if (systolic > 140 || diastolic > 90)
-                    issues.Add($"{prefix} high: {systolic}/{diastolic} mmHg");
-                else if (systolic < 90 || diastolic < 60)
-                    issues.Add($"{prefix} low: {systolic}/{diastolic} mmHg");
-
-                continue;
-            }
-
-            // Numeric fields: use schema min/max if defined
-            if (fieldType == "number")
-            {
-                if (!decimal.TryParse(raw, out var num))
-                    continue;
-
-                if (field.MinValue.HasValue && num < field.MinValue.Value)
-                    issues.Add($"{label} below minimum ({field.MinValue.Value}): {raw}");
-                else if (field.MaxValue.HasValue && num > field.MaxValue.Value)
-                    issues.Add($"{label} above maximum ({field.MaxValue.Value}): {raw}");
-
-                // Common clinical heuristics by label (work across versions)
-                if (label.Contains("oxygen", StringComparison.OrdinalIgnoreCase) && num < 90)
-                    issues.Add($"{label} low: {raw}%");
-
-                if (label.Contains("temperature", StringComparison.OrdinalIgnoreCase) && (num < 35 || num > 38))
-                    issues.Add($"{label} abnormal: {raw} °C");
-
-                if (label.Contains("heart rate", StringComparison.OrdinalIgnoreCase) && (num < 50 || num > 120))
-                    issues.Add($"{label} abnormal: {raw} bpm");
-
-                if (label.Contains("bmi", StringComparison.OrdinalIgnoreCase) && (num < 18.5m || num > 30m))
-                    issues.Add($"{label} abnormal: {raw}");
-            }
-        }
-
-        return issues;
     }
 
     public async Task PatchResponseAsync(
@@ -715,6 +550,7 @@ public sealed class IntakeFormResponseService : IIntakeFormResponseService
 
     //    return (excelData, exportTimestamp);
     //}
+
 
     // ================================================================
     // Triage Alert Generation

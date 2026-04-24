@@ -64,12 +64,16 @@ public class HealthCampProfile : Profile
         // Entity -> List/Detail DTOs (unchanged)
         CreateMap<HealthCamp, HealthCampListDto>()
             .ForMember(dest => dest.ClientName, m => m.MapFrom(src => src.Organization.BusinessName))
-            .ForMember(dest => dest.ExpectedPatients, m => m.MapFrom(src => 0))
+            .ForMember(dest => dest.ExpectedPatients, m => m.MapFrom(src => src.Participants != null ? src.Participants.Count : 0))
             .ForMember(dest => dest.Venue, m => m.MapFrom(src => src.Location))
             .ForMember(dest => dest.DateRange, m => m.MapFrom(src => $"{src.StartDate:dd} - {src.EndDate:dd MMM, yyyy}"))
             .ForMember(dest => dest.SubcontractorCount, m => m.MapFrom(src => src.ServiceAssignments.Count))
             .ForMember(dest => dest.Status, m => m.MapFrom(src => src.HealthCampStatus.Name))
-            .ForMember(dest => dest.PackageName, m => m.Ignore());
+            .ForMember(dest => dest.PackageName, m => m.MapFrom(src =>
+                src.HealthCampPackages
+                    .Where(hp => hp.IsActive && hp.ServicePackage != null)
+                    .Select(hp => hp.ServicePackage.Name)
+                    .FirstOrDefault() ?? ""));
 
         CreateMap<HealthCamp, HealthCampDetailDto>()
             .ForMember(dest => dest.ClientName, m => m.MapFrom(src => src.Organization.BusinessName))

@@ -55,6 +55,10 @@ public class HealthCamp : BaseAuditableEntity
     public string Slug { get; set; } = default!;
 
     public virtual ICollection<SubcontractorHealthCampAssignment> SubcontractorAssignments { get; set; } = [];
+    // Set when an admin publishes the Individual Final Reports for this camp.
+    // Patient-facing Final endpoints return 404 until this is non-null.
+    public DateTime? FinalReportsPublishedAt { get; set; }
+    public Guid? FinalReportsPublishedById { get; set; }
 
     public virtual ICollection<HealthCampTempCredential> TempCredentials { get; set; } = new List<HealthCampTempCredential>();
     public virtual ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();

@@ -7,5 +7,7 @@ namespace Salubrity.Application.Interfaces.Services.Notifications
         Task TriggerNotificationAsync(string title, string message, string type, Guid entityId, string entityType, CancellationToken ct = default);
         Task<List<NotificationDto>> GetUserNotificationsAsync(Guid userId, CancellationToken ct = default);
         Task<bool> MarkNotificationAsReadAsync(Guid notificationId, CancellationToken ct = default);
+        Task MarkAllNotificationsAsReadAsync(Guid userId, CancellationToken ct = default);
+        Task ClearAllNotificationsAsync(Guid userId, CancellationToken ct = default);
     }
 }

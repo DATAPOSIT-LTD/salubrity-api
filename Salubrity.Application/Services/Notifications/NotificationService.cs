@@ -97,5 +97,15 @@ namespace Salubrity.Application.Services.Notifications
             await _notificationRepository.UpdateAsync(notification, ct);
             return true;
         }
+
+        public async Task MarkAllNotificationsAsReadAsync(Guid userId, CancellationToken ct = default)
+        {
+            await _notificationRepository.MarkAllAsReadForUserAsync(userId, ct);
+        }
+
+        public async Task ClearAllNotificationsAsync(Guid userId, CancellationToken ct = default)
+        {
+            await _notificationRepository.ClearAllForUserAsync(userId, ct);
+        }
     }
 }

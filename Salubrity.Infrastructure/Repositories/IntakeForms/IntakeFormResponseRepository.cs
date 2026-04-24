@@ -76,6 +76,27 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
     public async Task<List<IntakeFormResponseDetailDto>> GetResponsesByPatientAndCampIdAsync(
      Guid? patientId, Guid healthCampId, CancellationToken ct = default)
     {
+        // Scope responses to a single camp without leaking across camps.
+        // 1) If IntakeFormResponses.HealthCampId is populated, use it directly.
+        // 2) Otherwise (legacy rows), fall back to the assignment join — same
+        //    service can be in multiple camps, so we Distinct on response Id
+        //    to avoid duplicates.
+        var responseIds = await (
+            from r in _db.IntakeFormResponses
+            where r.PatientId == patientId
+                  && (
+                      r.HealthCampId == healthCampId
+                      || (r.HealthCampId == null &&
+                          _db.HealthCampServiceAssignments.Any(a =>
+                              a.AssignmentId == r.SubmittedServiceId &&
+                              a.HealthCampId == healthCampId))
+                  )
+            select r.Id
+        ).Distinct().ToListAsync(ct);
+
+        if (responseIds.Count == 0)
+            return new List<IntakeFormResponseDetailDto>();
+
         var query =
             from r in _db.IntakeFormResponses
                 .Include(r => r.FieldResponses)
@@ -85,10 +106,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 .Include(r => r.Version)
                     .ThenInclude(v => v.IntakeForm)
                 .Include(r => r.ResolvedService)
-            join a in _db.HealthCampServiceAssignments
-                on r.SubmittedServiceId equals a.AssignmentId
-            where r.PatientId == patientId
-                  && a.HealthCampId == healthCampId
+            where responseIds.Contains(r.Id)
             orderby r.CreatedAt descending
             select new IntakeFormResponseDetailDto
             {
@@ -97,7 +115,7 @@ public sealed class IntakeFormResponseRepository : IIntakeFormResponseRepository
                 SubmittedByUserId = r.SubmittedByUserId,
                 PatientId = r.PatientId,
                 ServiceId = r.ResolvedServiceId,
-                HealthCampId = a.HealthCampId,
+                HealthCampId = r.HealthCampId,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt,
                 Status = new ResponseStatusDto

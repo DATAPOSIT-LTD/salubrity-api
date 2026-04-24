@@ -158,16 +158,6 @@ public class IntakeFormRepository : IIntakeFormRepository
         return null;
     }
 
-    public Task<IntakeFormVersion?> GetVersionWithFieldsAsync(Guid versionId, CancellationToken ct = default)
-    {
-        return _context.IntakeFormVersions
-            .AsNoTracking()
-            .Include(v => v.IntakeForm)
-            .Include(v => v.Sections)
-                .ThenInclude(s => s.Fields)
-            .FirstOrDefaultAsync(v => !v.IsDeleted && v.Id == versionId, ct);
-    }
-
 
     public async Task<IntakeFormVersion?> ResolveFormVersionByAssignmentAsync(
         Guid assignmentId,

@@ -12,6 +12,8 @@ public static class DatabaseSeeder
     {
         await InsuranceProviderSeeder.SeedAsync(db);
         await BillingStatusSeeder.SeedAsync(db);
+        await UrgencySeeder.SeedAsync(db);
+        await FollowUpScheduleSeeder.SeedAsync(db);
         // TODO: Add more seeders here as needed
         // await GenderSeeder.SeedAsync(db);
         // await OrganizationStatusSeeder.SeedAsync(db);

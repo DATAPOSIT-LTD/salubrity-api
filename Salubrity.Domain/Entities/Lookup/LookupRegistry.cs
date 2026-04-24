@@ -23,7 +23,9 @@ public static class LookupRegistry
         {"healthassessmentformtypes", typeof(HealthAssessmentFormType) },
         {"billingstatus", typeof(BillingStatus) },
         { "followuprecommendations", typeof(FollowUpRecommendation) },
-        { "recommendationtypes", typeof(RecommendationType) }
+        { "recommendationtypes", typeof(RecommendationType) },
+        { "urgencies", typeof(Urgency) },
+        { "followupschedules", typeof(FollowUpSchedule) }
     };
 
 }

@@ -711,6 +711,10 @@ public class HealthCampRepository : IHealthCampRepository
             .Where(c => c.IsLaunched
                         && ((c.EndDate ?? c.StartDate) < today))
             .Include(c => c.Organization)
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.HealthCampPackages.Where(hp => hp.IsActive))
+                .ThenInclude(hp => hp.ServicePackage)
+            .Include(c => c.Participants)
             .AsNoTracking()
             .OrderByDescending(c => c.StartDate)
             .ToListAsync(ct);
@@ -1243,4 +1247,48 @@ public class HealthCampRepository : IHealthCampRepository
             .ToDictionary(g => g.Key, g => g.ToList());
     }
 
+
+    public async Task<List<Salubrity.Application.DTOs.HealthCamps.MyStationAssignmentDto>> GetMyStationAssignmentsAsync(Guid campId, Guid subcontractorId, CancellationToken ct = default)
+    {
+        var assignments = await _context.HealthCampServiceAssignments
+            .AsNoTracking()
+            .Where(a => a.HealthCampId == campId && a.SubcontractorId == subcontractorId)
+            .Include(a => a.Role)
+            .ToListAsync(ct);
+
+        if (assignments.Count == 0)
+            return new List<Salubrity.Application.DTOs.HealthCamps.MyStationAssignmentDto>();
+
+        var serviceIds = assignments.Select(a => a.AssignmentId).ToList();
+        var services = await _context.Services
+            .AsNoTracking()
+            .Where(s => serviceIds.Contains(s.Id))
+            .ToDictionaryAsync(s => s.Id, s => s.Name, ct);
+
+        return assignments.Select(a => new Salubrity.Application.DTOs.HealthCamps.MyStationAssignmentDto
+        {
+            CampAssignmentId = a.Id,
+            ServiceId = a.AssignmentId,
+            ServiceName = services.TryGetValue(a.AssignmentId, out var name) ? name : string.Empty,
+            StationName = a.AssignmentName,
+            ProfessionId = a.ProfessionId,
+            Profession = a.Role != null ? a.Role.Name : null,
+        }).ToList();
+    }
+
+    public async Task<List<Salubrity.Application.DTOs.HealthCamps.CampParticipantContactDto>> GetCampParticipantContactsAsync(Guid campId, CancellationToken ct = default)
+    {
+        return await _context.HealthCampParticipants
+            .AsNoTracking()
+            .Where(p => p.HealthCampId == campId)
+            .Include(p => p.User)
+            .Where(p => p.User != null && !string.IsNullOrEmpty(p.User.Email))
+            .Select(p => new Salubrity.Application.DTOs.HealthCamps.CampParticipantContactDto
+            {
+                UserId = p.User.Id,
+                Email = p.User.Email,
+                FullName = (p.User.FirstName + " " + p.User.LastName).Trim(),
+            })
+            .ToListAsync(ct);
+    }
 }

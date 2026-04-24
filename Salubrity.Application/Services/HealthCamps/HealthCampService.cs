@@ -120,9 +120,13 @@ public class HealthCampService : IHealthCampService
         // ───────────────────────────────────────────────
         // Initialize base camp entity
         // ───────────────────────────────────────────────
+        var newId = Guid.NewGuid();
+        var slug = MakeSlug(dto.Name, newId);
+
         var entity = new HealthCamp
         {
-            Id = Guid.NewGuid(),
+            Id = newId,
+            Slug = slug,
             Name = dto.Name,
             Description = dto.Description,
             Location = dto.Location,
@@ -551,9 +555,6 @@ public class HealthCampService : IHealthCampService
             var startDate = camp.StartDate.Date;
             var endDate = (camp.EndDate ?? camp.StartDate).Date;
 
-            if (todayLocal < startDate)
-                throw new ValidationException([$"You can only launch this camp on or after its start date: {startDate:dd MMM yyyy}."]);
-
             if (todayLocal > endDate)
                 throw new ValidationException([$"This camp already ended on {endDate:dd MMM yyyy} and cannot be launched."]);
 
@@ -648,6 +649,34 @@ public class HealthCampService : IHealthCampService
         return Convert.FromBase64String(base64);
     }
 
+
+
+    public async Task CancelAsync(Guid campId)
+    {
+        var ct = CancellationToken.None;
+        var camp = await _repo.GetByIdAsync(campId)
+            ?? throw new NotFoundException("Camp not found");
+
+        var suspendedStatus = await _lookupRepository.FindByNameAsync("Suspended")
+            ?? throw new InvalidOperationException("'Suspended' status not found");
+
+        if (camp.HealthCampStatusId == suspendedStatus.Id)
+            throw new ValidationException(["Camp is already cancelled."]);
+
+        camp.HealthCampStatusId = suspendedStatus.Id;
+        camp.IsActive = false;
+
+        await _repo.UpdateAsync(camp);
+
+        await _notificationService.TriggerNotificationAsync(
+            title: "Health Camp Cancelled",
+            message: $"Health camp '{camp.Name}' has been cancelled.",
+            type: "HealthCamp",
+            entityId: camp.Id,
+            entityType: "Camp",
+            ct: ct
+        );
+    }
 
     public async Task DeleteAsync(Guid id, Guid userId)
     {
@@ -1121,7 +1150,78 @@ public class HealthCampService : IHealthCampService
         })];
     }
 
+        private static string MakeSlug(string? name, Guid id)
+        {
+            var basePart = (name ?? "camp").ToLowerInvariant();
+            var sb = new System.Text.StringBuilder(basePart.Length);
+            foreach (var ch in basePart)
+            {
+                if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+                else if (sb.Length > 0 && sb[sb.Length - 1] != '-') sb.Append('-');
+            }
+            var slug = sb.ToString().Trim('-');
+            if (slug.Length == 0) slug = "camp";
+            return $"{slug}-{id.ToString("N").Substring(0, 8)}";
+        }
 
+    public async Task<Salubrity.Application.DTOs.HealthCamps.PublishFinalReportsResultDto> PublishFinalReportsAsync(Guid campId, Guid currentUserId, CancellationToken ct = default)
+    {
+        var camp = await _repo.GetByIdAsync(campId)
+            ?? throw new Salubrity.Shared.Exceptions.NotFoundException("Camp not found");
 
+        camp.FinalReportsPublishedAt = DateTime.UtcNow;
+        camp.FinalReportsPublishedById = currentUserId;
+        await _repo.UpdateAsync(camp);
 
+        // In-app notification — broadcasts to all users tied to this camp as participants.
+        await _notificationService.TriggerNotificationAsync(
+            title: "Your Individual Final Report is ready",
+            message: $"Your final report for the camp \"{camp.Name}\" is now available.",
+            type: "final_report_published",
+            entityId: campId,
+            entityType: "Camp",
+            ct: ct);
+
+        // Publisher display name is resolved on the client via /me to keep this service’s deps tight.
+        var publisherName = string.Empty;
+
+        // Per-recipient email so we can personalise FullName.
+        var contacts = await _repo.GetCampParticipantContactsAsync(campId, ct);
+        const string appBase = "https://app.salubritycentre.com";
+        var reportUrl = $"{appBase}/patients/camps/{campId}/report";
+
+        var emailsSent = 0;
+        foreach (var contact in contacts)
+        {
+            try
+            {
+                await _email.SendAsync(new Salubrity.Application.DTOs.Email.EmailRequestDto
+                {
+                    ToEmail = contact.Email,
+                    Subject = "Your Individual Final Report is ready",
+                    TemplateKey = "FinalReportPublished",
+                    Model = new
+                    {
+                        FullName = string.IsNullOrWhiteSpace(contact.FullName) ? "there" : contact.FullName,
+                        CampName = camp.Name,
+                        ReportUrl = reportUrl,
+                    },
+                });
+                emailsSent++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed sending Final Report email to {Email}", contact.Email);
+            }
+        }
+
+        return new Salubrity.Application.DTOs.HealthCamps.PublishFinalReportsResultDto
+        {
+            PublishedAt = camp.FinalReportsPublishedAt!.Value,
+            PublishedById = currentUserId,
+            PublishedByName = publisherName,
+            RecipientCount = contacts.Count,
+            EmailsSent = emailsSent,
+        };
+    }
 }

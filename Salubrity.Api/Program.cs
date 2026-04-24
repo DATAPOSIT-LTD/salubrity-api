@@ -31,6 +31,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddSharedServices(builder.Configuration);
 builder.Services.AddJwtAuth(builder.Configuration);
 builder.Services.AddHostedService<RelatedEntityBackfillJob>();
+builder.Services.AddHostedService<Salubrity.Api.HostedServices.CampStatusReconcilerService>();
 #endregion
 
 #region API & Swagger

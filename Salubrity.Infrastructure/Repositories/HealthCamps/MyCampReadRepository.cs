@@ -42,9 +42,7 @@ public class MyCampReadRepository : IMyCampReadRepository
             .Where(p => p.UserId == userId)
             .Select(p => p.HealthCamp)
             .Where(c => c != null && c.IsLaunched && !c.IsDeleted)
-            .Where(c =>
-                   c!.StartDate.Date >= today
-                || (c.StartDate.Date <= today && (c.EndDate == null || c.EndDate.Value.Date >= today)))
+            .Where(c => c!.StartDate.Date > today)
             .Distinct();
 
         //  Optional search
@@ -258,4 +256,90 @@ public class MyCampReadRepository : IMyCampReadRepository
 
 
 
+
+    public async Task<PagedResult<MyCampListItemDto>> GetOngoingForUserAsync(
+        Guid userId, int page, int pageSize, string? search, CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        return await ListForUserAsync(userId, page, pageSize, search,
+            c => c!.StartDate.Date <= today && (c.EndDate == null || c.EndDate!.Value.Date >= today),
+            ct);
+    }
+
+    public async Task<PagedResult<MyCampListItemDto>> GetCompletedForUserAsync(
+        Guid userId, int page, int pageSize, string? search, CancellationToken ct = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        return await ListForUserAsync(userId, page, pageSize, search,
+            c => c!.EndDate != null && c.EndDate!.Value.Date < today,
+            ct);
+    }
+
+    // Shared list helper — keeps the LINQ as IQueryable so EF translates the projection into
+    // a single SQL with the Organization + HealthCampStatus joins. Do NOT call AsEnumerable
+    // before the projection runs.
+    private async Task<PagedResult<MyCampListItemDto>> ListForUserAsync(
+        Guid userId,
+        int page,
+        int pageSize,
+        string? search,
+        System.Linq.Expressions.Expression<Func<Salubrity.Domain.Entities.HealthCamps.HealthCamp, bool>> dateWindow,
+        CancellationToken ct)
+    {
+        page = page <= 0 ? 1 : page;
+        pageSize = pageSize <= 0 ? 10 : Math.Min(pageSize, 100);
+        var today = DateTime.UtcNow.Date;
+
+        var baseQuery = _db.Set<Salubrity.Domain.Entities.Join.HealthCampParticipant>()
+            .AsNoTracking()
+            .Where(p => p.UserId == userId)
+            .Select(p => p.HealthCamp)
+            .Where(c => c != null && c.IsLaunched && !c.IsDeleted)
+            .Where(dateWindow)
+            .Distinct();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = $"%{search.Trim()}%";
+            baseQuery = baseQuery.Where(c =>
+                (c!.Name != null && EF.Functions.ILike(c.Name, s)) ||
+                (c!.Organization != null && c.Organization.BusinessName != null && EF.Functions.ILike(c.Organization.BusinessName, s)) ||
+                (c!.Location != null && EF.Functions.ILike(c.Location, s)));
+        }
+
+        var total = await baseQuery.CountAsync(ct);
+
+        var items = await baseQuery
+            .OrderByDescending(c => c!.StartDate)
+            .Select(c => new MyCampListItemDto
+            {
+                CampId = c!.Id,
+                CampName = c.Name,
+                Organization = c.Organization != null ? c.Organization.BusinessName : null,
+                PackageServices = c.HealthCampPackages
+                    .Where(pp => pp.IsActive)
+                    .Select(pp => pp.ServicePackage.Name)
+                    .FirstOrDefault(),
+                NumberOfServices = c.ServiceAssignments != null ? c.ServiceAssignments.Count : 0,
+                Venue = c.Location,
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
+                Status = c.HealthCampStatus != null && c.HealthCampStatus.Name != null
+                    ? c.HealthCampStatus.Name
+                    : (c.EndDate != null && c.EndDate.Value.Date < today) ? "Completed"
+                    : (c.StartDate.Date > today) ? "Upcoming"
+                    : "Ongoing"
+            })
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return new PagedResult<MyCampListItemDto>
+        {
+            Page = page,
+            PageSize = pageSize,
+            Total = total,
+            Items = items
+        };
+    }
 }

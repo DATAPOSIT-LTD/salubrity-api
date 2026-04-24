@@ -120,6 +120,15 @@ namespace Salubrity.Infrastructure.Repositories
 
             return participant;
         }
+
+        public async Task<Guid?> GetParticipantIdByUserAndCampAsync(Guid userId, Guid campId, CancellationToken ct = default)
+        {
+            return await _context.HealthCampParticipants
+                .AsNoTracking()
+                .Where(p => p.UserId == userId && p.HealthCampId == campId)
+                .Select(p => (Guid?)p.Id)
+                .FirstOrDefaultAsync(ct);
+        }
     }
 
 

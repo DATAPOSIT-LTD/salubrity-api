@@ -45,23 +45,25 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
         container.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.Margin(30);
+            page.Margin(18);
             page.PageColor(Colors.White);
-            page.DefaultTextStyle(t => t.FontSize(10));
+            page.DefaultTextStyle(t => t.FontSize(8));
 
-            page.Content().Column(col =>
+            // ScaleToFit auto-shrinks content so the report renders as a single page even
+            // when there are many service sections. Combined with the compact section
+            // designs below this should stay legible in typical cases.
+            page.Content().ScaleToFit().Column(col =>
             {
-                col.Spacing(15);
+                col.Spacing(8);
 
                 ComposeHeader(col);
                 ComposeDemographics(col);
                 ComposeResultsAtGlance(col);
                 ComposeFindingsLists(col);
                 ComposeServiceSections(col);
-                ComposeDisclaimer(col, "This is a preliminary report and is subject to change upon further analysis or receipt of additional information.");
                 ComposeHealthScore(col);
                 ComposeRiskBars(col);
-                ComposeDisclaimer(col, "Important Notice: This is a preliminary report based on screening data collected at the wellness camp. It is not a clinical diagnosis. Results are subject to verification and should be interpreted by a qualified healthcare professional. Final findings, risk scoring, and recommendations will be provided in your Individual Final Report. Data handled in accordance with the Kenya Data Protection Act 2019.");
+                ComposeDisclaimer(col, "Preliminary report — subject to change upon further clinical review. For emergencies contact your nearest healthcare facility. Data handled per Kenya Data Protection Act 2019.");
             });
 
             page.Footer().AlignCenter().Text(t =>
@@ -81,21 +83,21 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
     {
         col.Item().Row(row =>
         {
-            row.ConstantItem(120).Background(Yellow).Padding(15).AlignCenter().AlignMiddle()
+            row.ConstantItem(85).Background(Yellow).Padding(8).AlignCenter().AlignMiddle()
                 .Text("SALUBRITY\nCENTRE").FontSize(11).FontColor(Colors.White).Bold();
 
-            row.RelativeItem().Background(TealDark).Padding(15).Column(c =>
+            row.RelativeItem().Background(TealDark).Padding(8).Column(c =>
             {
-                c.Item().Text(_reportTitle).FontSize(16).FontColor(Colors.White).Bold();
+                c.Item().Text(_reportTitle).FontSize(13).FontColor(Colors.White).Bold();
                 c.Item().PaddingTop(3).Text("This report presents draft findings based on the data obtained from the test results.")
-                    .FontSize(9).FontColor("#A7F3D0");
+                    .FontSize(7).FontColor("#A7F3D0");
             });
         });
     }
 
     private void ComposeDemographics(ColumnDescriptor col)
     {
-        col.Item().Text("Patient Demographics").FontSize(12).Bold();
+        col.Item().Text("Patient Demographics").FontSize(9).Bold();
 
         col.Item().Grid(g =>
         {
@@ -117,13 +119,13 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
         g.Item().Column(c =>
         {
             c.Item().Text(label + ":").FontSize(8).FontColor(LabelGray);
-            c.Item().Border(1).BorderColor(BorderGray).Padding(6).Text(value).FontSize(9);
+            c.Item().Border(1).BorderColor(BorderGray).Padding(3).Text(value).FontSize(7);
         });
     }
 
     private void ComposeResultsAtGlance(ColumnDescriptor col)
     {
-        col.Item().Text("Results at a glance").FontSize(12).Bold();
+        col.Item().Text("Results at a glance").FontSize(9).Bold();
 
         col.Item().Row(row =>
         {
@@ -137,9 +139,9 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
 
     private static void StatCard(RowDescriptor row, int value, string label, string bg, string textColor)
     {
-        row.RelativeItem().Background(bg).Padding(10).Column(c =>
+        row.RelativeItem().Background(bg).Padding(5).Column(c =>
         {
-            c.Item().AlignCenter().Text(value.ToString()).FontSize(18).Bold().FontColor(textColor);
+            c.Item().AlignCenter().Text(value.ToString()).FontSize(14).Bold().FontColor(textColor);
             c.Item().AlignCenter().PaddingTop(2).Text(label).FontSize(8).FontColor(textColor);
         });
     }
@@ -189,47 +191,45 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
     {
         if (_r.ServiceSections.Count == 0) return;
 
-        col.Item().PaddingTop(5).Text("Test results:").FontSize(12).Bold();
+        col.Item().PaddingTop(2).Text("Test results:").FontSize(10).Bold();
 
         foreach (var s in _r.ServiceSections)
         {
             col.Item().Border(1).BorderColor(BorderGray).Row(row =>
             {
-                row.ConstantItem(110).Padding(10).AlignMiddle().Column(c =>
+                row.ConstantItem(70).Padding(4).AlignMiddle().Column(c =>
                 {
-                    c.Item().AlignCenter().Text(IconLabel(s.IconKey)).FontSize(20);
-                    c.Item().AlignCenter().PaddingTop(4).Text(s.ServiceName).FontSize(8).FontColor(TealDark).Bold();
+                    c.Item().AlignCenter().Text(IconLabel(s.IconKey)).FontSize(14);
+                    c.Item().AlignCenter().PaddingTop(2).Text(s.ServiceName).FontSize(7).FontColor(TealDark).Bold();
                 });
 
-                row.RelativeItem().Background("#F9FAFB").Padding(10).Column(c =>
+                row.RelativeItem().Background("#F9FAFB").Padding(4).Column(c =>
                 {
-                    c.Item().Text("Test Results:").Bold().FontSize(9);
-
-                    c.Item().PaddingTop(4).Grid(g =>
+                    c.Item().Grid(g =>
                     {
-                        g.Columns(2);
-                        g.Spacing(4);
+                        g.Columns(3);
+                        g.Spacing(2);
                         foreach (var m in s.Metrics)
                         {
                             g.Item().Row(metricRow =>
                             {
                                 metricRow.RelativeItem().Text(t =>
                                 {
-                                    t.Span($"{m.Label}: ").SemiBold().FontSize(8);
-                                    t.Span(m.Value).FontSize(8);
+                                    t.Span($"{m.Label}: ").SemiBold().FontSize(7);
+                                    t.Span(m.Value).FontSize(7);
                                 });
                                 metricRow.AutoItem().Background(BadgeBg(m.Status))
-                                    .PaddingHorizontal(4).PaddingVertical(1)
-                                    .Text(m.Status).FontSize(7).FontColor(BadgeFg(m.Status));
+                                    .PaddingHorizontal(3).PaddingVertical(0)
+                                    .Text(m.Status).FontSize(6).FontColor(BadgeFg(m.Status));
                             });
                         }
                     });
 
-                    c.Item().PaddingTop(8).BorderTop(1).BorderColor(BorderGray)
-                        .PaddingTop(4).Text("Summary:").Bold().FontSize(9);
-                    c.Item().PaddingTop(2).MinHeight(20)
-                        .Text(string.IsNullOrWhiteSpace(s.Summary) ? " " : s.Summary)
-                        .FontSize(8).FontColor(LabelGray);
+                    if (!string.IsNullOrWhiteSpace(s.Summary))
+                    {
+                        c.Item().PaddingTop(3).BorderTop(1).BorderColor(BorderGray)
+                            .PaddingTop(2).Text(s.Summary).FontSize(7).FontColor(LabelGray);
+                    }
                 });
             });
         }
@@ -243,14 +243,14 @@ public sealed class IndividualPreliminaryReportDocument : IDocument
 
     private void ComposeHealthScore(ColumnDescriptor col)
     {
-        col.Item().Border(1).BorderColor(BorderGray).Padding(12).Column(c =>
+        col.Item().Border(1).BorderColor(BorderGray).Padding(6).Column(c =>
         {
             c.Item().Row(row =>
             {
-                row.ConstantItem(70).AlignCenter().AlignMiddle().Column(scoreCol =>
+                row.ConstantItem(50).AlignCenter().AlignMiddle().Column(scoreCol =>
                 {
                     scoreCol.Item().AlignCenter().Text(_r.GeneralHealthScore.Score + "%")
-                        .FontSize(18).Bold().FontColor(GreenText);
+                        .FontSize(14).Bold().FontColor(GreenText);
                     scoreCol.Item().AlignCenter().Text("Score").FontSize(7).FontColor(LabelGray);
                 });
                 row.RelativeItem().PaddingLeft(10).Column(textCol =>

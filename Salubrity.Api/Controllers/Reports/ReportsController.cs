@@ -20,13 +20,16 @@ namespace Salubrity.Api.Controllers.Reports;
 public class ReportsController : BaseController
 {
     private readonly IIndividualPreliminaryReportService _preliminaryService;
+    private readonly IIndividualFinalReportService _finalService;
     private readonly IHealthCampParticipantRepository _participantRepo;
 
     public ReportsController(
         IIndividualPreliminaryReportService preliminaryService,
+        IIndividualFinalReportService finalService,
         IHealthCampParticipantRepository participantRepo)
     {
         _preliminaryService = preliminaryService;
+        _finalService = finalService;
         _participantRepo = participantRepo;
     }
 
@@ -63,6 +66,55 @@ public class ReportsController : BaseController
         return Success(dto);
     }
 
+    /// <summary>
+    /// JSON payload for the Individual Final Report — composes Preliminary data
+    /// with doctor recommendations, referrals, body-map, and signature.
+    /// </summary>
+    [HttpGet("individual-final/{participantId:guid}")]
+    [Produces("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<IndividualFinalReportDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIndividualFinal(Guid participantId, CancellationToken ct)
+    {
+        var dto = await _finalService.BuildAsync(participantId, ct);
+        return Success(dto);
+    }
+
+    /// <summary>
+    /// Same payload as above but resolves the participant from camp id + current user / patient.
+    /// When called by an admin/doctor, pass ?participantId=... to target a specific participant.
+    /// </summary>
+    [HttpGet("individual-final/by-camp/{campId:guid}")]
+    [Produces("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<IndividualFinalReportDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIndividualFinalByCamp(
+        Guid campId,
+        [FromQuery] Guid? participantId,
+        [FromServices] Salubrity.Application.Interfaces.Repositories.HealthCamps.IHealthCampRepository campRepo,
+        CancellationToken ct = default)
+    {
+        Guid resolvedParticipantId;
+        if (participantId.HasValue)
+        {
+            resolvedParticipantId = participantId.Value;
+        }
+        else
+        {
+            // Patient self-view — gate on the camp’s publish flag.
+            var camp = await campRepo.GetByIdAsync(campId)
+                ?? throw new NotFoundException("Camp not found.");
+            if (camp.FinalReportsPublishedAt is null)
+                throw new NotFoundException("Final report has not been released for this camp yet.");
+
+            var userId = GetCurrentUserId();
+            resolvedParticipantId = await _participantRepo.GetParticipantIdByUserAndCampAsync(userId, campId, ct)
+                ?? throw new NotFoundException("You are not enrolled as a participant in this camp.");
+        }
+        var dto = await _finalService.BuildAsync(resolvedParticipantId, ct);
+        return Success(dto);
+    }
+
     // ─── PDF downloads ────────────────────────────────────────────────
 
     /// <summary>
@@ -93,5 +145,78 @@ public class ReportsController : BaseController
 
         var bytes = await _preliminaryService.BuildPdfAsync(participantId, ct);
         return File(bytes, "application/pdf", "Individual_Preliminary_Report.pdf");
+    }
+
+    /// <summary>
+    /// Rendered Individual Final Report as a PDF download (specific participant).
+    /// </summary>
+    [HttpGet("individual-final/{participantId:guid}/pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIndividualFinalPdf(Guid participantId, CancellationToken ct)
+    {
+        var bytes = await _finalService.BuildPdfAsync(participantId, ct);
+        return File(bytes, "application/pdf", "Individual_Final_Report.pdf");
+    }
+
+    /// <summary>
+    /// PDF variant of the by-camp Final endpoint — participant resolved from JWT unless
+    /// participantId is passed explicitly by an admin/doctor.
+    /// </summary>
+    [HttpGet("individual-final/by-camp/{campId:guid}/pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetIndividualFinalPdfByCamp(
+        Guid campId,
+        [FromQuery] Guid? participantId,
+        [FromServices] Salubrity.Application.Interfaces.Repositories.HealthCamps.IHealthCampRepository campRepo,
+        CancellationToken ct = default)
+    {
+        Guid resolved;
+        if (participantId.HasValue)
+        {
+            resolved = participantId.Value;
+        }
+        else
+        {
+            var camp = await campRepo.GetByIdAsync(campId)
+                ?? throw new NotFoundException("Camp not found.");
+            if (camp.FinalReportsPublishedAt is null)
+                throw new NotFoundException("Final report has not been released for this camp yet.");
+
+            var userId = GetCurrentUserId();
+            resolved = await _participantRepo.GetParticipantIdByUserAndCampAsync(userId, campId, ct)
+                ?? throw new NotFoundException("You are not enrolled as a participant in this camp.");
+        }
+        var bytes = await _finalService.BuildPdfAsync(resolved, ct);
+        return File(bytes, "application/pdf", "Individual_Final_Report.pdf");
+    }
+
+    /// <summary>
+    /// Corporate report payload (admin-facing) for an entire camp.
+    /// Aggregates KPIs, gender split, station completion + AI-generated narratives.
+    /// </summary>
+    [HttpGet("corporate/{campId:guid}")]
+    [Authorize(Roles = "Admin")]
+    [Produces("application/json")]
+    [ProducesResponseType(typeof(ApiResponse<CorporateReportDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCorporateReport(
+        Guid campId,
+        [FromQuery] string? gender,
+        [FromQuery] string? age,
+        [FromQuery] int? day,
+        [FromServices] Salubrity.Application.Interfaces.Services.Reporting.ICorporateReportService svc,
+        CancellationToken ct = default)
+    {
+        var filters = new Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters
+        {
+            Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
+            AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
+            Day = day,
+        };
+        var dto = await svc.BuildAsync(campId, filters, ct);
+        return Success(dto);
     }
 }

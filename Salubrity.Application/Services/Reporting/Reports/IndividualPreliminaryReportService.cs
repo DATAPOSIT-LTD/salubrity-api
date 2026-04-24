@@ -153,6 +153,7 @@ public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryR
         {
             Demographics = demographics,
             CampName = participant.HealthCamp.Name,
+            CampDate = FormatCampDate(participant.HealthCamp.StartDate, participant.HealthCamp.EndDate),
             GeneratedAt = DateTime.UtcNow,
             ResultsAtGlance = new ResultsAtGlanceDto
             {
@@ -250,5 +251,12 @@ public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryR
             });
 
         return bars;
+    }
+
+    private static string FormatCampDate(DateTime start, DateTime? end)
+    {
+        var s = start.ToString("dd/MM/yyyy");
+        if (!end.HasValue || end.Value.Date == start.Date) return s;
+        return s + " - " + end.Value.ToString("dd/MM/yyyy");
     }
 }

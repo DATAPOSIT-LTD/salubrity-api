@@ -15,6 +15,9 @@ public class HealthCamp : BaseAuditableEntity
     [Required]
     public string Name { get; set; } = default!;
 
+    [Required]
+    public string Slug { get; set; } = default!;
+
     public virtual ICollection<HealthCampPackage> HealthCampPackages { get; set; } = [];
 
     public string? Description { get; set; }
@@ -48,6 +51,11 @@ public class HealthCamp : BaseAuditableEntity
     public string? ParticipantPosterJti { get; set; }
     public string? SubcontractorPosterJti { get; set; }
     public DateTimeOffset? PosterTokensExpireAt { get; set; }
+
+    // Set when an admin publishes the Individual Final Reports for this camp.
+    // Patient-facing Final endpoints return 404 until this is non-null.
+    public DateTime? FinalReportsPublishedAt { get; set; }
+    public Guid? FinalReportsPublishedById { get; set; }
 
     public virtual ICollection<HealthCampTempCredential> TempCredentials { get; set; } = new List<HealthCampTempCredential>();
     public virtual ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();

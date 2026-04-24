@@ -23,4 +23,12 @@ public class CampLifecycleController : BaseController
         var res = await _svc.LaunchAsync(dto);
         return Success(res);
     }
+
+    [HttpPost("{id:guid}/cancel")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        await _svc.CancelAsync(id);
+        return Success("Camp cancelled successfully.");
+    }
 }

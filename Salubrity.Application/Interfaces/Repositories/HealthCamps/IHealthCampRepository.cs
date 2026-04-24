@@ -65,6 +65,10 @@ public interface IHealthCampRepository
     Task<List<HealthCamp>> GetAllWithDetailsAsync(CancellationToken ct = default);
     Task<Dictionary<Guid, List<HealthCampParticipant>>> GetParticipantsForMultipleCampsAsync( List<Guid> campIds, CancellationToken ct = default);
 
+    Task<List<Salubrity.Application.DTOs.HealthCamps.CampParticipantContactDto>> GetCampParticipantContactsAsync(Guid campId, CancellationToken ct = default);
+
+    Task<List<Salubrity.Application.DTOs.HealthCamps.MyStationAssignmentDto>> GetMyStationAssignmentsAsync(Guid campId, Guid subcontractorId, CancellationToken ct = default);
+
 }
 
 

@@ -8,6 +8,7 @@ public class IndividualPreliminaryReportDto
 {
     public PatientDemographicsDto Demographics { get; set; } = new();
     public string CampName { get; set; } = string.Empty;
+    public string CampDate { get; set; } = string.Empty;
     public DateTime GeneratedAt { get; set; }
 
     public ResultsAtGlanceDto ResultsAtGlance { get; set; } = new();

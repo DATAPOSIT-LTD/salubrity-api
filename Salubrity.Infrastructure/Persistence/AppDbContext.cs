@@ -106,6 +106,9 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<FormFieldMapping> FormFieldMappings { get; set; }
         public DbSet<PatientNumberSequence> PatientNumberSequences { get; set; }
         public DbSet<DoctorRecommendation> DoctorRecommendations { get; set; }
+        public DbSet<ServiceReferral> ServiceReferrals => Set<ServiceReferral>();
+        public DbSet<Urgency> Urgencies => Set<Urgency>();
+        public DbSet<FollowUpSchedule> FollowUpSchedules => Set<FollowUpSchedule>();
         public DbSet<HealthCampParticipantPackage> HealthCampParticipantPackages { get; set; }
         public DbSet<HealthCampParticipantServiceStatus> HealthCampParticipantServiceStatuses { get; set; }
         public DbSet<OrganizationBranch> OrganizationBranches => Set<OrganizationBranch>();

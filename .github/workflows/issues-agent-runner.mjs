@@ -13,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const OWNER = process.env.REPO_OWNER;
 const REPO = process.env.REPO_NAME;
 const BRANCH = process.env.BRANCH || 'main';
@@ -46,51 +46,35 @@ async function ghGet(url) {
   return res.json();
 }
 
-async function geminiAnalyze(prompt) {
-  if (!GEMINI_API_KEY) {
+async function claudeAnalyze(prompt) {
+  if (!ANTHROPIC_API_KEY) {
     throw new Error(
-      'GEMINI_API_KEY env var is empty.\n' +
+      'ANTHROPIC_API_KEY env var is empty.\n' +
       'Fix: GitHub repo → Settings → Secrets and variables → Actions → New repository secret.\n' +
-      '  Name:  GEMINI_API_KEY\n' +
-      '  Value: get one from https://aistudio.google.com/app/apikey'
+      '  Name:  ANTHROPIC_API_KEY\n' +
+      '  Value: sk-ant-... (get one from https://console.anthropic.com/settings/keys)'
     );
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const res = await fetch(url, {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 16384,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: 'ARRAY',
-          items: {
-            type: 'OBJECT',
-            properties: {
-              title:     { type: 'STRING' },
-              body:      { type: 'STRING' },
-              labels:    { type: 'ARRAY', items: { type: 'STRING' } },
-              files:     { type: 'ARRAY', items: { type: 'STRING' } },
-              sha_short: { type: 'STRING' },
-              author:    { type: 'STRING' },
-              date:      { type: 'STRING' },
-            },
-            required: ['title', 'body', 'labels'],
-          },
-        },
-      },
+      model: 'claude-sonnet-4-5',
+      max_tokens: 16384,
+      messages: [{ role: 'user', content: prompt }],
     }),
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(`Gemini API ${res.status}: ${data?.error?.message ?? JSON.stringify(data).slice(0, 300)}`);
+    throw new Error(`Anthropic API ${res.status}: ${data?.error?.message ?? JSON.stringify(data).slice(0, 300)}`);
   }
-  const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
+  const text = data.content?.find(b => b.type === 'text')?.text;
   if (!text) {
-    throw new Error(`Gemini returned no text content. Body: ${JSON.stringify(data).slice(0, 300)}`);
+    throw new Error(`Anthropic returned no text content. Body: ${JSON.stringify(data).slice(0, 300)}`);
   }
   return text.replace(/```json|```/g, '').trim();
 }
@@ -175,12 +159,12 @@ Raw JSON array only — no markdown fences, no explanation.
 ${codeBlock}
 
 JSON:`;
-      const raw = await geminiAnalyze(prompt);
+      const raw = await claudeAnalyze(prompt);
       let codeIssues;
       try {
         codeIssues = JSON.parse(raw);
       } catch (e) {
-        console.error('  ⚠️  Failed to parse Gemini response as JSON. Skipping codebase scan.');
+        console.error('  ⚠️  Failed to parse Claude response as JSON. Skipping codebase scan.');
         console.error('  Parse error:', e.message);
         console.error('  Raw response (first 1000 chars):', raw.slice(0, 1000));
         codeIssues = [];
@@ -242,12 +226,12 @@ ${sectText}
 
 JSON:`;
 
-    const raw = await geminiAnalyze(prompt);
+    const raw = await claudeAnalyze(prompt);
     let commitIssues;
     try {
       commitIssues = JSON.parse(raw);
     } catch (e) {
-      console.error('  ⚠️  Failed to parse Gemini response as JSON. Skipping commit batch.');
+      console.error('  ⚠️  Failed to parse Claude response as JSON. Skipping commit batch.');
       console.error('  Parse error:', e.message);
       console.error('  Raw response (first 1000 chars):', raw.slice(0, 1000));
       commitIssues = [];

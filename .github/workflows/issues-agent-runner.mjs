@@ -13,7 +13,7 @@ import fs from 'fs';
 import path from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const OWNER = process.env.REPO_OWNER;
 const REPO = process.env.REPO_NAME;
 const BRANCH = process.env.BRANCH || 'main';
@@ -46,35 +46,35 @@ async function ghGet(url) {
   return res.json();
 }
 
-async function claudeAnalyze(prompt) {
-  if (!ANTHROPIC_API_KEY) {
+async function geminiAnalyze(prompt) {
+  if (!GEMINI_API_KEY) {
     throw new Error(
-      'ANTHROPIC_API_KEY env var is empty.\n' +
+      'GEMINI_API_KEY env var is empty.\n' +
       'Fix: GitHub repo → Settings → Secrets and variables → Actions → New repository secret.\n' +
-      '  Name:  ANTHROPIC_API_KEY\n' +
-      '  Value: sk-ant-... (get one from https://console.anthropic.com/settings/keys)'
+      '  Name:  GEMINI_API_KEY\n' +
+      '  Value: get one from https://aistudio.google.com/app/apikey'
     );
   }
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content: prompt }],
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 4096,
+        responseMimeType: 'application/json',
+      },
     }),
   });
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(`Anthropic API ${res.status}: ${data?.error?.message ?? JSON.stringify(data).slice(0, 300)}`);
+    throw new Error(`Gemini API ${res.status}: ${data?.error?.message ?? JSON.stringify(data).slice(0, 300)}`);
   }
-  const text = data.content?.find(b => b.type === 'text')?.text;
+  const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
   if (!text) {
-    throw new Error(`Anthropic returned no text content. Body: ${JSON.stringify(data).slice(0, 300)}`);
+    throw new Error(`Gemini returned no text content. Body: ${JSON.stringify(data).slice(0, 300)}`);
   }
   return text.replace(/```json|```/g, '').trim();
 }
@@ -159,7 +159,7 @@ Raw JSON array only — no markdown fences, no explanation.
 ${codeBlock}
 
 JSON:`;
-      const raw = await claudeAnalyze(prompt);
+      const raw = await geminiAnalyze(prompt);
       const codeIssues = JSON.parse(raw);
       codeIssues.forEach(i => { i._source = 'code'; });
       issues.push(...codeIssues);
@@ -218,7 +218,7 @@ ${sectText}
 
 JSON:`;
 
-    const raw = await claudeAnalyze(prompt);
+    const raw = await geminiAnalyze(prompt);
     const commitIssues = JSON.parse(raw);
     commitIssues.forEach(i => { i._source = 'commit'; });
     issues.push(...commitIssues);

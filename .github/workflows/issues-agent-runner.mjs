@@ -63,8 +63,24 @@ async function geminiAnalyze(prompt) {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 16384,
         responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              title:     { type: 'STRING' },
+              body:      { type: 'STRING' },
+              labels:    { type: 'ARRAY', items: { type: 'STRING' } },
+              files:     { type: 'ARRAY', items: { type: 'STRING' } },
+              sha_short: { type: 'STRING' },
+              author:    { type: 'STRING' },
+              date:      { type: 'STRING' },
+            },
+            required: ['title', 'body', 'labels'],
+          },
+        },
       },
     }),
   });
@@ -160,7 +176,15 @@ ${codeBlock}
 
 JSON:`;
       const raw = await geminiAnalyze(prompt);
-      const codeIssues = JSON.parse(raw);
+      let codeIssues;
+      try {
+        codeIssues = JSON.parse(raw);
+      } catch (e) {
+        console.error('  ⚠️  Failed to parse Gemini response as JSON. Skipping codebase scan.');
+        console.error('  Parse error:', e.message);
+        console.error('  Raw response (first 1000 chars):', raw.slice(0, 1000));
+        codeIssues = [];
+      }
       codeIssues.forEach(i => { i._source = 'code'; });
       issues.push(...codeIssues);
       console.log(`  → ${codeIssues.length} items found in codebase`);
@@ -219,7 +243,15 @@ ${sectText}
 JSON:`;
 
     const raw = await geminiAnalyze(prompt);
-    const commitIssues = JSON.parse(raw);
+    let commitIssues;
+    try {
+      commitIssues = JSON.parse(raw);
+    } catch (e) {
+      console.error('  ⚠️  Failed to parse Gemini response as JSON. Skipping commit batch.');
+      console.error('  Parse error:', e.message);
+      console.error('  Raw response (first 1000 chars):', raw.slice(0, 1000));
+      commitIssues = [];
+    }
     commitIssues.forEach(i => { i._source = 'commit'; });
     issues.push(...commitIssues);
     console.log(`  → ${commitIssues.length} commit section(s) documented`);

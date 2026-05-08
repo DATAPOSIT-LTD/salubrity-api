@@ -130,4 +130,71 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
 
 
 
+
+
+    public async Task<int> SoftDeletePriorSubmissionsAsync(
+        Guid userId,
+        Guid formTypeId,
+        IEnumerable<Guid> sectionIds,
+        CancellationToken ct = default)
+    {
+        var sectionList = sectionIds.Where(s => s != Guid.Empty).Distinct().ToList();
+        if (sectionList.Count == 0) return 0;
+
+        var prior = await _db.HealthAssessmentFormResponses
+            .Include(r => r.Responses)
+            .Where(r => r.CreatedBy == userId
+                        && r.FormTypeId == formTypeId
+                        && !r.IsDeleted)
+            .Where(r => r.Responses.Any(d => d.SectionId.HasValue && sectionList.Contains(d.SectionId.Value)))
+            .ToListAsync(ct);
+
+        if (prior.Count == 0) return 0;
+
+        var now = DateTime.UtcNow;
+        foreach (var container in prior)
+        {
+            container.IsDeleted = true;
+            container.DeletedAt = now;
+            foreach (var dyn in container.Responses)
+            {
+                dyn.IsDeleted = true;
+                dyn.DeletedAt = now;
+            }
+        }
+        await _db.SaveChangesAsync(ct);
+        return prior.Count;
+    }
+
+    public async Task<Salubrity.Application.DTOs.HealthAssessment.MyHealthAssessmentStatusDto> GetMyStatusAsync(
+        Guid userId,
+        CancellationToken ct = default)
+    {
+        var rows = await _db.HealthAssessmentFormResponses
+            .AsNoTracking()
+            .Where(r => r.CreatedBy == userId && !r.IsDeleted)
+            .Select(r => new
+            {
+                r.FormTypeId,
+                r.CreatedAt,
+                SectionIds = r.Responses
+                    .Where(d => !d.IsDeleted && d.SectionId.HasValue)
+                    .Select(d => d.SectionId!.Value)
+                    .ToList(),
+            })
+            .ToListAsync(ct);
+
+        var sectionIds = rows
+            .SelectMany(r => r.SectionIds)
+            .Distinct()
+            .ToList();
+
+        return new Salubrity.Application.DTOs.HealthAssessment.MyHealthAssessmentStatusDto
+        {
+            FormTypeIdsSubmitted = rows.Select(r => r.FormTypeId).Distinct().ToList(),
+            SectionIdsSubmitted = sectionIds,
+            SectionsSubmittedCount = sectionIds.Count,
+            LastSubmittedAt = rows.Count > 0 ? rows.Max(r => r.CreatedAt) : (DateTime?)null,
+        };
+    }
 }

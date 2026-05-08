@@ -13,6 +13,24 @@ public interface IHealthAssessmentRepository
     Task<Salubrity.Domain.Entities.HealthAssesment.HealthAssessment?> GetByIdWithParticipantAsync(Guid assessmentId, CancellationToken ct = default);
     Task AddFormResponseAsync(HealthAssessmentFormResponse response, CancellationToken ct = default);
 
+    /// <summary>
+    /// Soft-deletes prior live FormResponses (and their nested field responses)
+    /// for a given user, formType, and overlapping sections, so a fresh insert
+    /// can replace them. Returns the number of containers soft-deleted.
+    /// </summary>
+    Task<int> SoftDeletePriorSubmissionsAsync(
+        Guid userId,
+        Guid formTypeId,
+        IEnumerable<Guid> sectionIds,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Aggregates the current user's self-assessment progress from live responses.
+    /// </summary>
+    Task<Salubrity.Application.DTOs.HealthAssessment.MyHealthAssessmentStatusDto> GetMyStatusAsync(
+        Guid userId,
+        CancellationToken ct = default);
+
     // Existing
 
     // New: load the full form blueprint (version + sections + fields + options)

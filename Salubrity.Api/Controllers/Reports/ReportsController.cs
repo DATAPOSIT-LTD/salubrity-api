@@ -219,6 +219,34 @@ public class ReportsController : BaseController
         var dto = await svc.BuildAsync(campId, filters, ct);
         return Success(dto);
     }
+    /// <summary>Send the preliminary corporate report to one or more recipients with the PDF attached.</summary>
+    [HttpPost("corporate/{campId:guid}/send-email")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SendCorporateReportEmail(
+        Guid campId,
+        [FromBody] Salubrity.Application.DTOs.Reports.SendCorporateReportEmailRequest request,
+        [FromServices] Salubrity.Application.Interfaces.Services.Reporting.ICorporateReportService svc,
+        CancellationToken ct = default)
+    {
+        await svc.SendEmailAsync(campId, request, ct);
+        return Success<object>(new { sent = request?.Recipients?.Count ?? 0 });
+    }
+
+    /// <summary>Send the FINAL corporate report to one or more recipients with the PDF attached.</summary>
+    [HttpPost("corporate/{campId:guid}/final/send-email")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SendFinalCorporateReportEmail(
+        Guid campId,
+        [FromBody] Salubrity.Application.DTOs.Reports.SendCorporateReportEmailRequest request,
+        [FromServices] Salubrity.Application.Interfaces.Services.Reporting.IFinalCorporateReportService svc,
+        CancellationToken ct = default)
+    {
+        await svc.SendEmailAsync(campId, request, ct);
+        return Success<object>(new { sent = request?.Recipients?.Count ?? 0 });
+    }
+
     /// <summary>Download corporate report as PDF.</summary>
     [HttpGet("corporate/{campId:guid}/pdf")]
     [Authorize(Roles = "Admin")]

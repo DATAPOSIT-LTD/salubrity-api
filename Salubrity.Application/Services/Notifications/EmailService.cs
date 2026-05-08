@@ -191,7 +191,7 @@ public class EmailService : IEmailService
             await client.AuthenticateAsync(config.Username, config.Password);
         }
 
-        // await client.SendAsync(message);
+        await client.SendAsync(message);
         await client.DisconnectAsync(true);
     }
 

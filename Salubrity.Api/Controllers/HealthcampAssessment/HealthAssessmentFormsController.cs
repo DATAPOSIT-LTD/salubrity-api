@@ -41,4 +41,13 @@ public class HealthAssessmentFormsController : BaseController
         return Success(result);
     }
 
+
+    [HttpGet("me/status")]
+    [ProducesResponseType(typeof(ApiResponse<Salubrity.Application.DTOs.HealthAssessment.MyHealthAssessmentStatusDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyStatus(CancellationToken ct = default)
+    {
+        var userId = GetCurrentUserId();
+        var result = await _service.GetMyStatusAsync(userId, ct);
+        return Success(result);
+    }
 }

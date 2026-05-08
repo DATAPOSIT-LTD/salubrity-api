@@ -20,16 +20,80 @@ public sealed class CorporateReportService : ICorporateReportService
 {
     private readonly ICorporateReportRepository _repo;
     private readonly IGeminiClient _gemini;
+    private readonly Salubrity.Application.Interfaces.IEmailService _email;
     private readonly ILogger<CorporateReportService> _log;
 
     public CorporateReportService(
         ICorporateReportRepository repo,
         IGeminiClient gemini,
+        Salubrity.Application.Interfaces.IEmailService email,
         ILogger<CorporateReportService> log)
     {
         _repo = repo;
         _gemini = gemini;
+        _email = email;
         _log = log;
+    }
+
+    public async Task SendEmailAsync(Guid campId, SendCorporateReportEmailRequest request, CancellationToken ct = default)
+    {
+        if (request is null) throw new ArgumentNullException(nameof(request));
+        if (request.Recipients is null || request.Recipients.Count == 0)
+            throw new ValidationException(["At least one recipient is required."]);
+
+        var dto = await BuildAsync(campId, null, ct);
+        var pdfBytes = await BuildPdfAsync(campId, null, ct);
+
+        var slug = string.IsNullOrWhiteSpace(dto.CampName)
+            ? campId.ToString("N")
+            : dto.CampName.Replace(" ", "-").ToLowerInvariant();
+        var fileName = $"corporate-report-{slug}.pdf";
+        var attachments = new List<Salubrity.Application.DTOs.Email.EmailAttachment>
+        {
+            new Salubrity.Application.DTOs.Email.EmailAttachment
+            {
+                FileName = fileName,
+                Content = pdfBytes,
+                ContentType = "application/pdf",
+            }
+        };
+
+        var subject = $"Preliminary Corporate Report - {dto.CampName}";
+        var model = new
+        {
+            contact_name = string.IsNullOrWhiteSpace(request.ContactName) ? "there" : request.ContactName,
+            camp_name = dto.CampName,
+            client_name = dto.ClientName,
+            date_range = dto.DateRange,
+            generated_at = dto.GeneratedAt.ToString("yyyy-MM-dd"),
+            message = request.Message ?? string.Empty,
+            has_message = !string.IsNullOrWhiteSpace(request.Message),
+        };
+
+        if (request.Recipients.Count == 1)
+        {
+            await _email.SendAsync(new Salubrity.Application.DTOs.Email.EmailRequestDto
+            {
+                ToEmail = request.Recipients[0],
+                Subject = subject,
+                TemplateKey = "CorporateReport",
+                Model = model,
+                Attachments = attachments,
+            });
+        }
+        else
+        {
+            await _email.SendBatchAsync(new Salubrity.Application.DTOs.Email.BatchEmailRequest
+            {
+                ToEmails = request.Recipients,
+                Subject = subject,
+                TemplateKey = "CorporateReport",
+                Model = model,
+                Attachments = attachments,
+            });
+        }
+
+        _log.LogInformation("Sent PRELIMINARY corporate report for camp {CampId} to {Count} recipients", campId, request.Recipients.Count);
     }
 
     public async Task<CorporateReportDto> BuildAsync(Guid campId, Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters? filters = null, CancellationToken ct = default)

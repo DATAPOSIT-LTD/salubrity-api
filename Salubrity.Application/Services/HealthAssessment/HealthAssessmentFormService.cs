@@ -17,6 +17,19 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
     public async Task<Guid> SubmitFormSectionAsync(SubmitHealthAssessmentFormDto dto, Guid userId, CancellationToken ct = default)
     {
 
+        // True edit semantics: soft-delete any prior live submissions
+        // for the same user + formType that touched the same sections,
+        // then insert this submission as the new live record.
+        var sectionIds = dto.DynamicResponses
+            .Where(r => r.SectionId.HasValue && r.SectionId.Value != Guid.Empty)
+            .Select(r => r.SectionId!.Value)
+            .Distinct()
+            .ToList();
+        if (sectionIds.Count > 0)
+        {
+            await _repo.SoftDeletePriorSubmissionsAsync(userId, dto.FormTypeId, sectionIds, ct);
+        }
+
         var formResponse = new HealthAssessmentFormResponse
         {
             Id = Guid.NewGuid(),
@@ -69,4 +82,12 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
         return result;
     }
 
+
+
+    public Task<Salubrity.Application.DTOs.HealthAssessment.MyHealthAssessmentStatusDto> GetMyStatusAsync(
+        Guid userId,
+        CancellationToken ct = default)
+    {
+        return _repo.GetMyStatusAsync(userId, ct);
+    }
 }

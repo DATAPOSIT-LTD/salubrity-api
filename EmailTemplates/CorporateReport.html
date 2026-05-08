@@ -1,0 +1,22 @@
+<!-- File: CorporateReport.html -->
+<h2 style="margin-top: 0; color: #014445;">Corporate Health Report</h2>
+
+<p>Dear {{ contact_name }},</p>
+
+<p>
+  Please find attached the Corporate Health Report for
+  <strong>{{ camp_name }}</strong>{{ if client_name }} ({{ client_name }}){{ end }}{{ if date_range }} &mdash; {{ date_range }}{{ end }}.
+</p>
+
+{{ if has_message }}
+<div style="background:#F5F2D8; border-left: 4px solid #D3C34A; padding: 14px 16px; margin: 20px 0; border-radius: 4px;">
+  <div style="font-size: 12px; color: #6B5E1A; font-weight: bold; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px;">Message from the sender</div>
+  <div style="white-space: pre-wrap; color: #231f20;">{{ message }}</div>
+</div>
+{{ end }}
+
+<p>The attached PDF contains the full report including KPIs, attendance breakdown, station completion rates, top clinical findings, and the AI-generated narrative summary.</p>
+
+<p style="margin-top: 24px; color: #555; font-size: 12px;">Generated on {{ generated_at }}.</p>
+
+<p style="margin-top: 30px;">Best regards,<br/><strong>Salubrity Centre</strong></p>

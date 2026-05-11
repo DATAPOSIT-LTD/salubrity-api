@@ -65,6 +65,7 @@ public static class DependencyInjection
         var connectionString = config.GetConnectionString("DefaultConnection");
 
         services.AddScoped<IRbacSeeder, RbacSeeder>();
+        services.AddScoped<Salubrity.Application.Interfaces.Repositories.Auth.IPasswordResetTokenRepository, Salubrity.Infrastructure.Repositories.Auth.PasswordResetTokenRepository>();
         services.AddScoped<Salubrity.Application.Interfaces.Repositories.Bi.IBiRepository, Salubrity.Infrastructure.Repositories.Bi.BiRepository>();
         services.AddScoped<Salubrity.Application.Interfaces.Repositories.Reporting.IFinalCorporateReportRepository, Salubrity.Infrastructure.Repositories.Reporting.FinalCorporateReportRepository>();
         services.AddScoped<Salubrity.Application.Interfaces.Services.AdminDashboard.IAdminDashboardOverviewService, Salubrity.Infrastructure.Services.AdminDashboard.AdminDashboardOverviewService>();

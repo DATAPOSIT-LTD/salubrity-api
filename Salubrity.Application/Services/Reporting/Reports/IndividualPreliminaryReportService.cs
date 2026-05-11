@@ -15,12 +15,15 @@ namespace Salubrity.Application.Services.Reporting.Reports;
 public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryReportService
 {
     private readonly IHealthCampParticipantRepository _participantRepo;
+    private readonly Salubrity.Application.Interfaces.Services.HealthCamps.IHealthCampCheckInService _checkInService;
     private readonly IIntakeFormResponseRepository _responseRepo;
 
     public IndividualPreliminaryReportService(
         IHealthCampParticipantRepository participantRepo,
-        IIntakeFormResponseRepository responseRepo)
+        IIntakeFormResponseRepository responseRepo,
+        Salubrity.Application.Interfaces.Services.HealthCamps.IHealthCampCheckInService checkInService)
     {
+        _checkInService = checkInService;
         _participantRepo = participantRepo;
         _responseRepo = responseRepo;
     }
@@ -149,6 +152,11 @@ public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryR
         // ── 5. Compose the final DTO ─────────────────────────────────────────
         var score = HealthScoreCalculator.Compute(normalCount, borderlineCount, abnormalCount);
 
+        // Station-completion gate (drives the download button on the report page)
+        var stationStatuses = await _checkInService.GetParticipantStationStatusesAsync(participantId, ct);
+        var totalStations = stationStatuses.Count;
+        var completedStations = stationStatuses.Count(s => string.Equals(s.Status, "Completed", StringComparison.OrdinalIgnoreCase));
+
         return new IndividualPreliminaryReportDto
         {
             Demographics = demographics,
@@ -170,13 +178,28 @@ public sealed class IndividualPreliminaryReportService : IIndividualPreliminaryR
                 Score = score.Score,
                 Message = score.Message
             },
-            RiskBars = BuildRiskBars(latestBmi, latestSystolic, latestGlucose, latestCholesterol)
+            RiskBars = BuildRiskBars(latestBmi, latestSystolic, latestGlucose, latestCholesterol),
+            AllStationsCompleted = totalStations > 0 && completedStations == totalStations,
+            StationsCompletedCount = completedStations,
+            StationsTotalCount = totalStations,
+            PendingStationNames = stationStatuses
+                .Where(s => !string.Equals(s.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+                .Select(s => s.ServiceName)
+                .ToList()
         };
     }
 
     public async Task<byte[]> BuildPdfAsync(Guid participantId, CancellationToken ct = default)
     {
         var dto = await BuildAsync(participantId, ct);
+        if (!dto.AllStationsCompleted)
+        {
+            var pending = dto.PendingStationNames.Count > 0
+                ? string.Join(", ", dto.PendingStationNames)
+                : "all stations";
+            throw new Salubrity.Shared.Exceptions.ValidationException(
+                [$"Your preliminary report is available only after all camp stations are completed. Pending: {pending}."]);
+        }
         var doc = new IndividualPreliminaryReportDocument(dto, "Individual Preliminary Report");
         return doc.GeneratePdf();
     }

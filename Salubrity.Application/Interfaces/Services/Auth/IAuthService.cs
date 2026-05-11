@@ -11,6 +11,7 @@ namespace Salubrity.Application.Interfaces.Services.Auth
         Task LogoutAsync(Guid userId);
         Task RequestPasswordResetAsync(ForgotPasswordRequestDto input);
         Task ResetPasswordAsync(ResetPasswordRequestDto input);
+        Task ResetPasswordWithTokenAsync(ResetPasswordWithTokenDto input);
         Task ChangePasswordAsync(Guid userId, ChangePasswordRequestDto input);
         Task<SetupTotpResponseDto> SetupMfaAsync(string email);
         Task<bool> VerifyTotpCodeAsync(VerifyTotpCodeRequestDto input);

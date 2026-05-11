@@ -88,6 +88,7 @@ namespace Salubrity.Infrastructure.Persistence
         public DbSet<IntakeFormFieldResponse> IntakeFormFieldResponses => Set<IntakeFormFieldResponse>();
         public DbSet<IntakeFormVersion> IntakeFormVersions => Set<IntakeFormVersion>();
         public DbSet<IntakeFormField> IntakeFormFields => Set<IntakeFormField>();
+        public DbSet<Salubrity.Domain.Entities.Auth.PasswordResetToken> PasswordResetTokens => Set<Salubrity.Domain.Entities.Auth.PasswordResetToken>();
         public DbSet<HealthAssessment> HealthAssessments => Set<HealthAssessment>();
         public DbSet<HealthAssessmentMetric> HealthAssessmentMetrics => Set<HealthAssessmentMetric>();
         public DbSet<HealthMetricThreshold> HealthMetricThresholds => Set<HealthMetricThreshold>();

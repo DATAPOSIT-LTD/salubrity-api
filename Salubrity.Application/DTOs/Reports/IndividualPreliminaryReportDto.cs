@@ -19,6 +19,13 @@ public class IndividualPreliminaryReportDto
 
     public GeneralHealthScoreDto GeneralHealthScore { get; set; } = new();
     public List<RiskBarDto> RiskBars { get; set; } = new();
+
+    /// <summary>True when every assigned station for this camp participant has Status == Completed.</summary>
+    public bool AllStationsCompleted { get; set; }
+    public int StationsCompletedCount { get; set; }
+    public int StationsTotalCount { get; set; }
+    /// <summary>Names of stations that are not yet Completed (Not served / Ongoing / Cancelled).</summary>
+    public List<string> PendingStationNames { get; set; } = new();
 }
 
 public class PatientDemographicsDto

@@ -23,6 +23,7 @@ public sealed class IndividualFinalReportDocument : IDocument
     private const string RedText = "#B91C1C";
     private const string BorderGray = "#E5E7EB";
     private const string LabelGray = "#6B7280";
+    private const string Burgundy = "#7B1F2A";
 
     private readonly IndividualFinalReportDto _r;
 
@@ -300,7 +301,7 @@ public sealed class IndividualFinalReportDocument : IDocument
                 foreach (var e in leftEntries)
                     RenderBodyMapLabel(lc, e, alignRight: true);
             });
-            row.ConstantItem(200).AlignCenter().AlignMiddle().Element(e =>
+            row.ConstantItem(130).AlignCenter().AlignMiddle().Element(e =>
             {
                 if (silhouetteBytes is null)
                     e.AlignCenter().Text("(silhouette)").FontSize(9).FontColor(LabelGray);
@@ -317,7 +318,10 @@ public sealed class IndividualFinalReportDocument : IDocument
 
     private static void RenderBodyMapLabel(ColumnDescriptor c, BodyMapEntryDto entry, bool alignRight)
     {
-        var color = StatusColor(entry.Status);
+        // Status color stays for the small status caption beside the service name (red/amber/green dot),
+        // but the leader line itself is burgundy to match the on-screen preview.
+        var statusColor = StatusColor(entry.Status);
+
         c.Item().PaddingVertical(4).Row(row =>
         {
             if (alignRight)
@@ -325,27 +329,27 @@ public sealed class IndividualFinalReportDocument : IDocument
                 row.RelativeItem().AlignRight().Column(col =>
                 {
                     col.Item().AlignRight().Text(entry.ServiceName).FontSize(9).Bold();
-                    col.Item().AlignRight().Text(entry.Status).FontSize(8).FontColor(color);
+                    col.Item().AlignRight().Text(entry.Status).FontSize(8).FontColor(statusColor);
                 });
-                // Pointer: short dash + dot, leading toward the silhouette on the right
-                row.ConstantItem(28).AlignMiddle().Row(p =>
+                // Leader pointing toward the silhouette: thin burgundy line ending in a small circle.
+                row.ConstantItem(34).AlignMiddle().Row(p =>
                 {
-                    p.RelativeItem().Height(1).Background(color).AlignMiddle();
-                    p.ConstantItem(8).AlignMiddle().AlignCenter().Text("●").FontSize(8).FontColor(color);
+                    p.RelativeItem().Height(2).Background(Burgundy).AlignMiddle();
+                    p.ConstantItem(6).Height(6).Background(Burgundy).AlignMiddle();
                 });
             }
             else
             {
-                // Pointer: dot + short dash, leading away from the silhouette on the left
-                row.ConstantItem(28).AlignMiddle().Row(p =>
+                // Leader pointing away from the silhouette: small circle + thin burgundy line.
+                row.ConstantItem(34).AlignMiddle().Row(p =>
                 {
-                    p.ConstantItem(8).AlignMiddle().AlignCenter().Text("●").FontSize(8).FontColor(color);
-                    p.RelativeItem().Height(1).Background(color).AlignMiddle();
+                    p.ConstantItem(6).Height(6).Background(Burgundy).AlignMiddle();
+                    p.RelativeItem().Height(2).Background(Burgundy).AlignMiddle();
                 });
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text(entry.ServiceName).FontSize(9).Bold();
-                    col.Item().Text(entry.Status).FontSize(8).FontColor(color);
+                    col.Item().Text(entry.Status).FontSize(8).FontColor(statusColor);
                 });
             }
         });

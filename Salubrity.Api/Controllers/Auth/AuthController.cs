@@ -106,6 +106,14 @@ public class AuthController : BaseController
         return SuccessMessage("OTP sent to email.");
     }
 
+    [HttpPost("reset-password-with-token")]
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResetPasswordWithToken([FromBody] ResetPasswordWithTokenDto dto)
+    {
+        await _authService.ResetPasswordWithTokenAsync(dto);
+        return SuccessMessage("Your password has been updated. You can now sign in.");
+    }
+
     [HttpPost("reset-password")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status401Unauthorized)]

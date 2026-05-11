@@ -36,6 +36,9 @@ namespace Salubrity.Application.Services.Auth
         private readonly IUserRepository _userRepository;
         private readonly IJwtService _jwtService;
         private readonly IPasswordHasher _passwordHasher;
+        private readonly Salubrity.Application.Interfaces.Repositories.Auth.IPasswordResetTokenRepository _passwordResetTokenRepository;
+        private readonly Salubrity.Application.Interfaces.IEmailService _emailService;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
         private readonly ITotpService _totpService;
         private readonly IRoleRepository _roleRepository;
         private readonly IRolePermissionGroupService _rolePermissionGroupService;
@@ -77,8 +80,14 @@ namespace Salubrity.Application.Services.Auth
             IPatientNumberGeneratorService patientNumberGeneratorService,
             IHealthCampParticipantRepository healthCampParticipantRepository,
             IHealthCampRepository healthCampRepository
-            )
+            ,
+            Salubrity.Application.Interfaces.Repositories.Auth.IPasswordResetTokenRepository passwordResetTokenRepository,
+            Salubrity.Application.Interfaces.IEmailService emailService,
+            Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
+            _passwordResetTokenRepository = passwordResetTokenRepository;
+            _emailService = emailService;
+            _configuration = configuration;
             _userRepository = userRepository;
             _jwtService = jwtService;
             _passwordHasher = passwordHasher;
@@ -388,36 +397,70 @@ namespace Salubrity.Application.Services.Auth
             if (string.IsNullOrWhiteSpace(input.Email))
                 throw new ValidationException(["Email is required."]);
 
-            // Step 1: Find user
+            // Silently succeed if the user doesn't exist — prevents email enumeration.
             var user = await _userRepository.FindUserByEmailAsync(input.Email);
-            if (user == null)
-                throw new NotFoundException("User", input.Email);
+            if (user == null) return;
 
-            // Step 2: Generate reset token
-            var token = Guid.NewGuid().ToString("N");
-            var expiresAt = DateTime.UtcNow.AddHours(1);
+            // 256-bit URL-safe random token
+            var raw = new byte[32];
+            System.Security.Cryptography.RandomNumberGenerator.Fill(raw);
+            var token = Convert.ToBase64String(raw)
+                .Replace("+", "-").Replace("/", "_").TrimEnd('=');
 
             var resetToken = new PasswordResetToken
             {
                 Id = Guid.NewGuid(),
                 UserId = user.Id,
                 Token = token,
-                ExpiresAt = expiresAt,
-                CreatedAt = DateTime.UtcNow
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
+                CreatedAt = DateTime.UtcNow,
+                IsUsed = false,
             };
+            await _passwordResetTokenRepository.AddAsync(resetToken);
 
+            var frontendBase = _configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "https://app.salubritycentre.com";
+            var resetUrl = $"{frontendBase}/reset-password?token={Uri.EscapeDataString(token)}";
 
+            await _emailService.SendAsync(new Salubrity.Application.DTOs.Email.EmailRequestDto
+            {
+                ToEmail = user.Email,
+                Subject = "Reset your Salubrity password",
+                TemplateKey = "PasswordReset",
+                Model = new
+                {
+                    contact_name = user.FirstName ?? "there",
+                    reset_url = resetUrl,
+                    expires_in = "1 hour",
+                },
+            });
         }
 
         public async Task ResetPasswordAsync(ResetPasswordRequestDto input)
         {
-            var user = await _userRepository.FindUserByEmailAsync(input.Email);
-            if (user == null) throw new InvalidOperationException("User not found.");
+            // DEPRECATED OTP-based path. Kept for backwards compatibility but always fails:
+            // the new token-based flow is ResetPasswordWithTokenAsync.
+            throw new InvalidOperationException("This flow is deprecated. Use the password-reset link emailed to you.");
+        }
+
+        public async Task ResetPasswordWithTokenAsync(ResetPasswordWithTokenDto input)
+        {
+            if (string.IsNullOrWhiteSpace(input.Token))
+                throw new ValidationException(["Reset token is required."]);
+            if (string.IsNullOrWhiteSpace(input.NewPassword) || input.NewPassword.Length < 8)
+                throw new ValidationException(["Password must be at least 8 characters."]);
+
+            var record = await _passwordResetTokenRepository.FindActiveByTokenAsync(input.Token);
+            if (record == null)
+                throw new ValidationException(["This reset link is invalid or has expired. Request a new one."]);
+
+            var user = await _userRepository.FindUserByIdAsync(record.UserId)
+                ?? throw new ValidationException(["User not found for this reset token."]);
 
             user.PasswordHash = _passwordHasher.HashPassword(input.NewPassword);
             user.LastPasswordChangeAt = DateTime.UtcNow;
-
             await _userRepository.UpdateUserAsync(user);
+
+            await _passwordResetTokenRepository.MarkUsedAsync(record.Id);
         }
 
         public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequestDto input)

@@ -40,6 +40,20 @@ public class DoctorRecommendationsController : BaseController
         return Success<object>(new { draft });
     }
 
+    /// <summary>AI-assisted draft of one of the four Doctors Review textareas:
+    /// Pertinent History Findings, Pertinent Clinical Findings, Diagnostic Impression, Conclusion.</summary>
+    [HttpPost("draft-field")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Doctor,Admin")]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PostFieldDraft(
+        [FromBody] Salubrity.Application.DTOs.Clinical.GenerateClinicalFieldDraftRequestDto request,
+        [FromServices] Salubrity.Application.Interfaces.Services.Clinical.IClinicalFieldDraftService drafts,
+        CancellationToken ct = default)
+    {
+        var draft = await drafts.GenerateAsync(request, ct);
+        return Success<object>(new { draft });
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(ApiResponse<DoctorRecommendationResponseDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct = default)

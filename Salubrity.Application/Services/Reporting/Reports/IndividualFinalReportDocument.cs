@@ -329,7 +329,7 @@ public sealed class IndividualFinalReportDocument : IDocument
                 row.RelativeItem().AlignRight().Column(col =>
                 {
                     col.Item().AlignRight().Text(entry.ServiceName).FontSize(9).Bold();
-                    col.Item().AlignRight().Text(entry.Status).FontSize(8).FontColor(statusColor);
+                    col.Item().AlignRight().Text(string.IsNullOrWhiteSpace(entry.Conclusion) ? entry.Status : entry.Conclusion).FontSize(8).FontColor(statusColor);
                 });
                 // Leader pointing toward the silhouette: thin burgundy line ending in a small circle.
                 row.ConstantItem(34).AlignMiddle().Row(p =>
@@ -349,7 +349,7 @@ public sealed class IndividualFinalReportDocument : IDocument
                 row.RelativeItem().Column(col =>
                 {
                     col.Item().Text(entry.ServiceName).FontSize(9).Bold();
-                    col.Item().Text(entry.Status).FontSize(8).FontColor(statusColor);
+                    col.Item().Text(string.IsNullOrWhiteSpace(entry.Conclusion) ? entry.Status : entry.Conclusion).FontSize(8).FontColor(statusColor);
                 });
             }
         });

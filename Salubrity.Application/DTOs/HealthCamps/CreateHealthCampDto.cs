@@ -11,6 +11,8 @@ namespace Salubrity.Application.DTOs.HealthCamps
 		public TimeSpan? StartTime { get; set; }
 		public int? ExpectedParticipants { get; set; }
 
+		public bool RequiresSelfAssessment { get; set; } = false;
+
 		// Multiple package blocks — each with its own items & services
 		public List<CreateCampPackageDto> Packages { get; set; } = new();
 	}

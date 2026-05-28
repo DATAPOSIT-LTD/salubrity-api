@@ -176,6 +176,7 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
             .Select(r => new
             {
                 r.FormTypeId,
+                r.HealthCampId,
                 r.CreatedAt,
                 SectionIds = r.Responses
                     .Where(d => !d.IsDeleted && d.SectionId.HasValue)
@@ -189,12 +190,44 @@ public class HealthAssessmentRepository : IHealthAssessmentRepository
             .Distinct()
             .ToList();
 
+        // Find earliest camp where user completed all 3 SA form types
+        var saTypeIds = new HashSet<Guid>
+        {
+            Guid.Parse("bcad133b-9b8a-47e5-8551-e86069cdd80d"),
+            Guid.Parse("4ab8a5f2-8f8d-4c49-97ec-cdaff0c51843"),
+            Guid.Parse("bd5e98e0-7389-4e25-9712-84a7bfe68f63"),
+        };
+
+        Guid? completedInCampId = null;
+        string? completedInCampName = null;
+
+        var rowsWithCamp = rows.Where(r => r.HealthCampId.HasValue).ToList();
+        var campGroups = rowsWithCamp
+            .GroupBy(r => r.HealthCampId!.Value)
+            .OrderBy(g => rowsWithCamp.Where(r => r.HealthCampId == g.Key).Min(r => r.CreatedAt));
+
+        foreach (var campGroup in campGroups)
+        {
+            var typesInCamp = campGroup.Select(r => r.FormTypeId).ToHashSet();
+            if (saTypeIds.IsSubsetOf(typesInCamp))
+            {
+                completedInCampId = campGroup.Key;
+                completedInCampName = await _db.HealthCamps
+                    .Where(c => c.Id == campGroup.Key)
+                    .Select(c => c.Name)
+                    .FirstOrDefaultAsync(ct);
+                break;
+            }
+        }
+
         return new Salubrity.Application.DTOs.HealthAssessment.MyHealthAssessmentStatusDto
         {
             FormTypeIdsSubmitted = rows.Select(r => r.FormTypeId).Distinct().ToList(),
             SectionIdsSubmitted = sectionIds,
             SectionsSubmittedCount = sectionIds.Count,
             LastSubmittedAt = rows.Count > 0 ? rows.Max(r => r.CreatedAt) : (DateTime?)null,
+            CompletedInCampId = completedInCampId,
+            CompletedInCampName = completedInCampName,
         };
     }
 }

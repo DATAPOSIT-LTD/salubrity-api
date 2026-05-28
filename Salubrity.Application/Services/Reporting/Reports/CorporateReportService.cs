@@ -132,6 +132,7 @@ public sealed class CorporateReportService : ICorporateReportService
         return new CorporateReportDto
         {
             CampId = campId,
+            OrganizationId = raw.OrganizationId,
             CampName = raw.CampName,
             ClientName = raw.ClientName,
             PackageName = raw.PackageName,
@@ -153,6 +154,7 @@ public sealed class CorporateReportService : ICorporateReportService
             },
             StationCompletion = raw.StationCompletion,
             TopFindings = raw.TopFindings,
+            Cardiometabolic = raw.Cardiometabolic,
             Narratives = narratives,
         };
     }

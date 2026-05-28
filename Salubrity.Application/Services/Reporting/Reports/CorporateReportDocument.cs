@@ -43,6 +43,7 @@ public sealed class CorporateReportDocument : IDocument
                 ComposeAttendance(col);
                 ComposeStationCompletion(col);
                 ComposeTopFindings(col);
+        ComposeCardiometabolic(col);
                 ComposeNarratives(col);
                 ComposeDisclaimer(col);
             });
@@ -283,5 +284,79 @@ public sealed class CorporateReportDocument : IDocument
         col.Item().BorderTop(1).BorderColor(BorderGray).PaddingTop(6)
             .Text("Important Notice: This preliminary corporate report is generated for internal review purposes. Individual health data is anonymised in aggregate views. Results should be interpreted by qualified occupational health professionals. Data handled in accordance with the Kenya Data Protection Act 2019.")
             .FontSize(7).FontColor(LabelGray).Italic();
+    }
+
+
+    private void ComposeCardiometabolic(ColumnDescriptor col)
+    {
+        var c = _r.Cardiometabolic ?? new Salubrity.Application.DTOs.Reports.CardiometabolicSnapshotDto();
+        col.Item().PaddingTop(8).Text("Cardiometabolic snapshot").FontSize(11).Bold();
+
+        col.Item().PaddingTop(4).Row(row =>
+        {
+            // Average BP
+            row.RelativeItem().Border(1).BorderColor("#E5E7EB").Padding(8).Column(cell =>
+            {
+                cell.Item().Text("Average Blood Pressure").FontSize(8).FontColor("#6B7280");
+                cell.Item().PaddingTop(2).Text(
+                    c.BloodPressureSamples > 0 ? $"{c.AverageSystolic} / {c.AverageDiastolic} mmHg" : "—"
+                ).FontSize(14).Bold().FontColor("#7B1F2A");
+                cell.Item().PaddingTop(2).Text($"Based on {c.BloodPressureSamples} readings").FontSize(7).FontColor("#6B7280");
+            });
+
+            row.ConstantItem(6);
+
+            // BMI distribution
+            row.RelativeItem().Border(1).BorderColor("#E5E7EB").Padding(8).Column(cell =>
+            {
+                cell.Item().Text("BMI distribution").FontSize(8).FontColor("#6B7280");
+                cell.Item().PaddingTop(2).Element(e => RenderBands(e, c.BmiSamples, new[]
+                {
+                    ("Underweight", c.BmiUnderweight, "#60A5FA"),
+                    ("Normal", c.BmiNormal, "#16A34A"),
+                    ("Overweight", c.BmiOverweight, "#F59E0B"),
+                    ("Obese", c.BmiObese, "#DC2626"),
+                }));
+                cell.Item().PaddingTop(2).Text($"{c.BmiSamples} samples").FontSize(7).FontColor("#6B7280");
+            });
+
+            row.ConstantItem(6);
+
+            // RBS bands
+            row.RelativeItem().Border(1).BorderColor("#E5E7EB").Padding(8).Column(cell =>
+            {
+                cell.Item().Text("RBS (mmol/L)").FontSize(8).FontColor("#6B7280");
+                cell.Item().PaddingTop(2).Element(e => RenderBands(e, c.RbsSamples, new[]
+                {
+                    ("Normal (<7.8)", c.RbsNormal, "#16A34A"),
+                    ("Impaired (7.8-11.0)", c.RbsImpaired, "#F59E0B"),
+                    ("Diabetic (>=11.1)", c.RbsDiabetic, "#DC2626"),
+                }));
+                cell.Item().PaddingTop(2).Text($"{c.RbsSamples} samples").FontSize(7).FontColor("#6B7280");
+            });
+        });
+    }
+
+    private static void RenderBands(QuestPDF.Infrastructure.IContainer container, int total, (string label, int value, string color)[] items)
+    {
+        container.Column(stack =>
+        {
+            foreach (var item in items)
+            {
+                var pct = total > 0 ? (int)Math.Round(item.value * 100.0 / total) : 0;
+                stack.Item().PaddingTop(2).Text(t =>
+                {
+                    t.Span(item.label).FontSize(7).FontColor("#374151");
+                    t.Span($"  {item.value} ({pct}%)").FontSize(7).FontColor("#6B7280");
+                });
+                stack.Item().Height(3).Background("#F3F4F6").Column(bar =>
+                {
+                    if (pct > 0)
+                    {
+                        bar.Item().Width(Math.Max(1, pct)).Height(3).Background(item.color);
+                    }
+                });
+            }
+        });
     }
 }

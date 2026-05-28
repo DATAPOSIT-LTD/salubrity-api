@@ -35,6 +35,7 @@ public class HealthAssessmentFormService : IHealthAssessmentFormService
             Id = Guid.NewGuid(),
             FormTypeId = dto.FormTypeId,
             IntakeFormVersionId = dto.IntakeFormVersionId,
+            HealthCampId = dto.HealthCampId,
             CreatedBy = userId,
             Responses = [.. dto.DynamicResponses.Select(r => new HealthAssessmentDynamicFieldResponse
             {

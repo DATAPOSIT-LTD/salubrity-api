@@ -110,7 +110,7 @@ public sealed class IndividualFinalReportService : IIndividualFinalReportService
             CreatedAt = r.CreatedAt,
         }).ToList();
 
-        // 5. Body-map entries — worst status across each service section's metrics.
+        // 5. Body-map entries — worst status + clinical conclusion per service section.
         var bodyMap = prelim.ServiceSections.Select(section =>
         {
             var worst = WorstStatus(section.Metrics.Select(m => m.Status));
@@ -119,6 +119,7 @@ public sealed class IndividualFinalReportService : IIndividualFinalReportService
                 ServiceName = section.ServiceName,
                 IconKey = section.IconKey,
                 Status = worst,
+                Conclusion = DeriveConclusion(section.ServiceName, section.Metrics),
             };
         }).ToList();
 
@@ -170,5 +171,55 @@ public sealed class IndividualFinalReportService : IIndividualFinalReportService
             if (rank.TryGetValue(s ?? "Normal", out var v) && v > worst) worst = v;
         }
         return worst switch { 2 => "Abnormal", 1 => "Borderline", _ => "Normal" };
+    }
+
+
+    /// <summary>
+    /// Turn a section's metric labels (plus the service name as fallback) into a clinical
+    /// conclusion shown on the body map — e.g. "Hypertension" instead of "Abnormal".
+    /// Conservative: only labels with a clinically standard term are mapped.
+    /// </summary>
+    private static string DeriveConclusion(string serviceName, IReadOnlyList<MetricDto> metrics)
+    {
+        var sname = (serviceName ?? string.Empty).ToLowerInvariant();
+
+        // Look for the worst metric first (Abnormal beats Borderline) — its label drives the term.
+        var abnormal = metrics.FirstOrDefault(m => string.Equals(m.Status, "Abnormal", StringComparison.OrdinalIgnoreCase));
+        var borderline = metrics.FirstOrDefault(m => string.Equals(m.Status, "Borderline", StringComparison.OrdinalIgnoreCase));
+        var driver = abnormal ?? borderline;
+        if (driver == null) return "Normal";
+
+        var lcLabel = (driver.Label ?? string.Empty).ToLowerInvariant();
+        var isAbnormal = abnormal != null;
+
+        // Metric-label-driven mapping (most specific, kicks in regardless of service).
+        if (lcLabel.Contains("blood pressure") || lcLabel.StartsWith("bp")) return "Hypertension";
+        if (lcLabel.Contains("heart rate") || lcLabel.Contains("pulse")) return "Abnormal heart rate";
+        if (lcLabel.Contains("bmi") || lcLabel.Contains("body mass")) return isAbnormal ? "Obesity" : "Overweight";
+        if (lcLabel.Contains("random blood sugar") || lcLabel.Contains("rbs") || lcLabel.Contains("blood sugar") || lcLabel.Contains("glucose"))
+            return "Hyperglycemia";
+        if (lcLabel.Contains("hba1c")) return "Elevated HbA1c";
+        if (lcLabel.Contains("cholesterol")) return "Dyslipidemia";
+        if (lcLabel.Contains("temperature")) return "Fever";
+        if (lcLabel.Contains("oxygen") || lcLabel.Contains("spo")) return "Low oxygen saturation";
+        if (lcLabel.Contains("creatinine") || lcLabel.Contains("urea")) return "Renal concern";
+        if (lcLabel.Contains("ast") || lcLabel.Contains("alt") || lcLabel.Contains("ggt") || lcLabel.Contains("bilirubin"))
+            return "Hepatic concern";
+
+        // Service-name fallback (when label is non-numeric / generic like "Notes").
+        if (sname.Contains("mental")) return "Mental health concern";
+        if (sname.Contains("vision") || sname.Contains("eye") || sname.Contains("visual")) return "Visual impairment";
+        if (sname.Contains("ent") || sname.Contains("ear, nose") || sname.Contains("nose")) return "ENT condition";
+        if (sname.Contains("dental")) return "Dental issue";
+        if (sname.Contains("mss") || sname.Contains("musculoskeletal") || sname.Contains("physiotherap") || sname.Contains("joint"))
+            return "Musculoskeletal concern";
+        if (sname.Contains("nutrition")) return "Nutritional concern";
+        if (sname.Contains("lab")) return "Abnormal lab result";
+        if (sname.Contains("well woman") || sname.Contains("breast")) return "Women's health concern";
+        if (sname.Contains("audiomet")) return "Hearing concern";
+        if (sname.Contains("ultrasound")) return "Imaging finding";
+        if (sname.Contains("lung")) return "Pulmonary concern";
+
+        return isAbnormal ? "Abnormal" : "Borderline";
     }
 }

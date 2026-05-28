@@ -1,4 +1,6 @@
 ﻿using MediatR;
+using Salubrity.Infrastructure.Persistence.Converters;
+using Salubrity.Shared.Security;
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Domain.Common;
 using Salubrity.Domain.Entities.Audit;
@@ -29,11 +31,13 @@ namespace Salubrity.Infrastructure.Persistence
     public class AppDbContext : DbContext
     {
         private readonly IMediator _mediator;
+        private readonly EncryptionHelper _encryption;
 
-        public AppDbContext(DbContextOptions<AppDbContext> options, IMediator mediator)
+        public AppDbContext(DbContextOptions<AppDbContext> options, IMediator mediator, EncryptionHelper encryption)
             : base(options)
         {
             _mediator = mediator;
+            _encryption = encryption;
         }
 
         // ─────────────────────────────────────
@@ -323,6 +327,28 @@ namespace Salubrity.Infrastructure.Persistence
 
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
             ApplySoftDeleteFilter(modelBuilder);
+            // ── Column encryption ─────────────────────────────────────────
+            var encConverter = new EncryptedStringConverter(_encryption);
+
+            modelBuilder.Entity<User>()
+                .Property(u => u.NationalId)
+                .HasConversion(encConverter);
+
+            modelBuilder.Entity<IntakeFormFieldResponse>()
+                .Property(r => r.Value)
+                .HasConversion(encConverter);
+
+            modelBuilder.Entity<HealthAssessmentDynamicFieldResponse>()
+                .Property(r => r.Value)
+                .HasConversion(encConverter);
+
+            modelBuilder.Entity<HealthCampParticipant>()
+                .Property(p => p.Notes)
+                .HasConversion(encConverter);
+
+            modelBuilder.Entity<Patient>()
+                .Property(p => p.Notes)
+                .HasConversion(encConverter);
         }
 
         private static void ApplySoftDeleteFilter(ModelBuilder modelBuilder)

@@ -11,4 +11,6 @@ public class MyHealthAssessmentStatusDto
     public List<Guid> SectionIdsSubmitted { get; set; } = new();
     public int SectionsSubmittedCount { get; set; }
     public DateTime? LastSubmittedAt { get; set; }
+    public Guid? CompletedInCampId { get; set; }
+    public string? CompletedInCampName { get; set; }
 }

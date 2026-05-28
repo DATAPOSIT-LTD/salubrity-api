@@ -14,6 +14,8 @@ public class HealthAssessmentFormResponse : BaseAuditableEntity
     public Guid? IntakeFormVersionId { get; set; }
     public IntakeFormVersion? IntakeFormVersion { get; set; }
 
+    public Guid? HealthCampId { get; set; }
+
     public ICollection<HealthAssessmentDynamicFieldResponse> Responses { get; set; } = [];
 
 

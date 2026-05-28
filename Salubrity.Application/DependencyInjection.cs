@@ -124,6 +124,7 @@ namespace Salubrity.Application
             services.AddScoped<GenericLookupService<FollowUpSchedule>>();
             services.AddScoped<IServiceReferralService, ServiceReferralService>();
             services.AddScoped<IRecommendationDraftService, Salubrity.Application.Services.Clinical.RecommendationDraftService>();
+            services.AddScoped<Salubrity.Application.Interfaces.Services.Organizations.IOrganizationDepartmentService, Salubrity.Application.Services.Organizations.OrganizationDepartmentService>();
             services.AddScoped<Salubrity.Application.Interfaces.Services.Clinical.IClinicalFieldDraftService, Salubrity.Application.Services.Clinical.ClinicalFieldDraftService>();
             services.AddScoped<Salubrity.Application.Interfaces.Services.Reporting.IFinalCorporateReportService, Salubrity.Application.Services.Reporting.Reports.FinalCorporateReportService>();
             services.AddScoped<Salubrity.Application.Interfaces.Services.Reporting.IExcoCorporateReportService, Salubrity.Application.Services.Reporting.Reports.ExcoCorporateReportService>();

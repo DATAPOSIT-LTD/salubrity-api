@@ -207,6 +207,7 @@ public class ReportsController : BaseController
         [FromQuery] string? gender,
         [FromQuery] string? age,
         [FromQuery] int? day,
+        [FromQuery] string? department,
         [FromServices] Salubrity.Application.Interfaces.Services.Reporting.ICorporateReportService svc,
         CancellationToken ct = default)
     {
@@ -215,6 +216,7 @@ public class ReportsController : BaseController
             Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
             AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
             Day = day,
+            Department = string.IsNullOrWhiteSpace(department) || department == "Any" ? null : department,
         };
         var dto = await svc.BuildAsync(campId, filters, ct);
         return Success(dto);
@@ -256,6 +258,7 @@ public class ReportsController : BaseController
         [FromQuery] string? gender,
         [FromQuery] string? age,
         [FromQuery] int? day,
+        [FromQuery] string? department,
         [FromServices] Salubrity.Application.Interfaces.Services.Reporting.ICorporateReportService svc,
         CancellationToken ct = default)
     {
@@ -264,6 +267,7 @@ public class ReportsController : BaseController
             Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
             AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
             Day = day,
+            Department = string.IsNullOrWhiteSpace(department) || department == "Any" ? null : department,
         };
         var pdf = await svc.BuildPdfAsync(campId, filters, ct);
         return File(pdf, "application/pdf", $"corporate-report-{campId:N}.pdf");
@@ -277,10 +281,21 @@ public class ReportsController : BaseController
     [ProducesResponseType(typeof(ApiResponse<Salubrity.Application.DTOs.Reports.FinalCorporateReportDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFinalCorporateReport(
         Guid campId,
+        [FromQuery] string? gender,
+        [FromQuery] string? age,
+        [FromQuery] int? day,
+        [FromQuery] string? department,
         [FromServices] Salubrity.Application.Interfaces.Services.Reporting.IFinalCorporateReportService svc,
         CancellationToken ct = default)
     {
-        var dto = await svc.BuildAsync(campId, ct);
+        var filters = new Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters
+        {
+            Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
+            AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
+            Day = day,
+            Department = string.IsNullOrWhiteSpace(department) || department == "Any" ? null : department,
+        };
+        var dto = await svc.BuildAsync(campId, filters, ct);
         return Success(dto);
     }
 
@@ -290,10 +305,21 @@ public class ReportsController : BaseController
     [Produces("application/pdf")]
     public async Task<IActionResult> GetFinalCorporateReportPdf(
         Guid campId,
+        [FromQuery] string? gender,
+        [FromQuery] string? age,
+        [FromQuery] int? day,
+        [FromQuery] string? department,
         [FromServices] Salubrity.Application.Interfaces.Services.Reporting.IFinalCorporateReportService svc,
         CancellationToken ct = default)
     {
-        var pdf = await svc.BuildPdfAsync(campId, ct);
+        var filters = new Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters
+        {
+            Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
+            AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
+            Day = day,
+            Department = string.IsNullOrWhiteSpace(department) || department == "Any" ? null : department,
+        };
+        var pdf = await svc.BuildPdfAsync(campId, filters, ct);
         return File(pdf, "application/pdf", $"final-corporate-report-{campId:N}.pdf");
     }
 
@@ -307,6 +333,7 @@ public class ReportsController : BaseController
         [FromQuery] string? gender,
         [FromQuery] string? age,
         [FromQuery] int? day,
+        [FromQuery] string? department,
         [FromServices] Salubrity.Application.Interfaces.Services.Reporting.IExcoCorporateReportService svc,
         CancellationToken ct = default)
     {
@@ -315,6 +342,7 @@ public class ReportsController : BaseController
             Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
             AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
             Day = day,
+            Department = string.IsNullOrWhiteSpace(department) || department == "Any" ? null : department,
         };
         var dto = await svc.BuildAsync(campId, filters, ct);
         return Success(dto);
@@ -329,6 +357,7 @@ public class ReportsController : BaseController
         [FromQuery] string? gender,
         [FromQuery] string? age,
         [FromQuery] int? day,
+        [FromQuery] string? department,
         [FromQuery] string? exclude,
         [FromServices] Salubrity.Application.Interfaces.Services.Reporting.IExcoCorporateReportService svc,
         CancellationToken ct = default)
@@ -338,6 +367,7 @@ public class ReportsController : BaseController
             Gender = string.IsNullOrWhiteSpace(gender) || gender == "Any" ? null : gender,
             AgeBucket = string.IsNullOrWhiteSpace(age) || age == "Any" ? null : age,
             Day = day,
+            Department = string.IsNullOrWhiteSpace(department) || department == "Any" ? null : department,
         };
         var excluded = string.IsNullOrWhiteSpace(exclude)
             ? null

@@ -15,6 +15,7 @@ public interface ICorporateReportRepository
 public class CorporateRawDataDto
 {
     public string CampName { get; set; } = string.Empty;
+    public Guid? OrganizationId { get; set; }
     public string ClientName { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
     public string Venue { get; set; } = string.Empty;
@@ -29,6 +30,7 @@ public class CorporateRawDataDto
     public int TotalServices { get; set; }
     public List<StationCompletionDto> StationCompletion { get; set; } = new();
     public List<TopFindingDto> TopFindings { get; set; } = new();
+    public CardiometabolicSnapshotDto Cardiometabolic { get; set; } = new();
 }
 
 
@@ -39,4 +41,6 @@ public class CorporateReportFilters
     public string? AgeBucket { get; set; }
     /// <summary>1-based day number relative to CampStartDate</summary>
     public int? Day { get; set; }
+    /// <summary>Patient department label (case-insensitive exact match).</summary>
+    public string? Department { get; set; }
 }

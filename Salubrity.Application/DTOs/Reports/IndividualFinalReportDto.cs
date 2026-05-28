@@ -58,6 +58,8 @@ public class BodyMapEntryDto
     public string IconKey { get; set; } = "default";
     /// <summary>"Normal", "Borderline", or "Abnormal" — worst status across the section's metrics.</summary>
     public string Status { get; set; } = "Normal";
+    /// <summary>Clinical conclusion (e.g. "Hypertension", "Obesity") derived from the section's metrics. Falls back to Status when no specific term matches.</summary>
+    public string Conclusion { get; set; } = "Normal";
 }
 
 public class ReportSignatureDto

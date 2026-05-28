@@ -178,7 +178,48 @@ namespace Salubrity.Infrastructure.Repositories
                 .Select(p => (Guid?)p.Id)
                 .FirstOrDefaultAsync(ct);
         }
-    }
 
+        public async Task<List<Salubrity.Application.DTOs.HealthCamps.CampBillingRowProjection>> GetBillingRowsAsync(Guid campId, CancellationToken ct = default)
+        {
+            return await (
+                from p in _context.HealthCampParticipants
+                    .AsNoTracking()
+                    .Where(p => p.HealthCampId == campId && !p.IsDeleted)
+                join u in _context.Users.AsNoTracking() on p.UserId equals u.Id
+                join pkg in _context.HealthCampPackages.AsNoTracking()
+                    .Where(x => !x.IsDeleted)
+                    on p.HealthCampPackageId equals pkg.Id into pkgJoin
+                from pkg in pkgJoin.DefaultIfEmpty()
+                join sp in _context.ServicePackages.AsNoTracking()
+                    .Where(x => !x.IsDeleted)
+                    on pkg.ServicePackageId equals sp.Id into spJoin
+                from sp in spJoin.DefaultIfEmpty()
+                join bs in _context.Set<Salubrity.Domain.Entities.Lookup.BillingStatus>().AsNoTracking()
+                    .Where(x => !x.IsDeleted)
+                    on p.BillingStatusId equals bs.Id into bsJoin
+                from bs in bsJoin.DefaultIfEmpty()
+                select new Salubrity.Application.DTOs.HealthCamps.CampBillingRowProjection
+                {
+                    ParticipantId = p.Id,
+                    FullName = (u.FirstName ?? string.Empty) + " " + (u.LastName ?? string.Empty),
+                    Email = u.Email ?? string.Empty,
+                    PhoneNumber = u.Phone,
+                    PackageName = sp.Name,
+                    BillingStatusId = p.BillingStatusId,
+                    BillingStatusName = bs.Name,
+                    UpdatedAt = p.UpdatedAt,
+                }
+            ).ToListAsync(ct);
+        }
+
+        public Task<List<Guid>> GetParticipantIdsForBulkAssignAsync(Guid campId, bool overwriteExisting, CancellationToken ct = default)
+        {
+            var q = _context.HealthCampParticipants.AsNoTracking()
+                .Where(p => p.HealthCampId == campId && !p.IsDeleted);
+            if (!overwriteExisting)
+                q = q.Where(p => p.HealthCampPackageId == null);
+            return q.Select(p => p.Id).ToListAsync(ct);
+        }
+    }
 
 }

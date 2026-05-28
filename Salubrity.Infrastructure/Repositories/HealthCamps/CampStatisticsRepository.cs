@@ -127,4 +127,53 @@ public class CampStatisticsRepository : ICampStatisticsRepository
             }
         };
     }
+
+    public async Task<CampSaStatusDto> GetCampSaStatusAsync(Guid campId, CancellationToken ct)
+    {
+        var camp = await _context.HealthCamps
+            .AsNoTracking()
+            .Where(c => c.Id == campId && !c.IsDeleted)
+            .Select(c => new { c.RequiresSelfAssessment })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new NotFoundException("HealthCamp", campId.ToString());
+
+        var saId0 = Guid.Parse("bcad133b-9b8a-47e5-8551-e86069cdd80d");
+        var saId1 = Guid.Parse("4ab8a5f2-8f8d-4c49-97ec-cdaff0c51843");
+        var saId2 = Guid.Parse("bd5e98e0-7389-4e25-9712-84a7bfe68f63");
+
+        var participants = await _context.HealthCampParticipants
+            .AsNoTracking()
+            .Where(p => p.HealthCampId == campId && !p.IsDeleted)
+            .Select(p => new
+            {
+                p.UserId,
+                p.User.FullName,
+                Email = p.User.Email,
+                Phone = p.User.Phone,
+                HasSa =
+                    _context.HealthAssessmentFormResponses.Any(r => r.CreatedBy == p.UserId && !r.IsDeleted && r.FormTypeId == saId0) &&
+                    _context.HealthAssessmentFormResponses.Any(r => r.CreatedBy == p.UserId && !r.IsDeleted && r.FormTypeId == saId1) &&
+                    _context.HealthAssessmentFormResponses.Any(r => r.CreatedBy == p.UserId && !r.IsDeleted && r.FormTypeId == saId2)
+            })
+            .ToListAsync(ct);
+
+        var completed = participants
+            .Where(p => p.HasSa)
+            .Select(p => new SaParticipantDto(p.UserId, p.FullName, p.Email, p.Phone))
+            .ToList();
+        var notCompleted = participants
+            .Where(p => !p.HasSa)
+            .Select(p => new SaParticipantDto(p.UserId, p.FullName, p.Email, p.Phone))
+            .ToList();
+
+        return new CampSaStatusDto
+        {
+            RequiresSelfAssessment = camp.RequiresSelfAssessment,
+            TotalParticipants = participants.Count,
+            CompletedCount = completed.Count,
+            NotCompletedCount = notCompleted.Count,
+            Completed = completed,
+            NotCompleted = notCompleted
+        };
+    }
 }

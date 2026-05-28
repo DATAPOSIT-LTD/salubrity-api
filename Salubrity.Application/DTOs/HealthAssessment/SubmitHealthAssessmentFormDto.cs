@@ -4,5 +4,6 @@ public sealed class SubmitHealthAssessmentFormDto
     public Guid FormTypeId { get; init; }
     public Guid? SectionId { get; init; }
     public Guid? IntakeFormVersionId { get; init; }
+    public Guid? HealthCampId { get; init; }
     public IReadOnlyCollection<DynamicFieldResponseDto> DynamicResponses { get; init; } = Array.Empty<DynamicFieldResponseDto>();
 }

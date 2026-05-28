@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Salubrity.Application.Interfaces.Repositories.Organizations;
+using Salubrity.Domain.Entities.Identity;
+using Salubrity.Domain.Entities.Join;
+using Salubrity.Domain.Entities.Lookup;
 using Salubrity.Domain.Entities.Organizations;
 using Salubrity.Infrastructure.Persistence;
 
@@ -40,11 +43,43 @@ namespace Salubrity.Infrastructure.Repositories.Organizations
         public async Task DeleteAsync(Guid id)
         {
             var org = await _context.Organizations.FindAsync(id);
-            if (org != null)
-            {
-                _context.Organizations.Remove(org);
-                await _context.SaveChangesAsync();
-            }
+            if (org == null) return;
+
+            var now = DateTime.UtcNow;
+
+            await _context.Employees
+                .Where(e => e.OrganizationId == id && !e.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(e => e.IsDeleted, true)
+                    .SetProperty(e => e.DeletedAt, now));
+
+            await _context.Departments
+                .Where(d => d.OrganizationId == id && !d.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(d => d.IsDeleted, true)
+                    .SetProperty(d => d.DeletedAt, now));
+
+            await _context.OrganizationBranches
+                .Where(b => b.OrganizationId == id && !b.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(b => b.IsDeleted, true)
+                    .SetProperty(b => b.DeletedAt, now));
+
+            await _context.OrganizationInsuranceProviders
+                .Where(p => p.OrganizationId == id && !p.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.IsDeleted, true)
+                    .SetProperty(p => p.DeletedAt, now));
+
+            await _context.Set<OrganizationPackage>()
+                .Where(p => p.OrganizationId == id && !p.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(p => p.IsDeleted, true)
+                    .SetProperty(p => p.DeletedAt, now));
+
+            org.IsDeleted = true;
+            org.DeletedAt = now;
+            await _context.SaveChangesAsync();
         }
 
         public async Task<Organization?> FindByNameAsync(string name)

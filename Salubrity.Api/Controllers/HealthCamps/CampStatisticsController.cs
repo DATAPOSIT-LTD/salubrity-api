@@ -34,4 +34,15 @@ public class CampStatsController : BaseController
         var result = await _service.GetCampStatsAsync(campId, ct);
         return Success(result);
     }
+
+    [HttpGet("sa-status")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(typeof(ApiResponse<CampSaStatusDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSaStatus(
+        Guid campId,
+        CancellationToken ct = default)
+    {
+        var result = await _service.GetCampSaStatusAsync(campId, ct);
+        return Success(result);
+    }
 }

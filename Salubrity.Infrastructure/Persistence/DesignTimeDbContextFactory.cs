@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using System.IO;
 using System.Reflection;
 using MediatR;
+using Microsoft.Extensions.Configuration;
+using Salubrity.Shared.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -32,7 +34,8 @@ namespace Salubrity.Infrastructure.Persistence
 
             var mockMediator = new NoMediator();
 
-            return new AppDbContext(optionsBuilder.Options, mockMediator);
+            var encryption = new EncryptionHelper(config);
+            return new AppDbContext(optionsBuilder.Options, mockMediator, encryption);
         }
 
         private class NoMediator : IMediator

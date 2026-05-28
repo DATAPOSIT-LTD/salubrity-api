@@ -688,6 +688,11 @@ public class HealthCampRepository : IHealthCampRepository
             throw new InvalidOperationException(
                 $"No HealthCampServiceAssignment found for service reference {serviceReferenceId} in camp {campId}");
 
+        var requiresSelfAssessment = await _context.HealthCamps
+            .Where(c => c.Id == campId)
+            .Select(c => c.RequiresSelfAssessment)
+            .FirstOrDefaultAsync(ct);
+
         // --------------------------------------------------
         // 2. Resolve ROOT ServiceId (authoritative)
         // --------------------------------------------------
@@ -783,6 +788,18 @@ public class HealthCampRepository : IHealthCampRepository
         if (participantId != Guid.Empty)
         {
             query = query.Where(x => x.Id == participantId);
+        }
+
+        // Self-assessment gate
+        if (requiresSelfAssessment)
+        {
+            var saId0 = Guid.Parse("bcad133b-9b8a-47e5-8551-e86069cdd80d");
+            var saId1 = Guid.Parse("4ab8a5f2-8f8d-4c49-97ec-cdaff0c51843");
+            var saId2 = Guid.Parse("bd5e98e0-7389-4e25-9712-84a7bfe68f63");
+            query = query.Where(x =>
+                _context.HealthAssessmentFormResponses.Any(r => r.CreatedBy == x.UserId && !r.IsDeleted && r.FormTypeId == saId0) &&
+                _context.HealthAssessmentFormResponses.Any(r => r.CreatedBy == x.UserId && !r.IsDeleted && r.FormTypeId == saId1) &&
+                _context.HealthAssessmentFormResponses.Any(r => r.CreatedBy == x.UserId && !r.IsDeleted && r.FormTypeId == saId2));
         }
 
         // --------------------------------------------------

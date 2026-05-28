@@ -4,6 +4,7 @@ namespace Salubrity.Application.DTOs.Reports;
 public class CorporateReportDto
 {
     public Guid CampId { get; set; }
+    public Guid? OrganizationId { get; set; }
     public string CampName { get; set; } = string.Empty;
     public string ClientName { get; set; } = string.Empty;
     public string PackageName { get; set; } = string.Empty;
@@ -26,6 +27,9 @@ public class CorporateReportDto
 
     // AI-generated narratives
     public CorporateNarrativesDto Narratives { get; set; } = new();
+
+    // Cardiometabolic snapshot: average BP, BMI distribution, RBS bands.
+    public CardiometabolicSnapshotDto Cardiometabolic { get; set; } = new();
 }
 
 public class CorporateAttendanceDto
@@ -64,4 +68,27 @@ public class TopFindingDto
     public int Pct { get; set; }
     /// <summary>"low", "med" or "high" — used by the frontend to color the bar.</summary>
     public string Level { get; set; } = "low";
+}
+
+
+public class CardiometabolicSnapshotDto
+{
+    /// <summary>Mean systolic BP (mmHg) across all readings in the camp.</summary>
+    public int AverageSystolic { get; set; }
+    /// <summary>Mean diastolic BP (mmHg) across all readings in the camp.</summary>
+    public int AverageDiastolic { get; set; }
+    public int BloodPressureSamples { get; set; }
+
+    /// <summary>BMI distribution counts (kg/m²): <18.5 / 18.5-24.9 / 25-29.9 / >=30.</summary>
+    public int BmiUnderweight { get; set; }
+    public int BmiNormal { get; set; }
+    public int BmiOverweight { get; set; }
+    public int BmiObese { get; set; }
+    public int BmiSamples { get; set; }
+
+    /// <summary>RBS bands (mmol/L): &lt;7.8 normal, 7.8-11.0 impaired, &gt;=11.1 diabetic.</summary>
+    public int RbsNormal { get; set; }
+    public int RbsImpaired { get; set; }
+    public int RbsDiabetic { get; set; }
+    public int RbsSamples { get; set; }
 }

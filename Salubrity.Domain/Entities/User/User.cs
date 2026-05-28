@@ -36,6 +36,9 @@ public class User : BaseAuditableEntity
 
     public string? PrimaryLanguage { get; set; }
 
+    /// <summary>Free-text department label chosen by the patient at onboarding. Filtered on reports.</summary>
+    public string? Department { get; set; }
+
     public string? ProfileImage { get; set; }
 
     // FK to Gender lookup table

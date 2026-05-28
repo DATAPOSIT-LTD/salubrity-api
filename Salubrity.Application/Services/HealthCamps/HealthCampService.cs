@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -41,6 +42,7 @@ public class HealthCampService : IHealthCampService
     private readonly ILogger<HealthCampService> _logger;
 
     private readonly ILookupRepository<HealthCampStatus> _lookupRepository;
+    private readonly ILookupRepository<Salubrity.Domain.Entities.Lookup.BillingStatus> _billingStatusLookup;
 
     private readonly ILookupRepository<SubcontractorHealthCampAssignmentStatus> _lookupSubcontractorHealthCampAssignmentRepository;
     private readonly IMapper _mapper;
@@ -52,6 +54,7 @@ public class HealthCampService : IHealthCampService
     private readonly IQrCodeService _qr;
     private readonly ITempPasswordService _tempPassword;
     private readonly IEmailService _email;
+    private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
     private readonly IEmployeeReadRepository _employeeReadRepo;
     private readonly ISubcontractorCampAssignmentRepository _subcontractorCampAssignmentRepository;
     private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
@@ -65,8 +68,12 @@ public class HealthCampService : IHealthCampService
 
 
 
-    public HealthCampService(ILogger<HealthCampService> logger, IHealthCampPackageRepository campPackageRepository, IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository, IHealthCampParticipantPackageRepository participantPackageRepo, IHealthCampServiceAssignmentRepository healthCampServiceAssignmentRepository)
+    public HealthCampService(ILogger<HealthCampService> logger, IHealthCampPackageRepository campPackageRepository, IHealthCampRepository repo, ILookupRepository<HealthCampStatus> lookupRepository, IPackageReferenceResolver _pResolver, IMapper mapper, ICampTokenFactory tokenFactory, IEmailService emailService, IQrCodeService qrCodeService, ITempPasswordService tempPasswordService, IEmployeeReadRepository employeeReadRepo, IFileStorage files, ISubcontractorCampAssignmentRepository subcontractorCampAssignment, ILookupRepository<SubcontractorHealthCampAssignmentStatus> lookupSubcontractorHealthCampAssignmentRepository, INotificationService notificationService, IHealthCampParticipantRepository campParticipantRepository, IJwtService jwt, IRoleRepository roleRepository, IHealthCampParticipantPackageRepository participantPackageRepo, IHealthCampServiceAssignmentRepository healthCampServiceAssignmentRepository,
+        Microsoft.Extensions.DependencyInjection.IServiceScopeFactory scopeFactory,
+        ILookupRepository<Salubrity.Domain.Entities.Lookup.BillingStatus> billingStatusLookup)
     {
+        _billingStatusLookup = billingStatusLookup;
+        _scopeFactory = scopeFactory;
         _repo = repo;
         _mapper = mapper;
         _referenceResolver = _pResolver;
@@ -153,6 +160,7 @@ public class HealthCampService : IHealthCampService
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             ExpectedParticipants = dto.ExpectedParticipants,
+            RequiresSelfAssessment = dto.RequiresSelfAssessment,
             HealthCampStatusId = upcomingStatus.Id,
             PackageItems = [],
             ServiceAssignments = [],
@@ -217,6 +225,7 @@ public class HealthCampService : IHealthCampService
         // Add default participants (employees)
         // ───────────────────────────────────────────────
         var employeeUserIds = await _employeeReadRepo.GetActiveEmployeeUserIdsAsync(dto.OrganizationId, ct);
+        var notBilledId = await GetNotBilledStatusIdAsync();
         if (employeeUserIds.Count > 0)
         {
             foreach (var userId in employeeUserIds.Distinct())
@@ -226,7 +235,8 @@ public class HealthCampService : IHealthCampService
                     Id = Guid.NewGuid(),
                     HealthCampId = entity.Id,
                     UserId = userId,
-                    IsEmployee = true
+                    IsEmployee = true,
+                    BillingStatusId = notBilledId,
                 });
             }
         }
@@ -748,13 +758,15 @@ public class HealthCampService : IHealthCampService
             return result;
         }
 
+        var notBilledId = await GetNotBilledStatusIdAsync();
         var participant = new HealthCampParticipant
         {
             Id = Guid.NewGuid(),
             HealthCampId = campId,
             UserId = userId,
             CreatedAt = DateTime.UtcNow,
-            IsDeleted = false
+            IsDeleted = false,
+            BillingStatusId = notBilledId,
         };
 
         await _campParticipantRepository.AddParticipantAsync(participant, ct);
@@ -796,13 +808,15 @@ public class HealthCampService : IHealthCampService
             return result;
         }
 
+        var notBilledId = await GetNotBilledStatusIdAsync();
         var participant = new HealthCampParticipant
         {
             Id = Guid.NewGuid(),
             HealthCampId = campId,
             UserId = userId,
             CreatedAt = DateTime.UtcNow,
-            IsDeleted = false
+            IsDeleted = false,
+            BillingStatusId = notBilledId,
         };
 
         await _campParticipantRepository.AddParticipantAsync(participant, ct);
@@ -1128,38 +1142,46 @@ public class HealthCampService : IHealthCampService
             entityType: "Camp",
             ct: ct);
 
-        // Publisher display name is resolved on the client via /me to keep this service’s deps tight.
+        // Publisher display name is resolved on the client via /me to keep this service's deps tight.
         var publisherName = string.Empty;
 
-        // Per-recipient email so we can personalise FullName.
+        // Build recipient list synchronously (DB hit), then fire-and-forget the email blast so
+        // the request returns immediately and the admin UI can flip the banner without waiting
+        // 12-16s per recipient over SMTP.
         var contacts = await _repo.GetCampParticipantContactsAsync(campId, ct);
         const string appBase = "https://app.salubritycentre.com";
         var reportUrl = $"{appBase}/patients/camps/{campId}/report";
+        var campName = camp.Name;
 
-        var emailsSent = 0;
-        foreach (var contact in contacts)
+        _ = Task.Run(async () =>
         {
-            try
+            using var scope = _scopeFactory.CreateScope();
+            var email = scope.ServiceProvider.GetRequiredService<Salubrity.Application.Interfaces.IEmailService>();
+            var logger = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<HealthCampService>>();
+            foreach (var contact in contacts)
             {
-                await _email.SendAsync(new Salubrity.Application.DTOs.Email.EmailRequestDto
+                try
                 {
-                    ToEmail = contact.Email,
-                    Subject = "Your Individual Final Report is ready",
-                    TemplateKey = "FinalReportPublished",
-                    Model = new
+                    await email.SendAsync(new Salubrity.Application.DTOs.Email.EmailRequestDto
                     {
-                        FullName = string.IsNullOrWhiteSpace(contact.FullName) ? "there" : contact.FullName,
-                        CampName = camp.Name,
-                        ReportUrl = reportUrl,
-                    },
-                });
-                emailsSent++;
+                        ToEmail = contact.Email,
+                        Subject = "Your Individual Final Report is ready",
+                        TemplateKey = "FinalReportPublished",
+                        Model = new
+                        {
+                            FullName = string.IsNullOrWhiteSpace(contact.FullName) ? "there" : contact.FullName,
+                            CampName = campName,
+                            ReportUrl = reportUrl,
+                        },
+                    });
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed sending Final Report email to {Email}", contact.Email);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed sending Final Report email to {Email}", contact.Email);
-            }
-        }
+            logger.LogInformation("Final report email blast complete for camp {CampId} ({Count} recipients).", campId, contacts.Count);
+        });
 
         return new Salubrity.Application.DTOs.HealthCamps.PublishFinalReportsResultDto
         {
@@ -1167,7 +1189,71 @@ public class HealthCampService : IHealthCampService
             PublishedById = currentUserId,
             PublishedByName = publisherName,
             RecipientCount = contacts.Count,
-            EmailsSent = emailsSent,
+            // EmailsSent reflects the queued count; per-recipient failures are logged but don't
+            // block the response. With a sync loop this used to drift on SMTP timeouts anyway.
+            EmailsSent = contacts.Count,
         };
+    }
+
+
+    public async Task<List<Salubrity.Application.DTOs.HealthCamps.CampBillingItemDto>> GetCampBillingAsync(Guid campId, CancellationToken ct = default)
+    {
+        var camp = await _repo.GetByIdAsync(campId)
+            ?? throw new Salubrity.Shared.Exceptions.NotFoundException("Camp not found");
+
+        var rows = await _campParticipantRepository.GetBillingRowsAsync(campId, ct);
+        return rows.Select(r => new Salubrity.Application.DTOs.HealthCamps.CampBillingItemDto
+        {
+            ParticipantId = r.ParticipantId,
+            FullName = r.FullName,
+            Email = r.Email,
+            PhoneNumber = r.PhoneNumber,
+            PackageName = r.PackageName,
+            BillingStatusId = r.BillingStatusId,
+            BillingStatusName = r.BillingStatusName ?? "Not Billed",
+            IsBilled = string.Equals(r.BillingStatusName, "Billed", StringComparison.OrdinalIgnoreCase),
+            UpdatedAt = r.UpdatedAt,
+        }).ToList();
+    }
+
+    public async Task<Salubrity.Application.DTOs.HealthCamps.BulkAssignPackageResultDto> BulkAssignPackageAsync(
+        Guid campId,
+        Salubrity.Application.DTOs.HealthCamps.BulkAssignPackageDto dto,
+        CancellationToken ct = default)
+    {
+        var participantIds = await _campParticipantRepository.GetParticipantIdsForBulkAssignAsync(campId, dto.OverwriteExisting, ct);
+        var assigned = 0;
+        foreach (var pid in participantIds)
+        {
+            try
+            {
+                await AssignPackageToParticipantAsync(new AssignParticipantPackageDto
+                {
+                    HealthCampId = campId,
+                    ParticipantId = pid,
+                    HealthCampPackageId = dto.HealthCampPackageId,
+                }, ct);
+                assigned++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Bulk assign-package: skipped participant {Pid} for camp {CampId}", pid, campId);
+            }
+        }
+        return new Salubrity.Application.DTOs.HealthCamps.BulkAssignPackageResultDto
+        {
+            AssignedCount = assigned,
+            SkippedCount = participantIds.Count - assigned,
+        };
+    }
+
+
+    private Guid? _notBilledStatusIdCache;
+    private async Task<Guid?> GetNotBilledStatusIdAsync()
+    {
+        if (_notBilledStatusIdCache.HasValue) return _notBilledStatusIdCache;
+        var found = await _billingStatusLookup.FindByNameAsync("Not Billed");
+        _notBilledStatusIdCache = found?.Id;
+        return _notBilledStatusIdCache;
     }
 }

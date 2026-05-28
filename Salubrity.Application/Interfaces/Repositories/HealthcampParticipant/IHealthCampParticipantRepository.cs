@@ -37,7 +37,11 @@ namespace Salubrity.Application.Common.Interfaces.Repositories
         /// Returns the participantId for the given user in the given camp, or null if not enrolled.
         /// </summary>
         Task<Guid?> GetParticipantIdByUserAndCampAsync(Guid userId, Guid campId, CancellationToken ct = default);
+
+        Task<List<Salubrity.Application.DTOs.HealthCamps.CampBillingRowProjection>> GetBillingRowsAsync(Guid campId, CancellationToken ct = default);
+        Task<List<Guid>> GetParticipantIdsForBulkAssignAsync(Guid campId, bool overwriteExisting, CancellationToken ct = default);
     }
+
 
 
 }

@@ -438,6 +438,24 @@ public class CampController : BaseController
 
 
     [Authorize(Roles = "Admin,Concierge")]
+    [HttpGet("{campId:guid}/billing-statuses")]
+    [ProducesResponseType(typeof(ApiResponse<List<Salubrity.Application.DTOs.HealthCamps.CampBillingItemDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCampBilling(Guid campId, CancellationToken ct)
+    {
+        var rows = await _service.GetCampBillingAsync(campId, ct);
+        return Success(rows);
+    }
+
+    [Authorize(Roles = "Admin,Concierge")]
+    [HttpPost("{campId:guid}/participants/assign-package/bulk")]
+    [ProducesResponseType(typeof(ApiResponse<Salubrity.Application.DTOs.HealthCamps.BulkAssignPackageResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkAssignPackage(Guid campId, [FromBody] Salubrity.Application.DTOs.HealthCamps.BulkAssignPackageDto dto, CancellationToken ct)
+    {
+        var result = await _service.BulkAssignPackageAsync(campId, dto, ct);
+        return Success(result);
+    }
+
+    [Authorize(Roles = "Admin,Concierge")]
     [HttpPost("participants/assign-package")]
     [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> AssignParticipantPackage([FromBody] AssignParticipantPackageDto dto, CancellationToken ct)

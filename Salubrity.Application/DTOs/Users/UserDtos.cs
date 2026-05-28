@@ -47,4 +47,6 @@ public class UserUpdateRequest
     public Guid? GenderId { get; set; }
     public Guid? OrganizationId { get; set; }
     public Guid? BranchId { get; set; }
+
+    public string? Department { get; set; }
 }

@@ -15,4 +15,7 @@ public class CampStatisticsService : ICampStatisticsService
 
     public Task<CampStatsResponseDto> GetCampStatsAsync(Guid campId, CancellationToken ct)
         => _repo.GetCampStatsAsync(campId, ct);
+
+    public Task<CampSaStatusDto> GetCampSaStatusAsync(Guid campId, CancellationToken ct)
+        => _repo.GetCampSaStatusAsync(campId, ct);
 }

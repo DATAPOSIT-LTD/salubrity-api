@@ -60,6 +60,8 @@ public class HealthCamp : BaseAuditableEntity
     public DateTime? FinalReportsPublishedAt { get; set; }
     public Guid? FinalReportsPublishedById { get; set; }
 
+    public bool RequiresSelfAssessment { get; set; } = false;
+
     public virtual ICollection<HealthCampTempCredential> TempCredentials { get; set; } = new List<HealthCampTempCredential>();
     public virtual ICollection<HealthAssessment> HealthAssessments { get; set; } = new List<HealthAssessment>();
 }

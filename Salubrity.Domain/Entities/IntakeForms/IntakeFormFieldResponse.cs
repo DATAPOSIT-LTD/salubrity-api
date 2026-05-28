@@ -19,6 +19,5 @@ public class IntakeFormFieldResponse : BaseAuditableEntity
     [ForeignKey(nameof(FieldId))]
     public IntakeFormField Field { get; set; } = default!;
 
-    [MaxLength(2000)]
     public string? Value { get; set; }
 }

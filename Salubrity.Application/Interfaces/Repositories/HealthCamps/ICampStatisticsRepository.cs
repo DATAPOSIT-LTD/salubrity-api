@@ -5,4 +5,5 @@ namespace Salubrity.Application.Interfaces.Repositories.HealthCamps;
 public interface ICampStatisticsRepository
 {
     Task<CampStatsResponseDto> GetCampStatsAsync(Guid campId, CancellationToken ct);
+    Task<CampSaStatusDto> GetCampSaStatusAsync(Guid campId, CancellationToken ct);
 }

@@ -57,6 +57,12 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
 
         if (!string.IsNullOrWhiteSpace(filters?.Gender))
             participantsQuery = participantsQuery.Where(p => p.User.Gender != null && p.User.Gender.Name == filters!.Gender);
+
+        if (!string.IsNullOrWhiteSpace(filters?.Department))
+        {
+            var deptFilter = filters!.Department!.Trim();
+            participantsQuery = participantsQuery.Where(p => p.User.Department != null && p.User.Department.ToLower() == deptFilter.ToLower());
+        }
         if (minDob.HasValue && maxDob.HasValue)
             participantsQuery = participantsQuery.Where(p =>
                 p.User.DateOfBirth.HasValue
@@ -212,9 +218,74 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
             .Take(10)
             .ToList();
 
-                return new CorporateRawDataDto
+                        // Cardiometabolic snapshot: average BP from "120/80"-style values, BMI distribution, RBS bands.
+        // Re-uses the rawResponses already fetched above.
+        var sysList = new List<int>();
+        var diaList = new List<int>();
+        int bmiUnder = 0, bmiNormal = 0, bmiOver = 0, bmiObese = 0, bmiTotal = 0;
+        int rbsNormal = 0, rbsImp = 0, rbsDiab = 0, rbsTotal = 0;
+
+        foreach (var resp in rawResponses)
+        {
+            if (string.IsNullOrWhiteSpace(resp.Label) || string.IsNullOrWhiteSpace(resp.Value)) continue;
+            var lcLabel = resp.Label.ToLowerInvariant();
+
+            if (lcLabel.Contains("blood pressure") || lcLabel.Contains("bp reading"))
+            {
+                var parts = resp.Value.Split('/', 2);
+                if (parts.Length == 2
+                    && int.TryParse(parts[0].Trim(), out var s)
+                    && int.TryParse(parts[1].Trim(), out var d))
+                {
+                    if (s is > 50 and < 300) sysList.Add(s);
+                    if (d is > 30 and < 200) diaList.Add(d);
+                }
+            }
+            else if (lcLabel.Contains("bmi") || lcLabel.Contains("body mass"))
+            {
+                if (decimal.TryParse(resp.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var bmi)
+                    && bmi is > 8m and < 80m)
+                {
+                    bmiTotal++;
+                    if (bmi < 18.5m) bmiUnder++;
+                    else if (bmi < 25m) bmiNormal++;
+                    else if (bmi < 30m) bmiOver++;
+                    else bmiObese++;
+                }
+            }
+            else if (lcLabel.Contains("rbs") || lcLabel.Contains("random blood sugar"))
+            {
+                if (decimal.TryParse(resp.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var rbs)
+                    && rbs is > 0m and < 60m)
+                {
+                    rbsTotal++;
+                    if (rbs < 7.8m) rbsNormal++;
+                    else if (rbs < 11.1m) rbsImp++;
+                    else rbsDiab++;
+                }
+            }
+        }
+
+        var cardio = new Salubrity.Application.DTOs.Reports.CardiometabolicSnapshotDto
+        {
+            AverageSystolic = sysList.Count == 0 ? 0 : (int)Math.Round(sysList.Average()),
+            AverageDiastolic = diaList.Count == 0 ? 0 : (int)Math.Round(diaList.Average()),
+            BloodPressureSamples = Math.Min(sysList.Count, diaList.Count),
+            BmiUnderweight = bmiUnder,
+            BmiNormal = bmiNormal,
+            BmiOverweight = bmiOver,
+            BmiObese = bmiObese,
+            BmiSamples = bmiTotal,
+            RbsNormal = rbsNormal,
+            RbsImpaired = rbsImp,
+            RbsDiabetic = rbsDiab,
+            RbsSamples = rbsTotal,
+        };
+
+        return new CorporateRawDataDto
         {
             CampName = camp.Name,
+            OrganizationId = camp.OrganizationId,
             ClientName = camp.Organization?.BusinessName ?? string.Empty,
             PackageName = packageName,
             Venue = camp.Location ?? string.Empty,
@@ -227,6 +298,7 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
             TotalServices = assignmentServiceIds.Count,
             StationCompletion = stationCompletion,
             TopFindings = topFindings,
+            Cardiometabolic = cardio,
         };
     }
 }

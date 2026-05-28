@@ -42,9 +42,9 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         _log = log;
     }
 
-    public async Task<byte[]> BuildPdfAsync(Guid campId, CancellationToken ct = default)
+    public async Task<byte[]> BuildPdfAsync(Guid campId, Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters? filters = null, CancellationToken ct = default)
     {
-        var dto = await BuildAsync(campId, ct);
+        var dto = await BuildAsync(campId, filters, ct);
         var doc = new FinalCorporateReportDocument(dto);
         return doc.GeneratePdf();
     }
@@ -55,8 +55,8 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         if (request.Recipients is null || request.Recipients.Count == 0)
             throw new ValidationException(["At least one recipient is required."]);
 
-        var dto = await BuildAsync(campId, ct);
-        var pdfBytes = await BuildPdfAsync(campId, ct);
+        var dto = await BuildAsync(campId, null, ct);
+        var pdfBytes = await BuildPdfAsync(campId, null, ct);
 
         var fileName = $"final-corporate-report-{(string.IsNullOrWhiteSpace(dto.CampName) ? campId.ToString("N") : dto.CampName.Replace(" ", "-").ToLowerInvariant())}.pdf";
         var attachments = new List<Salubrity.Application.DTOs.Email.EmailAttachment>
@@ -107,7 +107,7 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         _log.LogInformation("Sent FINAL corporate report for camp {CampId} to {Count} recipients", campId, request.Recipients.Count);
     }
 
-    public async Task<FinalCorporateReportDto> BuildAsync(Guid campId, CancellationToken ct = default)
+    public async Task<FinalCorporateReportDto> BuildAsync(Guid campId, Salubrity.Application.Interfaces.Repositories.Reporting.CorporateReportFilters? filters = null, CancellationToken ct = default)
     {
         var camp = await _campRepo.GetByIdAsync(campId)
             ?? throw new NotFoundException("Camp not found.");
@@ -118,7 +118,7 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
             ? $"{camp.StartDate:dd MMM yyyy} – {camp.EndDate.Value:dd MMM yyyy}"
             : camp.StartDate.ToString("dd MMM yyyy");
 
-        var raw = await _corpRepo.LoadAsync(campId, null, ct);
+        var raw = await _corpRepo.LoadAsync(campId, filters, ct);
         var totalAttendees = raw?.TotalAttendees ?? 0;
         var expected = raw?.ExpectedParticipants ?? 0;
         var participationRate = expected > 0 ? Math.Min(100, (int)Math.Round(totalAttendees * 100.0 / expected)) : 0;

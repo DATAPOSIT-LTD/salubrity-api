@@ -14,6 +14,7 @@ namespace Salubrity.Application.DTOs.HealthCamps
         public bool? IsActive { get; set; }
         public int? ExpectedParticipants { get; set; }
         public Guid? OrganizationId { get; set; }
+        public bool? RequiresSelfAssessment { get; set; }
 
         // 🔥 New unified multi-package structure (same as Create DTO)
         public List<UpdateCampPackageDto> Packages { get; set; } = new();

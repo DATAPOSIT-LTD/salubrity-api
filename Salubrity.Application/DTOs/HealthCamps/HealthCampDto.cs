@@ -22,4 +22,5 @@ public class HealthCampDto
     public List<HealthCampPackageItemDto> PackageItems { get; set; } = [];
     public List<HealthCampServiceAssignmentDto> ServiceAssignments { get; set; } = [];
     public List<HealthCampParticipantDto> Participants { get; set; } = [];
+    public bool RequiresSelfAssessment { get; set; }
 }

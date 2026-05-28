@@ -46,6 +46,8 @@ async function ghGet(url) {
   return res.json();
 }
 
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
 async function claudeAnalyze(prompt) {
   if (!ANTHROPIC_API_KEY) {
     throw new Error(
@@ -204,13 +206,24 @@ JSON:`;
       } catch { /* skip */ }
     }
 
-    const sectText = groups.map((g, i) => {
-      const fs = g.files.map(f => `  - ${f.filename} (+${f.additions}/-${f.deletions})`).join('\n');
-      const ps = g.files.filter(f => f.patch).slice(0, 2).map(f => f.patch).join('\n');
-      return `--- COMMIT ${i + 1} ---\nMessage: ${g.message}\nAuthor: ${g.author}\nDate: ${g.date}\nSHA: ${g.sha.slice(0, 7)}\nFiles:\n${fs}\nPatch sample:\n${ps}`;
-    }).join('\n\n');
+    // Process in batches of 5 to stay within API rate limits
+    const BATCH_SIZE = 5;
+    const BATCH_DELAY_MS = 20000; // 20s between batches
+    let totalCommitIssues = 0;
 
-    const prompt = `For each commit below from "${OWNER}/${REPO}", create ONE GitHub issue documenting what was solved/implemented.
+    for (let batchStart = 0; batchStart < groups.length; batchStart += BATCH_SIZE) {
+      const batch = groups.slice(batchStart, batchStart + BATCH_SIZE);
+      const batchNum = Math.floor(batchStart / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(groups.length / BATCH_SIZE);
+      console.log(`  Batch ${batchNum}/${totalBatches} (${batch.length} commits)...`);
+
+      const sectText = batch.map((g, i) => {
+        const fs = g.files.map(f => `  - ${f.filename} (+${f.additions}/-${f.deletions})`).join('\n');
+        const ps = g.files.filter(f => f.patch).slice(0, 2).map(f => f.patch).join('\n');
+        return `--- COMMIT ${batchStart + i + 1} ---\nMessage: ${g.message}\nAuthor: ${g.author}\nDate: ${g.date}\nSHA: ${g.sha.slice(0, 7)}\nFiles:\n${fs}\nPatch sample:\n${ps}`;
+      }).join('\n\n');
+
+      const prompt = `For each commit below from "${OWNER}/${REPO}", create ONE GitHub issue documenting what was solved/implemented.
 Return a JSON array with one object per commit. Each object must have:
 - title: string (verb-first)
 - body: string (bullet points in markdown listing what was done)
@@ -226,19 +239,29 @@ ${sectText}
 
 JSON:`;
 
-    const raw = await claudeAnalyze(prompt);
-    let commitIssues;
-    try {
-      commitIssues = JSON.parse(raw);
-    } catch (e) {
-      console.error('  ⚠️  Failed to parse Claude response as JSON. Skipping commit batch.');
-      console.error('  Parse error:', e.message);
-      console.error('  Raw response (first 1000 chars):', raw.slice(0, 1000));
-      commitIssues = [];
+      const raw = await claudeAnalyze(prompt);
+      let batchIssues;
+      try {
+        batchIssues = JSON.parse(raw);
+      } catch (e) {
+        console.error(`  ⚠️  Failed to parse Claude response for batch ${batchNum}. Skipping.`);
+        console.error('  Parse error:', e.message);
+        console.error('  Raw response (first 500 chars):', raw.slice(0, 500));
+        batchIssues = [];
+      }
+      batchIssues.forEach(i => { i._source = 'commit'; });
+      issues.push(...batchIssues);
+      totalCommitIssues += batchIssues.length;
+      console.log(`    → ${batchIssues.length} issue(s) from batch ${batchNum}`);
+
+      // Rate-limit delay between batches (skip after last batch)
+      if (batchStart + BATCH_SIZE < groups.length) {
+        console.log(`  ⏳ Waiting ${BATCH_DELAY_MS / 1000}s before next batch...`);
+        await sleep(BATCH_DELAY_MS);
+      }
     }
-    commitIssues.forEach(i => { i._source = 'commit'; });
-    issues.push(...commitIssues);
-    console.log(`  → ${commitIssues.length} commit section(s) documented`);
+
+    console.log(`  → ${totalCommitIssues} total commit issue(s) documented`);
   }
 
   // ── Step 4: Post all issues to GitHub ─────────────────────────────────────

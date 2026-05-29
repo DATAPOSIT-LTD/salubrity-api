@@ -11,6 +11,7 @@ using Salubrity.Domain.Entities.HealthCamps;
 using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Domain.Entities.IntakeForms;
 using Salubrity.Domain.Entities.Join;
+using Salubrity.Domain.Entities.Subcontractor;
 using Salubrity.Infrastructure.Persistence;
 using Salubrity.Shared.Constants;
 using Salubrity.Shared.Exceptions;
@@ -1265,15 +1266,14 @@ public class HealthCampRepository : IHealthCampRepository
         // ─────────────────────────────────────────────
         // 1. Base query (NO subcontractor filter yet)
         // ─────────────────────────────────────────────
-        Console.WriteLine("STEP 1: Building base query (HealthCampServiceAssignments)");
+        Console.WriteLine("STEP 1: Building base query (SubcontractorHealthCampAssignments)");
 
-        var baseQuery = _context.HealthCampServiceAssignments
+        var baseQuery = _context.SubcontractorHealthCampAssignments
             .Include(x => x.HealthCamp)
                 .ThenInclude(c => c.Organization)
             .Include(x => x.HealthCamp)
                 .ThenInclude(c => c.HealthCampStatus)
-            .Include(x => x.Role)
-            .Where(x => x.HealthCamp.IsActive);
+            .Where(x => !x.IsDeleted && x.HealthCamp.IsActive);
 
         Console.WriteLine("Base query created (IsActive = true)");
 
@@ -1299,7 +1299,12 @@ public class HealthCampRepository : IHealthCampRepository
         {
             "upcoming" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&
-                (x.HealthCamp.EndDate ?? x.HealthCamp.StartDate) >= today),
+                x.HealthCamp.StartDate > today),
+
+            "ongoing" => baseQuery.Where(x =>
+                x.HealthCamp.IsLaunched &&
+                x.HealthCamp.StartDate <= today &&
+                (x.HealthCamp.EndDate == null || x.HealthCamp.EndDate >= today)),
 
             "complete" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&
@@ -1341,7 +1346,7 @@ public class HealthCampRepository : IHealthCampRepository
         // ─────────────────────────────────────────────
         Console.WriteLine("STEP 5: Normalizing subcategories → categories");
 
-        var normalized = new List<(Guid RefId, PackageItemType Type, HealthCampServiceAssignment Source)>();
+        var normalized = new List<(Guid RefId, PackageItemType Type, SubcontractorHealthCampAssignment Source)>();
 
         foreach (var a in assignments)
         {
@@ -1422,7 +1427,7 @@ public class HealthCampRepository : IHealthCampRepository
                 );
 
                 var roles = boothGroup
-                    .Select(x => x.Source.Role?.Name ?? "—")
+                    .Select(x => x.Source.BoothLabel)
                     .Distinct();
 
                 foreach (var role in roles)

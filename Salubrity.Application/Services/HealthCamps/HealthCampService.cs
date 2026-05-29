@@ -595,7 +595,7 @@ public class HealthCampService : IHealthCampService
         Guid? subcontractorId,
         CancellationToken ct = default)
     {
-        var camps = await _repo.GetMyUpcomingCampsAsync(subcontractorId);
+        var camps = await _repo.GetMyOngoingCampsAsync(subcontractorId, ct);
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 

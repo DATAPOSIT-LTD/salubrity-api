@@ -19,6 +19,7 @@ public interface IHealthCampRepository
 
     // Subcontractor-scoped
     Task<List<HealthCamp>> GetMyUpcomingCampsAsync(Guid? subcontractorId, CancellationToken ct = default);
+    Task<List<HealthCamp>> GetMyOngoingCampsAsync(Guid? subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCompleteCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<List<HealthCamp>> GetMyCanceledCampsAsync(Guid subcontractorId, CancellationToken ct = default);
     Task<HealthCamp?> GetBySlugAsync(string slug, CancellationToken ct = default);

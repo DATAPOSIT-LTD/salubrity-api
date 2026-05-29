@@ -289,12 +289,8 @@ public class HealthCampRepository : IHealthCampRepository
             return await _context.HealthCamps
             .Where(c =>
                 (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
-                (
-                    c.StartDate >= todayLocal ||
-                    (c.IsLaunched &&
-                     c.StartDate <= todayLocal &&
-                     (c.EndDate ?? c.StartDate) >= todayLocal)
-                )
+                c.IsLaunched &&
+                c.StartDate.Date > todayLocal
             )
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
@@ -306,12 +302,46 @@ public class HealthCampRepository : IHealthCampRepository
         return await CampsForSubcontractor(subcontractorId)
             .Where(c =>
                 (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
-                (
-                    c.StartDate >= todayLocal ||
-                    (c.IsLaunched &&
-                     c.StartDate <= todayLocal &&
-                     (c.EndDate ?? c.StartDate) >= todayLocal)
+                c.IsLaunched &&
+                c.StartDate.Date > todayLocal
+            )
+            .Include(c => c.HealthCampStatus)
+            .Include(c => c.Organization)
+            .Include(c => c.ServiceAssignments)
+            .AsNoTracking()
+            .OrderBy(c => c.StartDate)
+            .ToListAsync(ct);
+    }
+
+
+    public async Task<List<HealthCamp>> GetMyOngoingCampsAsync(Guid? subcontractorId, CancellationToken ct = default)
+    {
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var nowUtc = DateTime.UtcNow;
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, eat).Date;
+
+        if (subcontractorId == null)
+        {
+            return await _context.HealthCamps
+                .Where(c =>
+                    (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
+                    c.IsLaunched &&
+                    c.StartDate.Date <= todayLocal &&
+                    (c.EndDate == null || c.EndDate.Value.Date >= todayLocal)
                 )
+                .Include(c => c.HealthCampStatus)
+                .Include(c => c.Organization)
+                .Include(c => c.ServiceAssignments)
+                .AsNoTracking()
+                .OrderBy(c => c.StartDate)
+                .ToListAsync(ct);
+        }
+        return await CampsForSubcontractor(subcontractorId)
+            .Where(c =>
+                (c.CloseDate == null || c.CloseDate > nowUtc) && !c.IsDeleted &&
+                c.IsLaunched &&
+                c.StartDate.Date <= todayLocal &&
+                (c.EndDate == null || c.EndDate.Value.Date >= todayLocal)
             )
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)

@@ -85,6 +85,8 @@ public class HealthCampRepository : IHealthCampRepository
                 ClientName = c.Organization?.BusinessName ?? "N/A",
                 ExpectedPatients = c.ExpectedParticipants ?? 0,
                 Venue = c.Location ?? "N/A",
+                StartDate = c.StartDate,
+                EndDate = c.EndDate,
                 DateRange = $"{c.StartDate:dd} - {c.EndDate:dd MMM, yyyy}",
                 SubcontractorCount = c.ServiceAssignments?.Count ?? 0,
                 Status = !c.IsLaunched
@@ -290,7 +292,7 @@ public class HealthCampRepository : IHealthCampRepository
         if (subcontractorId == null)
         {
             return await _context.HealthCamps
-                .Where(c => !c.IsDeleted && !c.IsLaunched && c.StartDate.Date > todayLocal)
+                .Where(c => !c.IsDeleted && !c.IsLaunched && c.StartDate.Date >= todayLocal)
                 .Include(c => c.HealthCampStatus)
                 .Include(c => c.Organization)
                 .Include(c => c.ServiceAssignments)
@@ -299,7 +301,7 @@ public class HealthCampRepository : IHealthCampRepository
                 .ToListAsync(ct);
         }
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c => !c.IsDeleted && !c.IsLaunched && c.StartDate.Date > todayLocal)
+            .Where(c => !c.IsDeleted && !c.IsLaunched && c.StartDate.Date >= todayLocal)
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
             .Include(c => c.ServiceAssignments)
@@ -1330,7 +1332,7 @@ public class HealthCampRepository : IHealthCampRepository
         {
             "upcoming" => baseQuery.Where(x =>
                 !x.HealthCamp.IsLaunched &&
-                x.HealthCamp.StartDate.Date > today),
+                x.HealthCamp.StartDate.Date >= today),
 
             "ongoing" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&

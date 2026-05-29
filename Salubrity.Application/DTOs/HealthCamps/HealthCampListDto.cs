@@ -12,4 +12,5 @@ public class HealthCampListDto
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public DateTime? CloseDate { get; set; }
+    public bool IsLaunched { get; set; }
 }

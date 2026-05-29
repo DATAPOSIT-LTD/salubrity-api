@@ -87,7 +87,10 @@ public class HealthCampRepository : IHealthCampRepository
                 Venue = c.Location ?? "N/A",
                 DateRange = $"{c.StartDate:dd} - {c.EndDate:dd MMM, yyyy}",
                 SubcontractorCount = c.ServiceAssignments?.Count ?? 0,
-                Status = c.HealthCampStatus?.Name ?? "Unknown",
+                Status = !c.IsLaunched
+                    ? HealthCampStatusNames.Upcoming
+                    : c.HealthCampStatus?.Name ?? HealthCampStatusNames.Ongoing,
+                IsLaunched = c.IsLaunched,
                 PackageName = activePackage?.ServicePackage?.Name ?? "N/A"
             });
         }
@@ -284,10 +287,7 @@ public class HealthCampRepository : IHealthCampRepository
         if (subcontractorId == null)
         {
             return await _context.HealthCamps
-                .Where(c =>
-                    !c.IsDeleted &&
-                    c.HealthCampStatus != null &&
-                    c.HealthCampStatus.Name == HealthCampStatusNames.Upcoming)
+                .Where(c => !c.IsDeleted && !c.IsLaunched)
                 .Include(c => c.HealthCampStatus)
                 .Include(c => c.Organization)
                 .Include(c => c.ServiceAssignments)
@@ -296,10 +296,7 @@ public class HealthCampRepository : IHealthCampRepository
                 .ToListAsync(ct);
         }
         return await CampsForSubcontractor(subcontractorId)
-            .Where(c =>
-                !c.IsDeleted &&
-                c.HealthCampStatus != null &&
-                c.HealthCampStatus.Name == HealthCampStatusNames.Upcoming)
+            .Where(c => !c.IsDeleted && !c.IsLaunched)
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
             .Include(c => c.ServiceAssignments)
@@ -311,13 +308,17 @@ public class HealthCampRepository : IHealthCampRepository
 
     public async Task<List<HealthCamp>> GetMyOngoingCampsAsync(Guid? subcontractorId, CancellationToken ct = default)
     {
+        var eat = TimeZoneInfo.FindSystemTimeZoneById("Africa/Nairobi");
+        var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, eat).Date;
+
         if (subcontractorId == null)
         {
             return await _context.HealthCamps
                 .Where(c =>
                     !c.IsDeleted &&
-                    c.HealthCampStatus != null &&
-                    c.HealthCampStatus.Name == HealthCampStatusNames.Ongoing)
+                    c.IsLaunched &&
+                    c.StartDate.Date <= todayLocal &&
+                    (c.EndDate == null || c.EndDate.Value.Date >= todayLocal))
                 .Include(c => c.HealthCampStatus)
                 .Include(c => c.Organization)
                 .Include(c => c.ServiceAssignments)
@@ -328,8 +329,9 @@ public class HealthCampRepository : IHealthCampRepository
         return await CampsForSubcontractor(subcontractorId)
             .Where(c =>
                 !c.IsDeleted &&
-                c.HealthCampStatus != null &&
-                c.HealthCampStatus.Name == HealthCampStatusNames.Ongoing)
+                c.IsLaunched &&
+                c.StartDate.Date <= todayLocal &&
+                (c.EndDate == null || c.EndDate.Value.Date >= todayLocal))
             .Include(c => c.HealthCampStatus)
             .Include(c => c.Organization)
             .Include(c => c.ServiceAssignments)
@@ -1316,8 +1318,7 @@ public class HealthCampRepository : IHealthCampRepository
         baseQuery = status.ToLowerInvariant() switch
         {
             "upcoming" => baseQuery.Where(x =>
-                x.HealthCamp.IsLaunched &&
-                x.HealthCamp.StartDate > today),
+                !x.HealthCamp.IsLaunched),
 
             "ongoing" => baseQuery.Where(x =>
                 x.HealthCamp.IsLaunched &&

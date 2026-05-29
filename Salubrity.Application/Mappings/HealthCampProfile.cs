@@ -70,10 +70,7 @@ public class HealthCampProfile : Profile
             .ForMember(dest => dest.DateRange, m => m.MapFrom(src => $"{src.StartDate:dd} - {src.EndDate:dd MMM, yyyy}"))
             .ForMember(dest => dest.SubcontractorCount, m => m.MapFrom(src => src.ServiceAssignments.Count))
             .ForMember(dest => dest.IsLaunched, m => m.MapFrom(src => src.IsLaunched))
-            .ForMember(dest => dest.Status, m => m.MapFrom(src =>
-                !src.IsLaunched ? HealthCampStatusNames.Upcoming
-                : src.HealthCampStatus != null ? src.HealthCampStatus.Name
-                : HealthCampStatusNames.Ongoing))
+            .ForMember(dest => dest.Status, m => m.MapFrom(src => ComputeCampStatus(src)))
             .ForMember(dest => dest.PackageName, m => m.MapFrom(src =>
                 src.HealthCampPackages
                     .Where(hp => hp.IsActive && hp.ServicePackage != null)
@@ -112,5 +109,24 @@ public class HealthCampProfile : Profile
             .ForMember(dest => dest.ClaimCount, opt => opt.Ignore())
             .ForMember(dest => dest.ClaimStatus, opt => opt.Ignore());
 
+    }
+
+    private static string ComputeCampStatus(Salubrity.Domain.Entities.HealthCamps.HealthCamp src)
+    {
+        if (src.HealthCampStatus?.Name == HealthCampStatusNames.Suspended)
+            return HealthCampStatusNames.Suspended;
+
+        var today = DateTime.UtcNow.Date;
+
+        if (!src.IsLaunched)
+            return src.StartDate.Date > today
+                ? HealthCampStatusNames.Upcoming
+                : HealthCampStatusNames.Completed; // never-launched past camp
+
+        // IsLaunched = true
+        if (src.StartDate.Date <= today && (src.EndDate == null || src.EndDate.Value.Date >= today))
+            return HealthCampStatusNames.Ongoing;
+
+        return HealthCampStatusNames.Completed;
     }
 }

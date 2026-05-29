@@ -57,7 +57,7 @@ public class HealthCampService : IHealthCampService
     private readonly Microsoft.Extensions.DependencyInjection.IServiceScopeFactory _scopeFactory;
     private readonly IEmployeeReadRepository _employeeReadRepo;
     private readonly ISubcontractorCampAssignmentRepository _subcontractorCampAssignmentRepository;
-    private static readonly string[] sourceArray = ["upcoming", "complete", "suspended"];
+    private static readonly string[] sourceArray = ["upcoming", "ongoing", "complete", "canceled", "suspended"];
     private readonly INotificationService _notificationService;
     private readonly IHealthCampParticipantRepository _campParticipantRepository;
     private readonly IRoleRepository _roleRepository;

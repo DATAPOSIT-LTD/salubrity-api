@@ -395,14 +395,12 @@ public class HealthCampService : IHealthCampService
             }
 
 
-            if (camp.HealthCampStatus == null)
-                throw new InvalidOperationException("Camp status is missing.");
-
-            var upcomingStatus = await _lookupRepository.FindByNameAsync("Upcoming")
-                ?? throw new InvalidOperationException("'Upcoming' status not found");
-
-            if (camp.HealthCampStatusId != upcomingStatus.Id)
-                throw new ValidationException(["Only camps in 'Upcoming' status can be launched."]);
+            // A camp is launchable when it has not yet been launched.
+            // We intentionally do NOT check the DB HealthCampStatus here because the
+            // background reconciler updates that field from dates alone and can mark an
+            // unlaunched camp as "Ongoing" before the admin presses Start Camp.
+            if (camp.IsLaunched)
+                throw new ValidationException(["This camp has already been launched."]);
 
             // Timezone
             TimeZoneInfo eat;

@@ -36,4 +36,5 @@ public interface IHealthCampServiceAssignmentRepository
         CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task<int> SoftDeleteByCampAndSubcontractorAsync(Guid campId, Guid subcontractorId, Guid actingUserId, CancellationToken ct = default);
 }

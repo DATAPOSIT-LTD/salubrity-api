@@ -1026,18 +1026,27 @@ public class HealthCampService : IHealthCampService
     {
         var ct = CancellationToken.None;
 
-        var assignments = await _subcontractorCampAssignmentRepository
+        // Remove from operational booth table (SubcontractorHealthCampAssignment)
+        var boothAssignments = await _subcontractorCampAssignmentRepository
             .GetByCampAndSubcontractorAsync(campId, subcontractorId);
 
-        if (!assignments.Any())
-            throw new NotFoundException("Subcontractor assignment", $"{subcontractorId} in camp {campId}");
-
-        foreach (var a in assignments.Where(a => !a.IsDeleted))
+        foreach (var a in boothAssignments.Where(a => !a.IsDeleted))
         {
             a.IsDeleted = true;
             a.UpdatedAt = DateTime.UtcNow;
             a.UpdatedBy = actingUserId;
         }
+        if (boothAssignments.Any(a => !a.IsDeleted || a.IsDeleted)) // always save if any rows touched
+            await _subcontractorCampAssignmentRepository.SaveChangesAsync(ct);
+
+        // Remove from service-station table (HealthCampServiceAssignment) — this is what the
+        // station list is built from; must be cleaned up so the subcontractor disappears from the UI
+        var serviceRowsDeleted = await _healthCampServiceAssignmentRepository
+            .SoftDeleteByCampAndSubcontractorAsync(campId, subcontractorId, actingUserId, ct);
+
+        // 404 only if neither table had any record at all
+        if (!boothAssignments.Any() && serviceRowsDeleted == 0)
+            throw new NotFoundException("Subcontractor assignment", $"{subcontractorId} in camp {campId}");
 
         await _notificationService.TriggerNotificationAsync(
             title: "Subcontractor Removed from Camp",
@@ -1047,8 +1056,6 @@ public class HealthCampService : IHealthCampService
             entityType: "Camp",
             ct: ct
         );
-
-        await _subcontractorCampAssignmentRepository.SaveChangesAsync(ct);
     }
 
 

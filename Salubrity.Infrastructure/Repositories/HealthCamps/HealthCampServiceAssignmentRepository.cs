@@ -104,4 +104,27 @@ public class HealthCampServiceAssignmentRepository
     {
         await _db.SaveChangesAsync(ct);
     }
+
+    public async Task<int> SoftDeleteByCampAndSubcontractorAsync(
+        Guid campId,
+        Guid subcontractorId,
+        Guid actingUserId,
+        CancellationToken ct = default)
+    {
+        var rows = await _db.HealthCampServiceAssignments
+            .Where(a => a.HealthCampId == campId && a.SubcontractorId == subcontractorId && !a.IsDeleted)
+            .ToListAsync(ct);
+
+        foreach (var r in rows)
+        {
+            r.IsDeleted = true;
+            r.UpdatedAt = DateTime.UtcNow;
+            r.UpdatedBy = actingUserId;
+        }
+
+        if (rows.Count > 0)
+            await _db.SaveChangesAsync(ct);
+
+        return rows.Count;
+    }
 }

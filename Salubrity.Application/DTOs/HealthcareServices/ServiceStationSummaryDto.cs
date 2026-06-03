@@ -2,6 +2,12 @@
 using Salubrity.Domain.Entities.HealthcareServices;
 
 
+public class StaffAssignmentDto
+{
+    public Guid SubcontractorId { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
 public class ServiceStationSummaryDto
 {
     public Guid Id { get; set; }
@@ -10,6 +16,7 @@ public class ServiceStationSummaryDto
     public Guid? PackageId { get; set; }
     public string? PackageName { get; set; }
     public List<string> Staff { get; set; } = new();
+    public List<StaffAssignmentDto> StaffAssignments { get; set; } = new();
     public int PatientsServed { get; set; }
     public int PendingPatients { get; set; }
     public string AverageTimePerPatient { get; set; } = "0 min";

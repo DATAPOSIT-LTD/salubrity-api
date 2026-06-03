@@ -355,13 +355,17 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 			var name = await _referenceResolver.GetNameAsync(type, item.ReferenceId) ?? "Unknown";
 
 			// find assigned staff
-			var staffNames = assignments
-				.Where(a => a.AssignmentId == item.ReferenceId && (PackageItemType)a.AssignmentType == type)
-				.Select(a => a.Subcontractor?.UserId)
-				.Where(uid => uid != null && users.ContainsKey(uid.Value))
-				.Select(uid => users[uid!.Value])
-				.Distinct()
+			var staffAssigned = assignments
+				.Where(a => a.AssignmentId == item.ReferenceId && (PackageItemType)a.AssignmentType == type
+					&& a.Subcontractor != null && users.ContainsKey(a.Subcontractor.UserId))
+				.GroupBy(a => a.SubcontractorId)
+				.Select(g => new StaffAssignmentDto
+				{
+					SubcontractorId = g.Key,
+					Name = users[g.First().Subcontractor!.UserId]
+				})
 				.ToList();
+			var staffNames = staffAssigned.Select(s => s.Name).ToList();
 
 			// resolve package using ServicePackageId
 			var package = campPackages.FirstOrDefault(p => p.ServicePackageId == item.ServicePackageId);
@@ -377,6 +381,7 @@ public class HealthCampManagementRepository : IHealthCampManagementRepository
 					package?.DisplayName ??
 					"Unassigned Package",
 				Staff = staffNames,
+				StaffAssignments = staffAssigned,
 				PatientsServed = 0,
 				PendingPatients = 0,
 				AverageTimePerPatient = "0 min",

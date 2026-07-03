@@ -589,6 +589,13 @@ public class HealthCampService : IHealthCampService
         return _mapper.Map<List<HealthCampListDto>>(camps);
     }
 
+
+    public async Task<List<HealthCampListDto>> GetAdminBillingCampsAsync(CancellationToken ct = default)
+    {
+        var camps = await _repo.GetAdminBillingCampsAsync(ct);
+        return _mapper.Map<List<HealthCampListDto>>(camps);
+    }
+
     public async Task<List<HealthCampListDto>> GetMyOngoingCampsAsync(
         Guid? subcontractorId,
         CancellationToken ct = default)
@@ -1065,10 +1072,6 @@ public class HealthCampService : IHealthCampService
         var participant = await _campParticipantRepository.GetParticipantWithBillingStatusAsync(dto.HealthCampId, dto.ParticipantId, ct)
             ?? throw new NotFoundException("Participant not found for this camp.");
 
-        // Prevent assignment if billing not initiated
-        if (participant.BillingStatus?.Name?.Equals("Not Billed", StringComparison.OrdinalIgnoreCase) == true)
-            throw new ValidationException(["Cannot assign package until billing is initiated."]);
-
         // Get package through repository (no direct DbContext)
         var package = await _campPackageRepository.GetPackageByCampAsync(dto.HealthCampId, dto.HealthCampPackageId, ct)
             ?? throw new ValidationException(["The selected package does not belong to this camp."]);
@@ -1099,6 +1102,10 @@ public class HealthCampService : IHealthCampService
         };
 
         await _participantPackageRepo.AddAsync(newRecord, ct);
+
+        // Sync the FK on the main participant row so participant-list queries show the package
+        participant.HealthCampPackageId = dto.HealthCampPackageId;
+        await _campParticipantRepository.UpdateParticipantAsync(participant, ct);
     }
 
     public async Task<List<HealthCampPackageDto>> GetAllPackagesByCampAsync(Guid campId, CancellationToken ct)

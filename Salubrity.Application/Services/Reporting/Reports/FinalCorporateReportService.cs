@@ -1,8 +1,7 @@
 // File: Application/Services/Reporting/Reports/FinalCorporateReportService.cs
-// Pass A + Gemini narratives.
-// Real data: ParticipationRate, Age Demographics, Top Critical Findings, Recommendations.
-// AI narratives via Gemini for all text sections (Introduction, Executive Summary, every section summary, Conclusion).
-// Sample data still shown for: Lifestyle Risk, Metabolic & NCD bars, Mental Health distribution, Pain Assessment, Systemic Organ, Eye Visual, Outlook predictions, Trend line chart.
+// All chart sections sourced from real DB queries. Gemini narrates only.
+// Trend/outlook data suppressed with "insufficient history" message until
+// multiple camps exist for this organisation.
 
 using QuestPDF.Fluent;
 using System.Text;
@@ -127,58 +126,87 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         var femalePct = totalAttendees > 0 ? (int)Math.Round(female * 100.0 / totalAttendees) : 0;
         var malePct = totalAttendees > 0 ? Math.Max(0, 100 - femalePct) : 0;
 
-        var ageBuckets = await _finalRepo.GetAgeBucketsAsync(campId, ct);
-        var eyeAgg = await _finalRepo.GetEyeVisualHealthAsync(campId, ct);
-        var topFindings = (raw?.TopFindings ?? new List<TopFindingDto>())
+        // ── Real data from repository (P0 fix: no more hardcoded blocks) ──
+        var ageBuckets   = await _finalRepo.GetAgeBucketsAsync(campId, ct);
+        var eyeAgg       = await _finalRepo.GetEyeVisualHealthAsync(campId, ct);
+        var topFindings  = (raw?.TopFindings ?? new List<TopFindingDto>())
             .Select(f => new FinalTopFindingDto { Code = f.Code, Name = f.Name, N = f.N, Pct = f.Pct, Level = f.Level })
             .ToList();
         var recommendations = await _finalRepo.GetRecommendationsAsync(campId, ct);
 
-        // Sample distributions used for chart sections still pending real-data wiring (so narratives match what is on screen)
-        var lifestyleSlices = new List<RiskSliceDto>
-        {
-            new() { Label = "Low", Value = 56 },
-            new() { Label = "Medium", Value = 22 },
-            new() { Label = "High", Value = 14 },
-            new() { Label = "Very High", Value = 8 },
-        };
-        var metabolicBuckets = new List<AgeBucketDto>
-        {
-            new() { Label = "Low risk", Female = 45, Male = 41 },
-            new() { Label = "Moderate risk", Female = 28, Male = 30 },
-            new() { Label = "High risk", Female = 11, Male = 14 },
-        };
-        var mentalScore = 6;
-        var mentalDistribution = new List<RiskSliceDto>
-        {
-            new() { Label = "Low", Value = 22 },
-            new() { Label = "Good", Value = 71 },
-            new() { Label = "At Risk", Value = 7 },
-        };
-        var painMale = new List<RiskSliceDto>
-        {
-            new() { Label = "No Pain Reported", Value = 64 },
-            new() { Label = "Mild Discomfort", Value = 26 },
-            new() { Label = "Chronic Pain Risk", Value = 10 },
-        };
-        var painFemale = new List<RiskSliceDto>
-        {
-            new() { Label = "No Pain Reported", Value = 58 },
-            new() { Label = "Mild Discomfort", Value = 30 },
-            new() { Label = "Chronic Pain Risk", Value = 12 },
-        };
+        // Lifestyle risk stratified from BMI + BP + blood sugar + cholesterol threshold crossings
+        var lifestyleSlices = await _finalRepo.GetLifestyleRiskDistributionAsync(campId, ct);
+
+        // Mental health from PHQ-style scoring
+        var mentalCounts = await _finalRepo.GetMentalHealthCountsAsync(campId, ct);
+        int mentalTotal  = Math.Max(mentalCounts.TotalMeasured, 1);
+        // Score 0–10 weighted by distribution: Good→10, AtRisk→5, Low→2
+        var mentalScore = mentalCounts.TotalMeasured > 0
+            ? Math.Clamp((int)Math.Round(
+                (mentalCounts.GoodCount * 10.0 + mentalCounts.AtRiskCount * 5.0 + mentalCounts.LowCount * 2.0)
+                / mentalTotal), 0, 10)
+            : 0;
+        var mentalDistribution = mentalCounts.TotalMeasured > 0
+            ? new List<RiskSliceDto>
+            {
+                new() { Label = "Low",    Value = (int)Math.Round(mentalCounts.LowCount    * 100.0 / mentalTotal) },
+                new() { Label = "Good",   Value = (int)Math.Round(mentalCounts.GoodCount   * 100.0 / mentalTotal) },
+                new() { Label = "At Risk",Value = (int)Math.Round(mentalCounts.AtRiskCount * 100.0 / mentalTotal) },
+            }
+            : new List<RiskSliceDto>
+            {
+                new() { Label = "Low", Value = 0 }, new() { Label = "Good", Value = 0 }, new() { Label = "At Risk", Value = 0 },
+            };
+
+        // Metabolic NCD risk gender-stratified from vitals
+        var metabolicBuckets = await _finalRepo.GetMetabolicNcdRiskAsync(campId, ct);
+
+        // Follow-up from ServiceReferrals
+        var followUpCounts = await _finalRepo.GetFollowUpCountsAsync(campId, ct);
+        int followUpDenom  = Math.Max(followUpCounts.TotalAttendees, totalAttendees);
+        int followUpPercent = followUpDenom > 0
+            ? Math.Min(100, (int)Math.Round(followUpCounts.ReferredCount * 100.0 / followUpDenom))
+            : 0;
+
+        // Abnormal findings from vital threshold classification
+        var abnormalCount   = await _finalRepo.GetAbnormalPatientCountAsync(campId, ct);
+        double abnormalPct  = totalAttendees > 0
+            ? Math.Min(100, Math.Round(abnormalCount * 100.0 / totalAttendees, 1))
+            : 0;
+
+        // Lifestyle secondary: binary Low (Low+Medium) vs High (High+VeryHigh)
+        int lifeLow  = (lifestyleSlices.FirstOrDefault(s => s.Label == "Low")?.Value ?? 0)
+                     + (lifestyleSlices.FirstOrDefault(s => s.Label == "Medium")?.Value ?? 0);
+        int lifeHigh = Math.Max(0, 100 - lifeLow);
         var lifestyleSecondary = new List<RiskSliceDto>
         {
-            new() { Label = "Low", Value = 64 },
-            new() { Label = "High", Value = 36 },
+            new() { Label = "Low",  Value = lifeLow  },
+            new() { Label = "High", Value = lifeHigh },
         };
-        var organNormal = 60; var organMonitor = 30; var organAtRisk = 10;
 
-        // Build Gemini prompt with everything that's on screen so narratives match
+        // Systemic organ function derived from vital classification
+        // AtRisk = patients with ≥1 Abnormal vital; RequiresMonitoring ≈ High lifestyle risk - AtRisk
+        int organAtRisk = totalAttendees > 0 ? (int)Math.Round(abnormalCount * 100.0 / totalAttendees) : 0;
+        int highRisk    = (lifestyleSlices.FirstOrDefault(s => s.Label == "High")?.Value ?? 0)
+                        + (lifestyleSlices.FirstOrDefault(s => s.Label == "Very High")?.Value ?? 0);
+        int organMonitor = Math.Max(0, Math.Min(100 - organAtRisk, highRisk - organAtRisk));
+        int organNormal  = Math.Max(0, 100 - organAtRisk - organMonitor);
+
+        // Pain assessment: not captured in the current screening protocol
+        var painMale   = new List<RiskSliceDto>();
+        var painFemale = new List<RiskSliceDto>();
+
+        // Build Gemini narratives with the computed (real) data
         var narratives = await GenerateFinalNarrativesAsync(
             camp.Name, clientName, dateRange, expected, totalAttendees, participationRate, femalePct, malePct,
             ageBuckets, topFindings, recommendations, lifestyleSlices, metabolicBuckets, mentalScore,
             mentalDistribution, painMale, painFemale, lifestyleSecondary, organNormal, organMonitor, organAtRisk, eyeAgg, ct);
+
+        const string noTrendData =
+            "Trend analysis requires data from multiple health camps. " +
+            "This report reflects the initial baseline screening; longitudinal comparisons will be available after subsequent camps.";
+        const string noTrendDeclines  = "No prior camp data available to identify declines.";
+        const string noTrendStable    = "No prior camp data available to identify stable areas.";
 
         return new FinalCorporateReportDto
         {
@@ -204,11 +232,12 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
                 KeyRiskClusters = narratives.KeyRiskClusters,
             },
             ObjectivesAndMethods = narratives.ObjectivesAndMethods,
+
             ResultAtAGlance = new ResultAtAGlanceDto
             {
                 ParticipationRate = participationRate,
-                AbnormalFindingsPercent = 0,
-                FollowUpPercent = 0,
+                AbnormalFindingsPercent = abnormalPct,
+                FollowUpPercent = followUpPercent,
                 ParticipationRateSecondary = participationRate,
             },
             ParticipationByAge = new ParticipationByAgeDto
@@ -217,13 +246,21 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
                 Notes = narratives.ParticipationByAgeNotes,
             },
             LifestyleRiskOverall = new LifestyleRiskDto { Slices = lifestyleSlices, Summary = narratives.LifestyleRiskOverallSummary },
-            MetabolicNcdRiskBars = new MetabolicNcdRiskDto { Buckets = metabolicBuckets, Notes = narratives.MetabolicNcdNotes },
+            MetabolicNcdRiskBars = new MetabolicNcdRiskDto
+            {
+                Buckets = metabolicBuckets,
+                Notes = metabolicBuckets.Any(b => b.Female + b.Male > 0)
+                    ? narratives.MetabolicNcdNotes
+                    : "Metabolic NCD risk stratification data not available for this camp.",
+            },
             MentalHealth = new MentalHealthDto
             {
                 OverallScoreOutOfTen = mentalScore,
-                Band = mentalScore >= 7 ? "Good" : mentalScore >= 5 ? "Moderate" : "Needs Attention",
+                Band = mentalScore >= 7 ? "Good" : mentalScore >= 5 ? "Moderate" : mentalCounts.TotalMeasured == 0 ? "No Data" : "Needs Attention",
                 Distribution = mentalDistribution,
-                Summary = narratives.MentalHealthSummary,
+                Summary = mentalCounts.TotalMeasured > 0
+                    ? narratives.MentalHealthSummary
+                    : "Mental health assessment data not recorded for this camp.",
             },
             EyeVisualHealth = new EyeVisualHealthDto
             {
@@ -231,45 +268,51 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
                 RightEye = eyeAgg.RightEyeAcuity,
                 Summary = eyeAgg.HasData
                     ? (string.IsNullOrWhiteSpace(narratives.EyeVisualHealthSummary)
-                        ? $"Most common visual acuity recorded — Left: {eyeAgg.LeftEyeAcuity} (n={eyeAgg.LeftEyeCount}), Right: {eyeAgg.RightEyeAcuity} (n={eyeAgg.RightEyeCount})."
+                        ? $"Most common visual acuity — Left: {eyeAgg.LeftEyeAcuity} (n={eyeAgg.LeftEyeCount}), Right: {eyeAgg.RightEyeAcuity} (n={eyeAgg.RightEyeCount})."
                         : narratives.EyeVisualHealthSummary)
                     : "No eye exam responses recorded for this camp.",
             },
-            PainAssessment = new PainAssessmentDto { Male = painMale, Female = painFemale, Notes = narratives.PainAssessmentNotes },
+            PainAssessment = new PainAssessmentDto
+            {
+                Male = painMale,
+                Female = painFemale,
+                Notes = "Pain assessment was not administered during this screening cycle.",
+            },
             LifestyleRiskSecondary = new LifestyleRiskDto { Slices = lifestyleSecondary, Summary = narratives.LifestyleRiskSecondarySummary },
             SystemicOrganFunction = new SystemicOrganFunctionDto
             {
                 NormalFunctionPercent = organNormal,
                 RequiresMonitoringPercent = organMonitor,
                 AtRiskPercent = organAtRisk,
-                Notes = narratives.SystemicOrganFunctionNotes,
+                Notes = totalAttendees > 0
+                    ? narratives.SystemicOrganFunctionNotes
+                    : "No vital data recorded for this camp.",
             },
             TopCriticalClinicalFindings = topFindings,
             TopCriticalFindingsSummary = topFindings.Count == 0
                 ? "No critical findings recorded for this camp yet."
                 : narratives.TopFindingsSummary,
+
+            // Trend data requires multiple camps — suppress until historical data exists
             AnalysisOutlook = new AnalysisOutlookDto
             {
                 Comparator = "Metabolic & NCD Risk",
-                Series = new()
-                {
-                    new() { Year = "2024", Points = new() { new(){XLabel="Q1",Value=12}, new(){XLabel="Q2",Value=14}, new(){XLabel="Q3",Value=18}, new(){XLabel="Q4",Value=17} } },
-                    new() { Year = "2025", Points = new() { new(){XLabel="Q1",Value=16}, new(){XLabel="Q2",Value=21}, new(){XLabel="Q3",Value=19}, new(){XLabel="Q4",Value=22} } },
-                },
-                Summary = narratives.AnalysisOutlookSummary,
+                Series = new(),
+                Summary = noTrendData,
             },
             OutlookPredictions = new OutlookPredictionsDto
             {
-                OverallHealth     = new() { Label = "Overall Health Score",   Delta = "+4.2%", Direction = "improving",  Caption = "Improving" },
-                AbnormalFindings  = new() { Label = "Abnormal Findings",      Delta = "12%",   Direction = "stable",     Caption = "Stable" },
-                FollowUpRate      = new() { Label = "Follow-up Compliance",   Delta = "-21%",  Direction = "declining",  Caption = "Needs Attention" },
+                OverallHealth    = new() { Label = "Overall Health Score",  Delta = "N/A", Direction = "stable", Caption = "Baseline camp" },
+                AbnormalFindings = new() { Label = "Abnormal Findings",     Delta = "N/A", Direction = "stable", Caption = "Baseline camp" },
+                FollowUpRate     = new() { Label = "Follow-up Compliance",  Delta = "N/A", Direction = "stable", Caption = "Baseline camp" },
             },
             TrendAnalysisSummary = new TrendAnalysisSummaryDto
             {
-                Improvements = narratives.TrendImprovements,
-                Declines = narratives.TrendDeclines,
-                StableAreas = narratives.TrendStableAreas,
+                Improvements = noTrendData,
+                Declines     = noTrendDeclines,
+                StableAreas  = noTrendStable,
             },
+
             Recommendations = recommendations,
             Conclusion = narratives.Conclusion,
         };
@@ -336,20 +379,36 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         sb.AppendLine("Age distribution (Female / Male per band):");
         foreach (var b in ageBuckets) sb.AppendLine($"  - {b.Label}: F {b.Female} | M {b.Male}");
         sb.AppendLine();
-        sb.AppendLine("Lifestyle Risk Stratification (overall %):");
-        foreach (var s in lifestyle) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+        sb.AppendLine("Lifestyle Risk Stratification (% of employees with vital data):");
+        if (lifestyle.Any(s => s.Value > 0))
+            foreach (var s in lifestyle) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+        else
+            sb.AppendLine("  (lifestyle risk data not available for this camp)");
         sb.AppendLine();
         sb.AppendLine("Metabolic & NCD Risk (counts per band):");
-        foreach (var b in metabolic) sb.AppendLine($"  - {b.Label}: F {b.Female} | M {b.Male}");
+        if (metabolic.Any(b => b.Female + b.Male > 0))
+            foreach (var b in metabolic) sb.AppendLine($"  - {b.Label}: F {b.Female} | M {b.Male}");
+        else
+            sb.AppendLine("  (metabolic risk data not available for this camp)");
         sb.AppendLine();
-        sb.AppendLine($"Mental Health overall score: {mentalScore}/10");
+        sb.AppendLine($"Mental Health overall score: {(mentalScore > 0 ? $"{mentalScore}/10" : "not captured")}");
         sb.AppendLine("Mental Health distribution (%):");
-        foreach (var s in mentalDist) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+        if (mentalDist.Any(s => s.Value > 0))
+            foreach (var s in mentalDist) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+        else
+            sb.AppendLine("  (mental health assessment data not captured)");
         sb.AppendLine();
-        sb.AppendLine("Pain Assessment — Male (%):");
-        foreach (var s in painMale) sb.AppendLine($"  - {s.Label}: {s.Value}%");
-        sb.AppendLine("Pain Assessment — Female (%):");
-        foreach (var s in painFemale) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+        if (painMale.Count > 0)
+        {
+            sb.AppendLine("Pain Assessment — Male (%):");
+            foreach (var s in painMale) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+            sb.AppendLine("Pain Assessment — Female (%):");
+            foreach (var s in painFemale) sb.AppendLine($"  - {s.Label}: {s.Value}%");
+        }
+        else
+        {
+            sb.AppendLine("Pain Assessment: not administered in this screening cycle.");
+        }
         sb.AppendLine();
         sb.AppendLine("Lifestyle Risk binary view (%):");
         foreach (var s in lifestyle2) sb.AppendLine($"  - {s.Label}: {s.Value}%");
@@ -357,7 +416,7 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         sb.AppendLine($"Systemic Organ Function — Normal: {organNormal}% | Requires Monitoring: {organMonitor}% | At Risk: {organAtRisk}%");
         sb.AppendLine();
         if (eyeAgg.HasData)
-            sb.AppendLine($"Eye/Visual Health — Left eye most-common: {eyeAgg.LeftEyeAcuity} (n={eyeAgg.LeftEyeCount}); Right eye most-common: {eyeAgg.RightEyeAcuity} (n={eyeAgg.RightEyeCount}).");
+            sb.AppendLine($"Eye/Visual Health — Left eye most-common: {eyeAgg.LeftEyeAcuity} (n={eyeAgg.LeftEyeCount}); Right: {eyeAgg.RightEyeAcuity} (n={eyeAgg.RightEyeCount}).");
         else
             sb.AppendLine("Eye/Visual Health — No eye exam responses recorded for this camp.");
         sb.AppendLine();
@@ -370,7 +429,11 @@ public sealed class FinalCorporateReportService : IFinalCorporateReportService
         sb.AppendLine();
         sb.AppendLine($"Recommendations on file: {recs.Count}");
         sb.AppendLine();
-        sb.AppendLine("Generate the JSON narrative now. introduction is one short paragraph framing the report. executiveOverview / executiveClinicalFindings / executiveRecommendation each 2-4 sentences. trendImprovements / trendDeclines / trendStableAreas each 1-3 sentences. conclusion is one closing paragraph. objectivesAndMethods describes purpose and methodology in 2-3 sentences.");
+        sb.AppendLine("IMPORTANT: This is the first screening camp for this organisation. " +
+                      "There is no prior-year data. Do NOT fabricate trend deltas or year-on-year comparisons. " +
+                      "For trendImprovements/trendDeclines/trendStableAreas write: 'Baseline data established; longitudinal trends will be available after subsequent screenings.'");
+        sb.AppendLine();
+        sb.AppendLine("Generate the JSON narrative now. introduction is one short paragraph framing the report. executiveOverview / executiveClinicalFindings / executiveRecommendation each 2-4 sentences. conclusion is one closing paragraph. objectivesAndMethods describes purpose and methodology in 2-3 sentences.");
 
         string raw = string.Empty;
         try

@@ -1,11 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Salubrity.Api.Controllers.Common;
 using Salubrity.Application.DTOs.Concierge;
 using Salubrity.Application.DTOs.HealthCamps;
-using Salubrity.Application.Interfaces.Services.Camps;
 using Salubrity.Application.Interfaces.Services.Concierge;
-using Salubrity.Domain.Entities.HealthcareServices;
 using Salubrity.Shared.Responses;
 
 namespace Salubrity.Api.Controllers.Concierge
@@ -18,57 +16,51 @@ namespace Salubrity.Api.Controllers.Concierge
     public class ConciergeController : BaseController
     {
         private readonly IConciergeService _service;
-        public ConciergeController(IConciergeService service)
-        {
-            _service = service;
-        }
+        public ConciergeController(IConciergeService service) => _service = service;
 
         [HttpGet("{campId:guid}/service-stations-info")]
         [ProducesResponseType(typeof(ApiResponse<List<CampServiceStationInfoDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetCampServiceStationsInfo(Guid campId, CancellationToken ct)
-        {
-            var stations = await _service.GetCampServiceStationsAsync(campId, ct);
-            return Success(stations);
-        }
+            => Success(await _service.GetCampServiceStationsAsync(campId, ct));
 
         [HttpGet("{campId:guid}/queue-priorities")]
         [ProducesResponseType(typeof(ApiResponse<List<CampQueuePriorityDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetCampQueuePriorities(Guid campId, CancellationToken ct)
-        {
-            var priorities = await _service.GetCampQueuePrioritiesAsync(campId, ct);
-            return Success(priorities);
-        }
+            => Success(await _service.GetCampQueuePrioritiesAsync(campId, ct));
 
         [HttpGet("camps/{campId:guid}/stations-queue")]
         [ProducesResponseType(typeof(ApiResponse<List<CampServiceStationWithQueueDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetCampServiceStationsWithQueue(Guid campId, CancellationToken ct)
-        {
-            var result = await _service.GetCampServiceStationsWithQueueAsync(campId, ct);
-            return Success(result);
-        }
+            => Success(await _service.GetCampServiceStationsWithQueueAsync(campId, ct));
 
         [HttpGet("{patientId:guid}/detail")]
         [ProducesResponseType(typeof(ApiResponse<PatientDetailDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetPatientDetail(Guid patientId, CancellationToken ct)
-        {
-            var result = await _service.GetPatientDetailByIdAsync(patientId, ct);
-
-            //if (result == null)
-            //{
-            //    return Failure("Patient not found.");
-            //}    
-
-            return Success(result);
-        }
+            => Success(await _service.GetPatientDetailByIdAsync(patientId, ct));
 
         [HttpGet("participants/{participantId:guid}/stations")]
         [ProducesResponseType(typeof(ApiResponse<List<ParticipantStationStatusDto>>), StatusCodes.Status200OK)]
         public async Task<IActionResult> GetParticipantStations(Guid participantId, CancellationToken ct)
-        {
-            var result = await _service.GetParticipantStationsAsync(participantId, ct);
-            return Success(result);
-        }
+            => Success(await _service.GetParticipantStationsAsync(participantId, ct));
 
+        [HttpGet("{campId:guid}/live-stats")]
+        [ProducesResponseType(typeof(ApiResponse<CampLiveStatsDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetCampLiveStats(Guid campId, CancellationToken ct)
+            => Success(await _service.GetCampLiveStatsAsync(campId, ct));
+
+        [HttpGet("{campId:guid}/participants/search")]
+        [ProducesResponseType(typeof(ApiResponse<List<ParticipantSearchResultDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> SearchParticipants(Guid campId, [FromQuery] string q, CancellationToken ct)
+            => Success(await _service.SearchParticipantsAsync(campId, q ?? string.Empty, ct));
+
+        [HttpGet("{campId:guid}/station-bottlenecks")]
+        [ProducesResponseType(typeof(ApiResponse<List<StationBottleneckDto>>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetStationBottlenecks(Guid campId, CancellationToken ct)
+            => Success(await _service.GetStationBottlenecksAsync(campId, ct));
+
+        [HttpGet("{campId:guid}/registration-timeline")]
+        [ProducesResponseType(typeof(ApiResponse<RegistrationTimelineDto>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRegistrationTimeline(Guid campId, CancellationToken ct)
+            => Success(await _service.GetRegistrationTimelineAsync(campId, ct));
     }
 }

@@ -93,6 +93,16 @@ public class CampController : BaseController
     }
 
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("my/billing-camps")]
+    [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAdminBillingCampsAsync(CancellationToken ct)
+    {
+        var result = await _service.GetAdminBillingCampsAsync(ct);
+        return Success(result);
+    }
+
+
     [Authorize(Roles = "Concierge,Doctor,Subcontractor,Admin")]
     [HttpGet("my/complete")]
     [ProducesResponseType(typeof(ApiResponse<List<HealthCampListDto>>), StatusCodes.Status200OK)]

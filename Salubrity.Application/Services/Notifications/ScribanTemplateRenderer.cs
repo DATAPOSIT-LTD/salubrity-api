@@ -78,7 +78,18 @@ public class ScribanTemplateRenderer : ITemplateRenderer
 
     private async Task<string> RenderWithBaseTemplateAsync(string contentHtml, string templateKey, object model)
     {
-
+        // Embed logo as base64 so it renders in all email clients without needing external image loading
+        var logoPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "assets", "logo.png");
+        string logoUrl;
+        if (File.Exists(logoPath))
+        {
+            var logoBytes = await File.ReadAllBytesAsync(logoPath);
+            logoUrl = $"data:image/png;base64,{Convert.ToBase64String(logoBytes)}";
+        }
+        else
+        {
+            logoUrl = "https://api-salubrity.dataposit.co.ke/assets/logo.png";
+        }
 
         var wrappedModel = new
         {
@@ -89,7 +100,7 @@ public class ScribanTemplateRenderer : ITemplateRenderer
             {
                 name = "Salubrity Centre",
                 website = "https://salubritycentre.com",
-                logo_url = "https://api-salubrity.dataposit.co.ke/assets/logo.png",
+                logo_url = logoUrl,
                 address = "4th Floor. UHMC, Ralph Bunche Road",
                 hotline = "+254 114 454 190",
                 hours = "Mon-Fri (Except Thursdays): 8:00AM - 4:00PM",

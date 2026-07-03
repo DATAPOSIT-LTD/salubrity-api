@@ -79,6 +79,19 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
             .Select(p => p.PatientId!.Value)
             .ToListAsync(ct);
 
+        // HealthCampParticipants.PatientId may not be populated in all camps.
+        // Fall back to patient IDs from submitted form responses so station
+        // completion and cardiometabolic data are never starved.
+        if (filteredParticipantIds.Count == 0)
+        {
+            filteredParticipantIds = await _db.IntakeFormResponses
+                .AsNoTracking()
+                .Where(r => r.HealthCampId == campId && !r.IsDeleted)
+                .Select(r => r.PatientId)
+                .Distinct()
+                .ToListAsync(ct);
+        }
+
         var totalAttendees = participantGenders.Count;
         var female = participantGenders.Count(g => string.Equals(g, "Female", StringComparison.OrdinalIgnoreCase));
         var male = participantGenders.Count(g => string.Equals(g, "Male", StringComparison.OrdinalIgnoreCase));
@@ -95,6 +108,17 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
             .AsNoTracking()
             .Where(s => assignmentServiceIds.Contains(s.Id))
             .ToDictionaryAsync(s => s.Id, s => s.Name, ct);
+
+        // Pre-compute PatientId → GenderName via Patient → User → Gender so the
+        // per-station gender split doesn't depend on HealthCampParticipant.PatientId.
+        var patientGenderMap = await (
+            from p in _db.Patients.AsNoTracking()
+            join u in _db.Users.AsNoTracking() on p.UserId equals u.Id
+            join g in _db.Genders.AsNoTracking() on u.GenderId equals g.Id into gj
+            from g in gj.DefaultIfEmpty()
+            where filteredParticipantIds.Contains(p.Id)
+            select new { p.Id, GenderName = g != null ? g.Name : null }
+        ).ToDictionaryAsync(x => x.Id, x => x.GenderName, ct);
 
         // Per-station: count distinct participants who submitted, broken by gender (% of that gender).
         var stationCompletion = new List<StationCompletionDto>();
@@ -116,21 +140,12 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
                 .Distinct()
                 .ToListAsync(ct);
 
-            var subFem = await _db.HealthCampParticipants
-                .AsNoTracking()
-                .Where(p => p.HealthCampId == campId
-                            && p.PatientId.HasValue
-                            && submittedPatientIds.Contains(p.PatientId.Value))
-                .Where(p => p.User.Gender != null && p.User.Gender.Name == "Female")
-                .CountAsync(ct);
-
-            var subMal = await _db.HealthCampParticipants
-                .AsNoTracking()
-                .Where(p => p.HealthCampId == campId
-                            && p.PatientId.HasValue
-                            && submittedPatientIds.Contains(p.PatientId.Value))
-                .Where(p => p.User.Gender != null && p.User.Gender.Name == "Male")
-                .CountAsync(ct);
+            var subFem = submittedPatientIds.Count(id =>
+                patientGenderMap.TryGetValue(id, out var gn) &&
+                string.Equals(gn, "Female", StringComparison.OrdinalIgnoreCase));
+            var subMal = submittedPatientIds.Count(id =>
+                patientGenderMap.TryGetValue(id, out var gn) &&
+                string.Equals(gn, "Male", StringComparison.OrdinalIgnoreCase));
 
             var fpct = female > 0 ? Math.Min(100, (int)Math.Round(subFem * 100.0 / female)) : 0;
             var mpct = male > 0 ? Math.Min(100, (int)Math.Round(subMal * 100.0 / male)) : 0;
@@ -218,8 +233,8 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
             .Take(10)
             .ToList();
 
-                        // Cardiometabolic snapshot: average BP from "120/80"-style values, BMI distribution, RBS bands.
-        // Re-uses the rawResponses already fetched above.
+        // ── Cardiometabolic snapshot ──
+        // Average BP, BMI distribution, RBS bands — re-uses rawResponses fetched above.
         var sysList = new List<int>();
         var diaList = new List<int>();
         int bmiUnder = 0, bmiNormal = 0, bmiOver = 0, bmiObese = 0, bmiTotal = 0;
@@ -232,14 +247,28 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
 
             if (lcLabel.Contains("blood pressure") || lcLabel.Contains("bp reading"))
             {
-                var parts = resp.Value.Split('/', 2);
-                if (parts.Length == 2
-                    && int.TryParse(parts[0].Trim(), out var s)
-                    && int.TryParse(parts[1].Trim(), out var d))
+                // Combined "120/80" format
+                if (resp.Value.Contains('/'))
                 {
-                    if (s is > 50 and < 300) sysList.Add(s);
-                    if (d is > 30 and < 200) diaList.Add(d);
+                    var parts = resp.Value.Split('/', 2);
+                    if (parts.Length == 2
+                        && int.TryParse(parts[0].Trim(), out var s)
+                        && int.TryParse(parts[1].Trim(), out var d))
+                    {
+                        if (s is > 50 and < 300) sysList.Add(s);
+                        if (d is > 30 and < 200) diaList.Add(d);
+                    }
                 }
+            }
+            else if (lcLabel.Contains("systolic"))
+            {
+                if (int.TryParse(resp.Value.Trim(), out var s) && s is > 50 and < 300)
+                    sysList.Add(s);
+            }
+            else if (lcLabel.Contains("diastolic"))
+            {
+                if (int.TryParse(resp.Value.Trim(), out var d) && d is > 30 and < 200)
+                    diaList.Add(d);
             }
             else if (lcLabel.Contains("bmi") || lcLabel.Contains("body mass"))
             {
@@ -253,7 +282,7 @@ public sealed class CorporateReportRepository : ICorporateReportRepository
                     else bmiObese++;
                 }
             }
-            else if (lcLabel.Contains("rbs") || lcLabel.Contains("random blood sugar"))
+            else if (lcLabel.Contains("rbs") || lcLabel.Contains("blood sugar") || lcLabel.Contains("glucose") || lcLabel.Contains("random blood sugar"))
             {
                 if (decimal.TryParse(resp.Value, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var rbs)
                     && rbs is > 0m and < 60m)

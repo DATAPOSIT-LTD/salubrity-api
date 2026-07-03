@@ -267,6 +267,17 @@ public sealed class FinalCorporateReportDocument : IDocument
         col.Item().Text("Pain Assessment").FontSize(10).Bold().FontColor(TealDark);
         var malePie = _r.PainAssessment.Male.Where(s => s.Value > 0).Select((s, i) => (s.Label + $" {s.Value}%", (double)s.Value, PieColor(i))).ToList();
         var femalePie = _r.PainAssessment.Female.Where(s => s.Value > 0).Select((s, i) => (s.Label + $" {s.Value}%", (double)s.Value, PieColor(i))).ToList();
+        var hasPieData = malePie.Count > 0 || femalePie.Count > 0;
+
+        if (!hasPieData)
+        {
+            col.Item().Border(1).BorderColor(BorderGray).Padding(12).Column(c =>
+            {
+                c.Item().AlignCenter().Text(_r.PainAssessment.Notes ?? "Pain assessment data not available.").FontSize(8).Italic().FontColor(LabelGray);
+            });
+            return;
+        }
+
         var maleBytes = ChartImageRenderer.PieAsPng(malePie, width: 360, height: 220);
         var femaleBytes = ChartImageRenderer.PieAsPng(femalePie, width: 360, height: 220);
         col.Item().Border(1).BorderColor(BorderGray).Padding(8).Row(row =>

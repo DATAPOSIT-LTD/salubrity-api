@@ -29,7 +29,8 @@ public static class VitalThresholds
             return value switch
             {
                 >= 90 and <= 130 => VitalStatus.Normal,
-                (> 130 and <= 140) or (>= 80 and < 90) => VitalStatus.Borderline,
+                // Fix: exactly 140 is Abnormal (Stage 2 HTN threshold), not Borderline
+                (> 130 and < 140) or (>= 80 and < 90) => VitalStatus.Borderline,
                 _ => VitalStatus.Abnormal
             };
         }
@@ -84,7 +85,7 @@ public static class VitalThresholds
             };
         }
 
-        if (l.Contains("blood sugar") || l.Contains("glucose"))
+        if (l.Contains("blood sugar") || l.Contains("glucose") || l.Contains("rbs"))
         {
             return value switch
             {

@@ -11,7 +11,7 @@ public sealed class CorporateReportDocument : IDocument
     private const string TealDark = "#134E4A";
     private const string LabelGray = "#6B7280";
     private const string BorderGray = "#E5E7EB";
-    private const string AmberSoft = "#FEF3C7";
+    private const string AmberSoft = "#F5F1BF";
     private const string RedSoft = "#FEE2E2";
 
     private readonly CorporateReportDto _r;
@@ -101,7 +101,7 @@ public sealed class CorporateReportDocument : IDocument
         col.Item().Row(row =>
         {
             KpiCard(row, $"{_r.ParticipationRate}%", "Participation Rate", "#FCE7F3", "#9D174D");
-            KpiCard(row, _r.TotalAttendees.ToString(), "Total Attendees", "#FEF9C3", "#92400E");
+            KpiCard(row, _r.TotalAttendees.ToString(), "Total Attendees", "#F5F1BF", "#6B6213");
             KpiCard(row, _r.TotalServices.ToString(), "Total Services", "#F3F4F6", "#374151");
             KpiCard(row, $"{(_r.ParticipationTrend >= 0 ? "+" : "")}{_r.ParticipationTrend}%", "Trend", "#D1FAE5", "#065F46");
         });
@@ -124,7 +124,7 @@ public sealed class CorporateReportDocument : IDocument
             // Stat number blocks
             c.Item().Row(row =>
             {
-                AttendanceStat(row, "Female", _r.Attendance.Female, _r.Attendance.FemalePercent, "#B45309");
+                AttendanceStat(row, "Female", _r.Attendance.Female, _r.Attendance.FemalePercent, "#7A6E1C");
                 row.ConstantItem(8); // gap
                 AttendanceStat(row, "Male", _r.Attendance.Male, _r.Attendance.MalePercent, TealDark);
                 row.RelativeItem(); // spacer
@@ -138,12 +138,12 @@ public sealed class CorporateReportDocument : IDocument
                 {
                     int fp = Math.Max(1, Math.Min(99, _r.Attendance.FemalePercent));
                     int mp = Math.Max(1, 100 - fp);
-                    bar.RelativeItem(fp).Height(22).Background("#D97706");
+                    bar.RelativeItem(fp).Height(22).Background("#D3C34A");
                     bar.RelativeItem(mp).Height(22).Background(TealDark);
                 });
                 inner.Item().PaddingTop(5).Row(legend =>
                 {
-                    legend.AutoItem().Width(10).Height(10).Background("#D97706");
+                    legend.AutoItem().Width(10).Height(10).Background("#D3C34A");
                     legend.AutoItem().PaddingLeft(3).Text($"Female {_r.Attendance.FemalePercent}%").FontSize(7).FontColor(LabelGray);
                     legend.ConstantItem(16);
                     legend.AutoItem().Width(10).Height(10).Background(TealDark);
@@ -174,8 +174,7 @@ public sealed class CorporateReportDocument : IDocument
             {
                 h.RelativeItem(3).Text("Station").FontColor(Colors.White).Bold().FontSize(8);
                 h.RelativeItem(4).PaddingLeft(4).Text("Completion (Female / Male)").FontColor(Colors.White).Bold().FontSize(8);
-                h.ConstantItem(38).AlignRight().Text("F %").FontColor(Colors.White).Bold().FontSize(8);
-                h.ConstantItem(38).AlignRight().Text("M %").FontColor(Colors.White).Bold().FontSize(8);
+                h.ConstantItem(38).AlignRight().Text("F% / M%").FontColor(Colors.White).Bold().FontSize(8);
             });
             bool alt = false;
             foreach (var s in _r.StationCompletion)
@@ -189,26 +188,47 @@ public sealed class CorporateReportDocument : IDocument
                     row.RelativeItem(3).AlignMiddle().Text(s.Name).FontSize(8);
                     row.RelativeItem(4).PaddingLeft(4).AlignMiddle().Column(bars =>
                     {
-                        // Female bar
-                        bars.Item().Row(bar =>
+                        if (fp == 0 && mp == 0)
                         {
-                            if (fp > 0) bar.RelativeItem(fp).Height(7).Background("#D97706");
-                            bar.RelativeItem(Math.Max(1, 100 - fp)).Height(7).Background("#FDE68A");
-                        });
-                        bars.Item().PaddingTop(2).Row(bar =>
+                            bars.Item().PaddingTop(2).Text("No submissions recorded")
+                                .FontSize(7).FontColor("#9CA3AF").Italic();
+                        }
+                        else
                         {
-                            if (mp > 0) bar.RelativeItem(mp).Height(7).Background(TealDark);
-                            bar.RelativeItem(Math.Max(1, 100 - mp)).Height(7).Background("#99D4CF");
-                        });
+                            // Female bar with label
+                            bars.Item().Row(bar =>
+                            {
+                                bar.ConstantItem(12).AlignMiddle()
+                                    .Text("F").FontSize(6).Bold().FontColor("#7A6E1C");
+                                bar.RelativeItem().AlignMiddle().Row(b =>
+                                {
+                                    if (fp > 0) b.RelativeItem(fp).Height(10).Background("#D3C34A");
+                                    b.RelativeItem(Math.Max(1, 100 - fp)).Height(10).Background("#EEEAAA");
+                                });
+                            });
+                            bars.Item().PaddingTop(3).Row(bar =>
+                            {
+                                bar.ConstantItem(12).AlignMiddle()
+                                    .Text("M").FontSize(6).Bold().FontColor(TealDark);
+                                bar.RelativeItem().AlignMiddle().Row(b =>
+                                {
+                                    if (mp > 0) b.RelativeItem(mp).Height(10).Background(TealDark);
+                                    b.RelativeItem(Math.Max(1, 100 - mp)).Height(10).Background("#99D4CF");
+                                });
+                            });
+                        }
                     });
-                    row.ConstantItem(38).AlignMiddle().AlignRight().Text($"{fp}%").FontSize(8).FontColor("#B45309");
-                    row.ConstantItem(38).AlignMiddle().AlignRight().Text($"{mp}%").FontSize(8).FontColor(TealDark);
+                    row.ConstantItem(38).AlignMiddle().AlignRight().Column(c =>
+                    {
+                        c.Item().Text($"{fp}%").FontSize(9).Bold().FontColor(fp >= 80 ? "#16A34A" : fp >= 50 ? "#7A6E1C" : "#6B7280");
+                        c.Item().Text($"{mp}%").FontSize(9).Bold().FontColor(mp >= 80 ? "#16A34A" : mp >= 50 ? TealDark : "#6B7280");
+                    });
                 });
             }
             // Legend
             outer.Item().Background("#F9FAFB").BorderTop(1).BorderColor("#E5E7EB").Padding(6).Row(leg =>
             {
-                leg.AutoItem().Width(10).Height(7).Background("#D97706");
+                leg.AutoItem().Width(10).Height(7).Background("#D3C34A");
                 leg.AutoItem().PaddingLeft(3).Text("Female completion").FontSize(6).FontColor(LabelGray);
                 leg.ConstantItem(12);
                 leg.AutoItem().Width(10).Height(7).Background(TealDark);
@@ -235,7 +255,7 @@ public sealed class CorporateReportDocument : IDocument
             {
                 string rowBg = f.Level switch { "high" => "#FEF2F2", "med" => "#FFFBEB", _ => alt ? "#F9FAFB" : "#FFFFFF" };
                 string barColor = f.Level switch { "high" => "#EF4444", "med" => "#F59E0B", _ => TealDark };
-                string textColor = f.Level switch { "high" => "#B91C1C", "med" => "#B45309", _ => TealDark };
+                string textColor = f.Level switch { "high" => "#B91C1C", "med" => "#7A6E1C", _ => TealDark };
                 alt = !alt;
                 int pct = Math.Max(0, Math.Min(100, f.Pct));
                 outer.Item().Background(rowBg).BorderTop(1).BorderColor("#E5E7EB").Padding(6).Row(row =>
@@ -349,12 +369,10 @@ public sealed class CorporateReportDocument : IDocument
                     t.Span(item.label).FontSize(7).FontColor("#374151");
                     t.Span($"  {item.value} ({pct}%)").FontSize(7).FontColor("#6B7280");
                 });
-                stack.Item().Height(3).Background("#F3F4F6").Column(bar =>
+                stack.Item().Row(bar =>
                 {
-                    if (pct > 0)
-                    {
-                        bar.Item().Width(Math.Max(1, pct)).Height(3).Background(item.color);
-                    }
+                    if (pct > 0) bar.RelativeItem(pct).Height(5).Background(item.color);
+                    bar.RelativeItem(Math.Max(1, 100 - pct)).Height(5).Background("#F3F4F6");
                 });
             }
         });

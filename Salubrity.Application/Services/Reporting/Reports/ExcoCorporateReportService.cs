@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 // File: Application/Services/Reporting/Reports/ExcoCorporateReportService.cs
 // Real KPIs derived from CorporateReportRepository.LoadAsync (TotalAttendees / Expected / TopFindings)
 // + age & gender from FinalCorporateReportRepository. All narratives via Gemini.
+// P0 fix: per-metric KPIs use measured-count denominators (abnormal/measured), not shared total.
 
 using System.Text;
 using System.Text.Json;
@@ -127,22 +128,9 @@ public sealed class ExcoCorporateReportService : IExcoCorporateReportService
         var topFindings = raw?.TopFindings ?? new List<TopFindingDto>();
         var ageBuckets = await _finalRepo.GetAgeBucketsFilteredAsync(campId, filters, ct);
 
-        // Real per-station attendance: count distinct patients who completed at least one form
-        // matching the station's keywords for this camp. Replaces the old TopFindings-keyword approach
-        // which returned 0 whenever the station's name wasn't already in the top findings.
         var counts = await _finalRepo.GetExcoCategoryCountsAsync(campId, filters, ct);
-        int denom = Math.Max(counts.TotalAttendees, expected);
-        int Pct(int n) => denom > 0 ? (int)Math.Round(n * 100.0 / denom) : 0;
 
-        ExcoKpiDto StationKpi(string title, int n) => new ExcoKpiDto
-        {
-            Title = title,
-            Percentage = $"{Pct(n)}%",
-            Attendance = $"{n}/{denom}",
-            Trend = "Stable",
-            Notes = string.Empty,
-        };
-
+        // Engagement KPI: attendees vs expected (unchanged)
         var kpiEngagement = new ExcoKpiDto
         {
             Title = "Camp Engagement & Turnout",
@@ -151,11 +139,35 @@ public sealed class ExcoCorporateReportService : IExcoCorporateReportService
             Trend = "Stable",
             Notes = string.Empty,
         };
-        var kpiVision    = StationKpi("Vision & productivity Visual issues", counts.Vision);
-        var kpiHighBp    = StationKpi("Cardiometabolic (High BP)",          counts.Bp);
-        var kpiCdmp      = StationKpi("Care navigation CDMP recommended",   counts.Cdmp);
-        var kpiPreDiab   = StationKpi("Cardiometabolic (Pre-diabetes)",     counts.PreDiabetes);
-        var kpiMh        = StationKpi("Mental health (MH Flags)",           counts.MentalHealth);
+
+        // Per-metric KPIs: denominator = patients who had THAT TEST, not total attendees.
+        // This fixes the coverage-as-prevalence bug where "62% Hypertension" actually meant
+        // "62% of employees visited triage" — not 62% with elevated BP readings.
+        ExcoKpiDto AbnormalKpi(string title, int abnormal, int measured) => new ExcoKpiDto
+        {
+            Title = title,
+            Percentage = measured > 0 ? $"{(int)Math.Round(abnormal * 100.0 / measured)}%" : "0%",
+            Attendance = $"{abnormal}/{measured}",
+            Trend = "Stable",
+            Notes = string.Empty,
+        };
+
+        // CDMP is a care-navigation referral count — total attendees is the correct denominator
+        int cdmpDenom = Math.Max(counts.TotalAttendees, expected);
+        ExcoKpiDto CdmpKpi(string title, int n) => new ExcoKpiDto
+        {
+            Title = title,
+            Percentage = cdmpDenom > 0 ? $"{(int)Math.Round(n * 100.0 / cdmpDenom)}%" : "0%",
+            Attendance = $"{n}/{cdmpDenom}",
+            Trend = "Stable",
+            Notes = string.Empty,
+        };
+
+        var kpiVision  = AbnormalKpi("Vision & productivity Visual issues", counts.Vision,       counts.VisionMeasured);
+        var kpiHighBp  = AbnormalKpi("Cardiometabolic (High BP)",           counts.Bp,           counts.BpMeasured);
+        var kpiPreDiab = AbnormalKpi("Cardiometabolic (Pre-diabetes)",      counts.PreDiabetes,  counts.PreDiabetesMeasured);
+        var kpiMh      = AbnormalKpi("Mental health (MH Flags)",            counts.MentalHealth, counts.MentalHealthMeasured);
+        var kpiCdmp    = CdmpKpi("Care navigation CDMP recommended",        counts.Cdmp);
 
         var narratives = await GenerateExcoNarrativesAsync(
             camp.Name, clientName, dateRange, expected, totalAttendees, participationRate, femalePct, malePct,
@@ -292,7 +304,7 @@ public sealed class ExcoCorporateReportService : IExcoCorporateReportService
         sb.AppendLine("Age distribution (Female / Male per band):");
         foreach (var b in ageBuckets) sb.AppendLine($"  - {b.Label}: F {b.Female} | M {b.Male}");
         sb.AppendLine();
-        sb.AppendLine("KPIs computed from the data:");
+        sb.AppendLine("KPIs computed from the data (format: title: prevalence% (abnormal/measured)):");
         void K(ExcoKpiDto k) => sb.AppendLine($"  - {k.Title}: {k.Percentage} ({k.Attendance})");
         K(kEng); K(kVis); K(kBp); K(kCdmp); K(kPre); K(kMh);
         sb.AppendLine();

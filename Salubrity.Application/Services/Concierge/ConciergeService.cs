@@ -1,4 +1,4 @@
-﻿using Salubrity.Application.DTOs.Concierge;
+using Salubrity.Application.DTOs.Concierge;
 using Salubrity.Application.DTOs.HealthCamps;
 using Salubrity.Application.Interfaces.Repositories.Concierge;
 using Salubrity.Application.Interfaces.Services.Concierge;
@@ -11,9 +11,7 @@ namespace Salubrity.Application.Services.Concierge
         private readonly IConciergeRepository _repo;
         private readonly IHealthCampCheckInService _checkInService;
 
-        public ConciergeService(
-            IConciergeRepository repo,
-            IHealthCampCheckInService checkInService)
+        public ConciergeService(IConciergeRepository repo, IHealthCampCheckInService checkInService)
         {
             _repo = repo;
             _checkInService = checkInService;
@@ -31,12 +29,19 @@ namespace Salubrity.Application.Services.Concierge
         public Task<PatientDetailDto?> GetPatientDetailByIdAsync(Guid patientId, CancellationToken ct = default)
             => _repo.GetPatientDetailByIdAsync(patientId, ct);
 
-        /// <summary>
-        /// Returns all service stations and statuses for a participant.
-        /// </summary>
         public async Task<List<ParticipantStationStatusDto>> GetParticipantStationsAsync(Guid participantId, CancellationToken ct = default)
-        {
-            return await _checkInService.GetParticipantStationStatusesAsync(participantId, ct);
-        }
+            => await _checkInService.GetParticipantStationStatusesAsync(participantId, ct);
+
+        public Task<CampLiveStatsDto> GetCampLiveStatsAsync(Guid campId, CancellationToken ct)
+            => _repo.GetCampLiveStatsAsync(campId, ct);
+
+        public Task<List<ParticipantSearchResultDto>> SearchParticipantsAsync(Guid campId, string query, CancellationToken ct)
+            => _repo.SearchParticipantsAsync(campId, query, ct);
+
+        public Task<List<StationBottleneckDto>> GetStationBottlenecksAsync(Guid campId, CancellationToken ct)
+            => _repo.GetStationBottlenecksAsync(campId, ct);
+
+        public Task<RegistrationTimelineDto> GetRegistrationTimelineAsync(Guid campId, CancellationToken ct)
+            => _repo.GetRegistrationTimelineAsync(campId, ct);
     }
 }
